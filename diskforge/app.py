@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 from diskforge.gui.i18n import install_language_manager
 from diskforge.gui.main_window import MainWindow
+from diskforge.gui.settings import create_settings
 
 
 STYLE = """
@@ -44,10 +45,10 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     app.setStyleSheet(STYLE)
-    settings = QSettings("DiskForge", "DiskForge")
+    settings = create_settings(sys.argv[1:])
     install_language_manager(app, settings)
     sys.excepthook = _exception_hook
-    window = MainWindow()
+    window = MainWindow(settings=settings)
     window.show()
     return app.exec()
 

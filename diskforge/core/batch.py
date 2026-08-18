@@ -50,6 +50,52 @@ class BatchRunner:
         except (KeyError, ValueError) as exc:
             raise DiskForgeError("Batch operation kind is missing or unsupported.") from exc
 
+    def preview(self, path: Path | str) -> list[dict[str, Any]]:
+        """Validate a recipe without reading images, creating files, or writing devices."""
+        spec = self.load(path)
+        preview: list[dict[str, Any]] = []
+        required: dict[OperationKind, tuple[str, ...]] = {
+            OperationKind.CONVERT: ("source", "destination", "format"),
+            OperationKind.VERIFY: ("source", "sha256"),
+            OperationKind.COMPARE: ("source", "destination"),
+            OperationKind.RESIZE: ("source", "destination", "size_bytes"),
+            OperationKind.EXTRACT: (),
+            OperationKind.INJECT: ("destination", "sources"),
+            OperationKind.BUNDLE: ("sources", "destination"),
+            OperationKind.UNBUNDLE: ("source", "destination"),
+        }
+        for position, raw in enumerate(spec["operations"]):
+            item = raw if isinstance(raw, dict) else {}
+            kind = self._operation_kind(item)
+            if kind in {OperationKind.READ_DEVICE, OperationKind.WRITE_DEVICE}:
+                raise DiskForgeError("Raw device actions are not permitted in unattended batch files.")
+            if kind not in required:
+                raise DiskForgeError(f"Batch operation is not implemented: {kind.value}")
+            if kind == OperationKind.EXTRACT:
+                has_single = "source" in item and "destination" in item
+                has_sequence = "sources" in item and "destination_root" in item and "sequence" in item
+                if not (has_single or has_sequence):
+                    raise DiskForgeError("Extraction requires source/destination or sources/destination_root/sequence.")
+            else:
+                absent = [key for key in required[kind] if key not in item]
+                if absent:
+                    raise DiskForgeError(f"Batch {kind.value} operation is missing: {', '.join(absent)}.")
+            if kind == OperationKind.CONVERT:
+                try:
+                    ImageFormat(str(item["format"]))
+                except ValueError as exc:
+                    raise DiskForgeError("Batch conversion format is unsupported.") from exc
+            preview.append({
+                "index": position,
+                "name": str(item.get("name") or kind.value),
+                "kind": kind.value,
+                "source": item.get("source"),
+                "destination": item.get("destination") or item.get("destination_root"),
+                "will_write": kind in {OperationKind.CONVERT, OperationKind.RESIZE, OperationKind.INJECT,
+                                         OperationKind.BUNDLE, OperationKind.UNBUNDLE, OperationKind.EXTRACT},
+            })
+        return preview
+
     def run(self, path: Path | str, on_item: Callable[[str], None] | None = None) -> BatchResult:
         spec = self.load(path)
         result = BatchResult()

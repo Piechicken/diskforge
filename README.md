@@ -30,14 +30,14 @@ The first public release provides four native desktop builds. Download the packa
 
 | Platform | Package | Launch |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.5.0-windows-x64.zip` | Extract, then run `DiskForge.exe`. |
-| Linux x64 | `DiskForge-v0.5.0-linux-x64.zip` | Extract, then run `./DiskForge`. |
-| macOS Intel | `DiskForge-v0.5.0-macos-intel-x64.zip` | Extract, then move `DiskForge.app` to Applications. |
-| macOS Apple Silicon | `DiskForge-v0.5.0-macos-arm64.zip` | Extract, then move `DiskForge.app` to Applications. |
+| Windows x64 | `DiskForge-v0.6.0-windows-x64.zip` | Extract, then run `DiskForge.exe`. |
+| Linux x64 | `DiskForge-v0.6.0-linux-x64.zip` | Extract, then run `./DiskForge`. |
+| macOS Intel | `DiskForge-v0.6.0-macos-intel-x64.zip` | Extract, then move `DiskForge.app` to Applications. |
+| macOS Apple Silicon | `DiskForge-v0.6.0-macos-arm64.zip` | Extract, then move `DiskForge.app` to Applications. |
 
 ## Interface languages
 
-DiskForge v0.5.0 localizes its desktop interface at runtime. Select **Tools → Language** to switch immediately between the six United Nations working languages—**Arabic, Chinese, English, French, Russian, and Spanish**—plus **Japanese**. The preference is retained for the next launch. Selecting Arabic switches the complete Qt layout to right-to-left while preserving technical values such as device paths, checksums, file extensions, and the physical-write confirmation phrase `ERASE`.
+DiskForge v0.6.0 localizes its desktop interface at runtime. Select **Tools → Language** to switch immediately between the six United Nations working languages—**Arabic, Chinese, English, French, Russian, and Spanish**—plus **Japanese**. The preference is retained for the next launch. Selecting Arabic switches the complete Qt layout to right-to-left while preserving technical values such as device paths, checksums, file extensions, and the physical-write confirmation phrase `ERASE`.
 
 Read [LOCALIZATION.md](docs/LOCALIZATION.md) for the language matrix, RTL behavior, safety boundaries, and translation-maintenance workflow.
 
@@ -51,13 +51,13 @@ DiskForge brings the most useful image-management workflows into one original, a
 
 | Workflow | Native capability | Notes |
 |---|---|---|
-| Create images | RAW/IMG, FAT12, FAT16, FAT32, DMF-layout FAT12, ISO9660/Joliet | Create editable FAT images, documented 80×2×21-sector DMF-layout image files, or author ISO media from a local directory. |
-| Browse and extract | FAT12/16/32, ISO9660/Joliet, and optional NTFS/EXT2/EXT3 read-only backend | Tree, sortable detail table, persistent icon grid, safe double-click preview, bulk extraction, image information, MBR/GPT inspection, path-preserving or flattened output, and explicit conflict policy. |
+| Create images | RAW/IMG, FAT12, FAT16, FAT32, DMF-layout FAT12, ISO9660/Joliet | Create editable FAT images, documented 80×2×21-sector DMF-layout image files, ordinary ISO media, or El Torito ISO media from a local directory and an optional local boot image. |
+| Browse and extract | FAT12/16/32, ISO9660/Joliet, fixed VHD data views, and optional NTFS/EXT2/EXT3 read-only backend | Tree, sortable detail table, persistent icon grid, safe double-click preview, bulk extraction, image information, MBR/GPT inspection, path-preserving or flattened output, and explicit conflict policy. Fixed VHD opens through a temporary read-only RAW data view that excludes its footer. |
 | Change image contents | FAT injection, recursive folders, deletion, rename, timestamps, DOS attributes, and volume labels | Drag local files or folders into writable FAT images, including directly onto a displayed target folder. ISO, NTFS and EXT are deliberately exposed through read-only paths. |
 | Convert formats | RAW/IMG and fixed VHD natively | VHDX, VMDK, and QCOW2 use an explicitly configured `qemu-img` adapter. |
 | Compact FAT images | Rebuild-based defragmentation | Writes a new image, preserving the original image as the recovery point. |
-| Inspect and repair structures | 512-byte hex viewer/editor, validated FAT boot properties, neutral MBR wrapping for FAT superfloppy images, trailing-zero-sector copy trimming, MBR backup/restore/neutral reset, and GPT CRC diagnostics | Full image or MBR backups are created before protected structural changes; MBR wrapping and trimming always write a new file. |
-| Verify and automate | SHA-256, byte-for-byte compare, graphical batch extraction designer, and versioned JSON batch recipes | The designer previews safe incrementing output names; batch supports safe file-image operations and deliberately rejects raw-device writes. |
+| Inspect and repair structures | 512-byte hex viewer/editor, validated FAT boot properties, original neutral/message templates, neutral MBR wrapping and deployment planning for FAT superfloppy images, trailing-zero-sector copy trimming, MBR backup/restore/neutral reset, and GPT CRC diagnostics | Full image or MBR backups are created before protected structural changes. Templates preserve BPB fields and use no imported boot program; wrapping, deployment preparation, and trimming always write a new file. |
+| Verify and automate | SHA-256, byte-for-byte compare, graphical batch extraction designer, preflight plans, and versioned JSON batch recipes | The designer previews safe incrementing output names; every batch recipe can be reviewed through `--dry-run` before execution and deliberately rejects raw-device writes. Comparisons can optionally report only full trailing zero sectors as ignored. |
 | Annotate and resize | Non-invasive image comments and safe new-file RAW/FAT resize | Raw images refuse shrinking if non-zero tail bytes would be discarded. |
 | Build redistributable bundles | Authenticated multi-image `.dfb` containers and SHA-256-verified multi-image self-extracting `.pyz` archives | `.dfb` supports optional scrypt-derived AES-256-GCM encryption, compression, comments, and per-file verification. |
 | Read and write physical media | Streamed device imaging and restoration | Rejects system disks, mounted targets, and capacity mismatches; typed confirmation is required. Detected optical media are read-only and export to ISO by default. |
@@ -66,7 +66,11 @@ DiskForge brings the most useful image-management workflows into one original, a
 
 > A disk-image utility should make dangerous operations **hard to trigger accidentally**.
 
-DiskForge never mounts an image or writes a physical device automatically. Before a physical write, it checks capacity, mounted state, and system-disk status, then requires the exact phrase `ERASE`. The write path can verify bytes after completion. Boot-sector changes also create a full-image backup first. Always work with disposable test images before operating on irreplaceable media.
+DiskForge never mounts an image or writes a physical device automatically. FAT deployment first produces a reviewable neutral-MBR image; it does not bypass the protected physical-write operation. Before a physical write, it checks capacity, mounted state, and system-disk status, then requires the exact phrase `ERASE`. The write path can verify bytes after completion. Boot-sector changes also create a full-image backup first. Always work with disposable test images before operating on irreplaceable media.
+
+## Portable configuration
+
+Use `diskforge --portable` to write preferences, language choice, recent images, view mode, theme, font, and external-tool path to `DiskForgeData/diskforge.ini` in the current directory. Use `--portable=DIR`, `--portable-directory DIR`, or `DISKFORGE_PORTABLE_DIR` to select an explicit location. This mode uses an ordinary portable INI file and does not require a system registry entry.
 
 ## Start in minutes
 
@@ -86,8 +90,12 @@ diskforge-cli list demo.img
 diskforge-cli bundle demo.dfb demo.img --comment "lab media"
 diskforge-cli compare demo.img restored.img
 diskforge-cli create-dmf demo.dmf
+diskforge-cli create-iso folder bootable.iso --boot-image boot.img --boot-media noemul
 diskforge-cli iso-boot-info bootable.iso
 diskforge-cli export-boot-image bootable.iso boot.img
+diskforge-cli boot-templates
+diskforge-cli prepare-fat-deployment demo.img demo-deploy.img
+diskforge-cli batch recipe.json --dry-run
 diskforge-cli --help
 ```
 
@@ -106,18 +114,18 @@ Build on each target operating system to create that platform’s native applica
 | RAW / IMG / IMA / BIN | Yes | FAT payloads | Yes |
 | FAT12 / FAT16 / FAT32 | Yes | Yes | Yes |
 | ISO9660 / Joliet | Yes | Read and extract | Create from folder |
-| Fixed VHD | Yes | Convert payload | Yes |
-| VHDX / VMDK / QCOW2 | With adapter | Through conversion workflow | With adapter |
+| Fixed VHD | Yes | Temporary read-only data view and conversion | Yes |
+| VHDX / VMDK / QCOW2 | With adapter | Temporary read-only RAW view after configured conversion | With adapter |
 | NTFS / EXT2 / EXT3 | Signature or partition hint | Read/list/extract with the optional Sleuth Kit backend; never modified | Use a compatible external workflow for writes. |
 | DiskForge bundle (`.dfb`) | Header and authenticated manifest | Extract and verify; optional AES-256-GCM password protection | Create from one or more local images. |
-| El Torito boot catalog | Inspect | Read-only boot-image export | Existing ISO content is never modified. |
+| El Torito boot catalog | Inspect | Read-only boot-image export | Create new bootable ISO media from a directory and optional local boot image; existing ISO content is never modified. |
 | DMG | Signature hint | Not natively modified | Use a compatible external workflow. |
 
 DiskForge exposes unsupported editing paths honestly instead of attempting unsafe writes. Configure `qemu-img` through **Tools → Preferences** when virtual-disk conversion is needed. NTFS/EXT read-only browsing requires locally installed Sleuth Kit `fls` and `icat` executables; the application never downloads, mounts, or runs an external converter silently.
 
 ## Engineering quality
 
-The project includes automated coverage for FAT creation and advanced metadata editing, ISO creation and extraction, native drag-and-drop contracts, graphical batch design, persistent directory view modes, theme selection, optical-device classification, fixed VHD creation, checksums, authenticated image bundles, byte comparison, safe resizing, GPT CRC diagnostics, MBR lifecycle protection, read-only EXT integration, self-extractors, device-write safety, boot-sector backup, directory export, and rebuild-based FAT compaction. pytest uses strict configuration, strict marker checks, and warning-as-error behavior; the GUI is also validated in an off-screen environment. Continuous integration runs the same quality gate on Windows, Linux, macOS Intel, and macOS Apple Silicon, then packages each native target.
+The project includes automated coverage for FAT creation and advanced metadata editing, bootable ISO creation and El Torito inspection, original boot template BPB preservation, fixed VHD temporary browsing and cleanup, deployment planning, conservative zero-tail reports, native drag-and-drop contracts, graphical batch design and no-side-effect preflight, public API sessions, portable settings, task-center history, persistent directory views and font preferences, theme selection, optical-device classification, checksums, authenticated image bundles, safe resizing, GPT CRC diagnostics, MBR lifecycle protection, read-only EXT integration, self-extractors, device-write safety, directory export, and rebuild-based FAT compaction. pytest uses strict configuration, strict marker checks, and warning-as-error behavior; the GUI is also validated in an off-screen environment. Continuous integration runs the same quality gate on Windows, Linux, macOS Intel, and macOS Apple Silicon, then packages each native target.
 
 ```bash
 QT_QPA_PLATFORM=offscreen pytest
@@ -125,7 +133,7 @@ QT_QPA_PLATFORM=offscreen python scripts/gui_smoke.py
 QT_QPA_PLATFORM=offscreen python scripts/gui_i18n_smoke.py
 ```
 
-Read [BUILDING.md](docs/BUILDING.md) for build and release details. The visual smoke-test note is available in [gui_validation.md](artifacts/gui_validation.md).
+Read [BUILDING.md](docs/BUILDING.md) for build and release details, [API.md](docs/API.md) for the stable Python integration facade, and [COMPLETION_ACCEPTANCE.md](docs/COMPLETION_ACCEPTANCE.md) for the auditable convergence boundary. The visual smoke-test note is available in [gui_validation.md](artifacts/gui_validation.md).
 
 ## Contributing
 

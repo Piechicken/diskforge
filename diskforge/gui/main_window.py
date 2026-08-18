@@ -14,10 +14,10 @@ from pathlib import Path
 from typing import Callable, Sequence
 
 from PySide6.QtCore import QDateTime, QMimeData, QSettings, QSize, Qt, QThreadPool, QTimer, QUrl
-from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QDrag, QKeySequence, QTextDocument
+from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QDrag, QFont, QKeySequence, QTextDocument
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 from PySide6.QtWidgets import (
-    QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
+    QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFontComboBox,
     QFileDialog, QFormLayout, QFrame, QGroupBox, QHBoxLayout, QHeaderView, QLabel,
     QLineEdit, QInputDialog, QListWidgetItem, QMainWindow, QMenu, QMessageBox, QPlainTextEdit, QProgressBar,
     QPushButton, QSpinBox, QDateTimeEdit, QSplitter, QStackedWidget, QStatusBar, QStyle, QTableWidget, QTableWidgetItem,
@@ -26,12 +26,14 @@ from PySide6.QtWidgets import (
 )
 
 from diskforge.core.batch import BatchRunner
-from diskforge.core.bootsector import (backup_and_write_boot_sector, edit_fat_boot_properties,
-                                       inspect_boot_sector, load_boot_sector_file, parse_hexdump,
-                                       read_sector, sector_hexdump)
+from diskforge.core.browse_session import BrowsableImageSession, materialize_browsable_image
+from diskforge.core.bootsector import (apply_boot_template, backup_and_write_boot_sector,
+                                       edit_fat_boot_properties, inspect_boot_sector, list_boot_templates,
+                                       load_boot_sector_file, parse_hexdump, read_sector, sector_hexdump)
 from diskforge.core.bundle import create_bundle
 from diskforge.core.compare import compare_streams
 from diskforge.core.devices import list_devices, read_device_to_image, write_image_to_device
+from diskforge.core.deployment import prepare_fat_deployment
 from diskforge.core.eltorito import export_boot_image, inspect_eltorito
 from diskforge.core.filesystems import FatImageFilesystem, ImageFilesystem, IsoImageFilesystem, create_fat_image, create_iso_from_directory, defragment_fat_image
 from diskforge.core.formats import QemuImgConverter, convert_image, inspect_image
@@ -87,6 +89,20 @@ class NewImageDialog(QDialog):
         form.addRow("FAT variant", self.fat)
         form.addRow("Volume label", self.label)
         form.addRow("ISO source folder", source_row)
+        self.boot_image = QLineEdit()
+        boot_button = QPushButton("Browse…")
+        boot_button.clicked.connect(self._choose_boot_image)
+        boot_row = QHBoxLayout()
+        boot_row.addWidget(self.boot_image)
+        boot_row.addWidget(boot_button)
+        self.boot_media = QComboBox()
+        self.boot_media.addItem("No emulation", "noemul")
+        self.boot_media.addItem("Floppy emulation", "floppy")
+        self.boot_media.addItem("Hard-disk emulation", "hdemul")
+        self.boot_info_table = QCheckBox("Write boot info table into the ISO copy")
+        form.addRow("Optional ISO boot image", boot_row)
+        form.addRow("Boot media mode", self.boot_media)
+        form.addRow("", self.boot_info_table)
         layout.addLayout(form)
         self.help = QLabel("FAT images can be browsed and modified immediately.")
         self.help.setWordWrap(True)
@@ -103,11 +119,20 @@ class NewImageDialog(QDialog):
         if choice:
             self.source.setText(choice)
 
+    def _choose_boot_image(self) -> None:
+        choice, _ = QFileDialog.getOpenFileName(self, "Choose El Torito boot image", "", "Boot image (*.img *.ima *.bin);;All files (*)")
+        if choice:
+            self.boot_image.setText(choice)
+
     def _update_controls(self) -> None:
         mode = self.kind.currentData()
+        is_iso = mode == "iso"
         self.size.setEnabled(mode not in {"iso", "dmf"})
         self.fat.setEnabled(mode == "fat")
-        self.source.setEnabled(mode == "iso")
+        self.source.setEnabled(is_iso)
+        self.boot_image.setEnabled(is_iso)
+        self.boot_media.setEnabled(is_iso)
+        self.boot_info_table.setEnabled(is_iso)
         if mode == "iso":
             self.help.setText("ISO files are authored from a local directory and are read-only after creation.")
         elif mode == "raw":
@@ -177,8 +202,15 @@ class BootSectorDialog(QDialog):
         reload_button.clicked.connect(self._reload)
         save = QPushButton("Backup and apply")
         save.clicked.connect(self._save)
+        self.template = QComboBox()
+        for item in list_boot_templates():
+            self.template.addItem(item.name, item)
+        apply_template = QPushButton("Apply original template…")
+        apply_template.clicked.connect(self._apply_template)
         row.addWidget(load)
         row.addWidget(reload_button)
+        row.addWidget(self.template)
+        row.addWidget(apply_template)
         row.addStretch()
         row.addWidget(save)
         layout.addLayout(row)
@@ -197,6 +229,24 @@ class BootSectorDialog(QDialog):
         path, _ = QFileDialog.getOpenFileName(self, "Load boot sector", "", "Boot sector (*.bin *.img);;All files (*)")
         if path:
             self.editor.setPlainText(sector_hexdump(load_boot_sector_file(path)))
+
+    def _apply_template(self) -> None:
+        template = self.template.currentData()
+        if template is None:
+            return
+        answer = QMessageBox.warning(
+            self, "Apply original boot template",
+            f"Apply '{template.name}'? This replaces only the executable boot-code area, preserves the FAT BPB, and first creates a complete image backup.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel, QMessageBox.StandardButton.Cancel,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            _, backup = apply_boot_template(self.image, template.identifier)
+            QMessageBox.information(self, "Boot template applied", f"Template applied. Backup created:\n{backup}")
+            self._reload()
+        except Exception as exc:
+            QMessageBox.critical(self, "Unable to apply boot template", str(exc))
 
     def _save(self) -> None:
         try:
@@ -300,17 +350,20 @@ class DeviceDialog(QDialog):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self) -> None:
+    def __init__(self, settings: QSettings | None = None) -> None:
         super().__init__()
-        self.settings = QSettings("DiskForge", "DiskForge")
+        self.settings = settings or QSettings("DiskForge", "DiskForge")
         apply_theme(QApplication.instance(), str(self.settings.value("appearance", "light")))
+        self._apply_interface_font()
         self.thread_pool = QThreadPool.globalInstance()
         self.current_path: Path | None = None
         self.current_info = None
         self.current_fs: ImageFilesystem | None = None
+        self.current_browse_session: BrowsableImageSession | None = None
         self.current_directory = "/"
         self.current_entries: list[ImageEntry] = []
         self.current_worker: FunctionWorker | None = None
+        self._task_items: dict[int, QTreeWidgetItem] = {}
         self._preview_directories: list[Path] = []
         self.setWindowTitle("DiskForge — Disk Image Studio")
         self.resize(1280, 790)
@@ -339,6 +392,7 @@ class MainWindow(QMainWindow):
         self.action_compare = self._action("Compare image…", None, self.compare_current_image)
         self.action_bundle = self._action("Create secure image bundle…", None, self.create_bundle)
         self.action_wrap_mbr = self._action("Wrap FAT image in MBR…", None, self.wrap_current_fat_in_mbr)
+        self.action_prepare_deployment = self._action("Prepare FAT deployment image…", None, self.prepare_current_fat_deployment)
         self.action_trim_zero_tail = self._action("Trim trailing zero sectors…", None, self.trim_current_zero_tail)
         self.action_iso_boot = self._action("Inspect / export ISO boot image…", None, self.inspect_iso_boot)
         self.action_up = self._action("Up", "Alt+Up", self.go_up)
@@ -384,7 +438,7 @@ class MainWindow(QMainWindow):
                                self.action_rename, self.action_attributes, self.action_label, self.action_comment])
         menu_image.addSeparator()
         menu_image.addActions([self.action_convert, self.action_resize, self.action_trim_zero_tail, self.action_compare, self.action_verify,
-                               self.action_defragment, self.action_partitions, self.action_boot, self.action_wrap_mbr, self.action_iso_boot])
+                               self.action_defragment, self.action_partitions, self.action_boot, self.action_wrap_mbr, self.action_prepare_deployment, self.action_iso_boot])
         menu_image.addSeparator()
         menu_image.addActions([self.action_export, self.action_print, self.action_bundle, self.action_sfx])
         menu_view = self.menuBar().addMenu("&View")
@@ -506,8 +560,19 @@ class MainWindow(QMainWindow):
         self.info_view.setOpenExternalLinks(True)
         self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
+        self.task_view = QTreeWidget()
+        self.task_view.setHeaderLabels(["Status", "Task", "Detail"])
+        self.task_view.setRootIsDecorated(False)
+        clear_tasks = QPushButton("Clear completed tasks")
+        clear_tasks.clicked.connect(self._clear_completed_tasks)
+        tasks_panel = QWidget()
+        tasks_layout = QVBoxLayout(tasks_panel)
+        tasks_layout.setContentsMargins(0, 0, 0, 0)
+        tasks_layout.addWidget(self.task_view)
+        tasks_layout.addWidget(clear_tasks)
         dock_tabs.addTab(self.info_view, "Image information")
         dock_tabs.addTab(self.log_view, "Activity")
+        dock_tabs.addTab(tasks_panel, "Tasks")
         dock = QWidget()
         dock_layout = QVBoxLayout(dock)
         dock_layout.setContentsMargins(0, 0, 0, 0)
@@ -578,7 +643,9 @@ class MainWindow(QMainWindow):
                        self.action_verify, self.action_partitions, self.action_boot, self.action_comment,
                        self.action_bundle, self.action_sfx, self.action_trim_zero_tail, self.action_iso_boot]:
             action.setEnabled(open_image)
-        self.action_wrap_mbr.setEnabled(open_image and self.current_info is not None and self.current_info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32})
+        fat_source = open_image and self.current_info is not None and self.current_info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}
+        self.action_wrap_mbr.setEnabled(fat_source)
+        self.action_prepare_deployment.setEnabled(fat_source)
         self.action_iso_boot.setEnabled(open_image and self.current_info is not None and (self.current_info.image_format == ImageFormat.ISO or self.current_info.filesystem == FileSystemType.ISO9660))
         self.action_extract.setEnabled(open_image and entries and self.current_fs is not None)
         self.action_preview.setEnabled(open_image and self.current_fs is not None and selected_file is not None and len(self._selected_paths()) == 1)
@@ -601,28 +668,67 @@ class MainWindow(QMainWindow):
         stamp = datetime.now().strftime("%H:%M:%S")
         self.log_view.appendPlainText(f"[{stamp}] {message}")
 
+    def _task_item(self, worker: FunctionWorker, title: str) -> QTreeWidgetItem:
+        item = QTreeWidgetItem(["Queued", title, "Waiting to start"])
+        self.task_view.addTopLevelItem(item)
+        self._task_items[id(worker)] = item
+        self.task_view.scrollToItem(item)
+        return item
+
+    def _set_task_state(self, worker: FunctionWorker, status: str, detail: str) -> None:
+        item = self._task_items.get(id(worker))
+        if item:
+            item.setText(0, status)
+            item.setText(2, detail)
+
+    def _clear_completed_tasks(self) -> None:
+        completed = {"Completed", "Failed", "Cancelled"}
+        for index in reversed(range(self.task_view.topLevelItemCount())):
+            item = self.task_view.topLevelItem(index)
+            if item.text(0) in completed:
+                self.task_view.takeTopLevelItem(index)
+        self._task_items = {key: item for key, item in self._task_items.items() if item.treeWidget() is self.task_view}
+
     def _run_worker(self, title: str, function: Callable, *args, on_result: Callable | None = None, **kwargs) -> None:  # type: ignore[no-untyped-def]
         if self.current_worker:
             QMessageBox.information(self, "Operation in progress", "Wait for the current operation to finish or cancel it.")
             return
         worker = FunctionWorker(title, function, *args, **kwargs)
         self.current_worker = worker
-        worker.signals.started.connect(lambda text: self._worker_started(text))
-        worker.signals.progress.connect(self._worker_progress)
-        worker.signals.result.connect(lambda value: on_result(value) if on_result else self._worker_result(value))
-        worker.signals.error.connect(self._worker_error)
-        worker.signals.finished.connect(self._worker_finished)
+        self._task_item(worker, title)
+        worker.signals.started.connect(lambda text, value=worker: self._worker_started(text, value))
+        worker.signals.progress.connect(lambda event, value=worker: self._worker_progress(event, value))
+        worker.signals.result.connect(lambda result, value=worker: self._worker_result_for(value, result, on_result))
+        worker.signals.error.connect(lambda message, details, value=worker: self._worker_error_for(value, message, details))
+        worker.signals.finished.connect(lambda value=worker: self._worker_finished(value))
         self.thread_pool.start(worker)
 
-    def _worker_started(self, title: str) -> None:
+    def _worker_started(self, title: str, worker: FunctionWorker | None = None) -> None:
         self.status_label.setText(title)
         self.progress.setValue(0)
         self.cancel_button.setEnabled(True)
+        if worker:
+            self._set_task_state(worker, "Running", title)
         self.log(title)
 
-    def _worker_progress(self, event: Progress) -> None:
+    def _worker_progress(self, event: Progress, worker: FunctionWorker | None = None) -> None:
         self.progress.setValue(event.percent)
-        self.status_label.setText(f"{event.message} ({event.percent}%)")
+        detail = f"{event.message} ({event.percent}%)"
+        self.status_label.setText(detail)
+        if worker:
+            self._set_task_state(worker, "Running", detail)
+
+    def _worker_result_for(self, worker: FunctionWorker, value: object, on_result: Callable | None) -> None:
+        self._set_task_state(worker, "Completed", "Completed successfully")
+        if on_result:
+            on_result(value)
+        else:
+            self._worker_result(value)
+
+    def _worker_error_for(self, worker: FunctionWorker, message: str, details: str) -> None:
+        status = "Cancelled" if "cancel" in message.lower() else "Failed"
+        self._set_task_state(worker, status, message)
+        self._worker_error(message, details)
 
     def _worker_result(self, value: object) -> None:
         self.log(f"Completed: {value}")
@@ -632,16 +738,18 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "Operation failed", f"{message}\n\nSee Activity for details.")
         self.log(details)
 
-    def _worker_finished(self) -> None:
+    def _worker_finished(self, worker: FunctionWorker | None = None) -> None:
         self.progress.setValue(0)
         self.status_label.setText("Ready")
         self.cancel_button.setEnabled(False)
-        self.current_worker = None
+        if worker is None or self.current_worker is worker:
+            self.current_worker = None
         self._update_action_state()
 
     def cancel_operation(self) -> None:
         if self.current_worker:
             self.current_worker.cancel()
+            self._set_task_state(self.current_worker, "Cancelling", "Waiting for the current block to stop")
             self.status_label.setText("Cancelling after the current block…")
 
     def new_image(self) -> None:
@@ -657,9 +765,19 @@ class MainWindow(QMainWindow):
             output, _ = QFileDialog.getSaveFileName(self, "Create ISO", str(source.with_suffix(".iso")), "ISO image (*.iso)")
             if not output:
                 return
+            boot_image_text = dialog.boot_image.text().strip()
+            boot_image = Path(boot_image_text) if boot_image_text else None
+            if boot_image is not None and not boot_image.is_file():
+                QMessageBox.warning(self, "Boot image unavailable", "Choose a valid local boot image or leave the field empty.")
+                return
+            boot_media = str(dialog.boot_media.currentData())
+            boot_info_table = dialog.boot_info_table.isChecked()
             def create_iso(progress=None, token=None):
-                return create_iso_from_directory(source, Path(output), dialog.label.text())
-            self._run_worker("Creating ISO image", create_iso, on_result=lambda result: self._open_path(Path(result)))
+                return create_iso_from_directory(
+                    source, Path(output), dialog.label.text(), boot_image=boot_image,
+                    boot_media=boot_media, boot_info_table=boot_info_table,
+                )
+            self._run_worker("Creating bootable ISO image" if boot_image else "Creating ISO image", create_iso, on_result=lambda result: self._open_path(Path(result)))
             return
         suffix = ".img"
         output, _ = QFileDialog.getSaveFileName(self, "Create image", f"untitled{suffix}", "Disk image (*.img)")
@@ -695,14 +813,21 @@ class MainWindow(QMainWindow):
         try:
             self._close_fs()
             self.current_path = path
-            self.current_info = inspect_image(path, QemuImgConverter(self.settings.value("qemu_img_path", "") or None))
+            converter = QemuImgConverter(self.settings.value("qemu_img_path", "") or None)
+            self.current_info = inspect_image(path, converter)
+            browse_path, browse_info = path, self.current_info
+            if self.current_info.image_format in {ImageFormat.VHD, ImageFormat.VHDX, ImageFormat.VMDK, ImageFormat.QCOW2}:
+                self.current_browse_session = materialize_browsable_image(path, converter=converter)
+                browse_path = self.current_browse_session.image
+                browse_info = inspect_image(browse_path)
+                self.log(f"Opened read-only temporary browse session for {path.name}")
             self.current_directory = "/"
-            if self.current_info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
-                self.current_fs = FatImageFilesystem(path)
-            elif self.current_info.filesystem == FileSystemType.ISO9660 or self.current_info.image_format == ImageFormat.ISO:
-                self.current_fs = IsoImageFilesystem(path)
-            elif self.current_info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT}:
-                self.current_fs = SleuthKitImageFilesystem(path, self.current_info.filesystem)
+            if browse_info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
+                self.current_fs = FatImageFilesystem(browse_path, read_only=self.current_browse_session is not None)
+            elif browse_info.filesystem == FileSystemType.ISO9660 or browse_info.image_format == ImageFormat.ISO:
+                self.current_fs = IsoImageFilesystem(browse_path)
+            elif browse_info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT}:
+                self.current_fs = SleuthKitImageFilesystem(browse_path, browse_info.filesystem)
             else:
                 self.current_fs = None
             self.settings.setValue("last_directory", str(path.parent))
@@ -726,6 +851,9 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
         self.current_fs = None
+        if self.current_browse_session:
+            self.current_browse_session.close()
+            self.current_browse_session = None
 
     def close_image(self) -> None:
         self._close_fs()
@@ -1266,6 +1394,37 @@ class MainWindow(QMainWindow):
             on_result=lambda result: self._open_path(result.path),
         )
 
+    def prepare_current_fat_deployment(self) -> None:
+        """Prepare and review a neutral-MBR copy before any device is selected."""
+        if not self.current_path or not self.current_info or self.current_info.filesystem not in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
+            return
+        answer = QMessageBox.question(
+            self, "Prepare FAT deployment", "Create a new neutral-MBR deployment image? The current image will not be changed. Any physical write still requires selecting a device and entering ERASE.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel, QMessageBox.StandardButton.Yes,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        output, _ = QFileDialog.getSaveFileName(
+            self, "Save prepared deployment image", str(self.current_path.with_stem(self.current_path.stem + "-deploy")),
+            "Disk image (*.img *.ima);;All files (*)",
+        )
+        if not output:
+            return
+        self._run_worker(
+            "Preparing FAT deployment image", prepare_fat_deployment, self.current_path, Path(output),
+            on_result=self._deployment_plan_ready,
+        )
+
+    def _deployment_plan_ready(self, plan) -> None:  # type: ignore[no-untyped-def]
+        details = (
+            f"Prepared image: {plan.prepared_image}\n"
+            f"Single FAT partition: LBA {plan.partition_start_lba}, {plan.partition_sectors} sectors\n"
+            f"Partition type: 0x{plan.partition_type:02X}\n\n"
+            "No physical device has been written. Use Physical drive operations and enter ERASE there if you choose to deploy this prepared image."
+        )
+        QMessageBox.information(self, "Deployment plan ready", details)
+        self.log(f"Prepared FAT deployment image: {plan.prepared_image}")
+
     def trim_current_zero_tail(self) -> None:
         """Create a copy after removing only trailing, whole zero-filled sectors."""
         if not self.current_path:
@@ -1473,8 +1632,17 @@ class MainWindow(QMainWindow):
         except DiskForgeError as exc:
             QMessageBox.warning(self, "Unable to save batch recipe", str(exc))
             return
+        try:
+            plan = BatchRunner(QemuImgConverter(self.settings.value("qemu_img_path", "") or None)).preview(target)
+        except DiskForgeError as exc:
+            QMessageBox.warning(self, "Batch recipe rejected", str(exc))
+            return
+        summary = "\n".join(
+            f"{item['index'] + 1}. {item['kind']} — {'writes output' if item['will_write'] else 'read-only'}"
+            for item in plan
+        )
         answer = QMessageBox.question(
-            self, "Batch recipe saved", f"Saved safe extraction recipe:\n{target}\n\nRun it now?",
+            self, "Batch recipe saved", f"Saved safe extraction recipe:\n{target}\n\nPreflight plan:\n{summary}\n\nRun it now?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.Yes,
         )
         if answer == QMessageBox.StandardButton.Yes:
@@ -1483,6 +1651,19 @@ class MainWindow(QMainWindow):
             self.log(f"Batch recipe saved: {target}")
 
     def _run_batch_path(self, path: Path) -> None:
+        try:
+            plan = BatchRunner(QemuImgConverter(self.settings.value("qemu_img_path", "") or None)).preview(path)
+        except DiskForgeError as exc:
+            QMessageBox.warning(self, "Batch recipe rejected", str(exc))
+            return
+        summary = "\n".join(f"{item['index'] + 1}. {item['kind']}" for item in plan)
+        answer = QMessageBox.question(
+            self, "Review batch plan", f"The following recipe has passed preflight:\n{summary}\n\nRun it now?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.Yes,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            self.log("Batch execution cancelled after preflight review.")
+            return
         def job(progress=None, token=None):
             return BatchRunner(QemuImgConverter(self.settings.value("qemu_img_path", "") or None)).run(path, self.log)
         self._run_worker("Running batch recipe", job, on_result=lambda result: QMessageBox.information(self, "Batch complete", f"Succeeded: {result.succeeded}\nFailed: {result.failed}"))
@@ -1493,6 +1674,18 @@ class MainWindow(QMainWindow):
             return
         self._run_batch_path(Path(path))
 
+    def _apply_interface_font(self) -> None:
+        app = QApplication.instance()
+        if app is None:
+            return
+        current = app.font()
+        family = str(self.settings.value("interface_font_family", current.family()))
+        size = int(self.settings.value("interface_font_size", current.pointSize() if current.pointSize() > 0 else 10))
+        font = QFont(current)
+        font.setFamily(family)
+        font.setPointSize(max(8, min(size, 28)))
+        app.setFont(font)
+
     def preferences(self) -> None:
         dialog = QDialog(self)
         dialog.setWindowTitle("Preferences")
@@ -1502,6 +1695,14 @@ class MainWindow(QMainWindow):
         appearance.addItem("Midnight", "dark")
         appearance.setCurrentIndex(1 if str(self.settings.value("appearance", "light")) == "dark" else 0)
         layout.addRow("Appearance", appearance)
+        font_family = QFontComboBox()
+        saved_family = str(self.settings.value("interface_font_family", QApplication.font().family()))
+        font_family.setCurrentFont(QFont(saved_family))
+        font_size = QSpinBox()
+        font_size.setRange(8, 28)
+        font_size.setValue(int(self.settings.value("interface_font_size", QApplication.font().pointSize() or 10)))
+        layout.addRow("Interface font", font_family)
+        layout.addRow("Interface font size", font_size)
         qemu_path = QLineEdit(str(self.settings.value("qemu_img_path", "")))
         browse = QPushButton("Browse…")
         def choose() -> None:
@@ -1523,7 +1724,10 @@ class MainWindow(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.settings.setValue("qemu_img_path", qemu_path.text().strip())
             self.settings.setValue("appearance", appearance.currentData())
+            self.settings.setValue("interface_font_family", font_family.currentFont().family())
+            self.settings.setValue("interface_font_size", font_size.value())
             apply_theme(QApplication.instance(), str(appearance.currentData()))
+            self._apply_interface_font()
             self.log("Preferences saved")
 
     def about(self) -> None:

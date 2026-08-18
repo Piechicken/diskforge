@@ -533,11 +533,31 @@ def defragment_fat_image(source_image: Path | str, destination_image: Path | str
 
 
 def create_iso_from_directory(source_directory: Path | str, destination: Path | str,
-                              volume_label: str = "DISKFORGE"):
-    """Build a portable ISO9660/Joliet image from a local directory tree."""
+                              volume_label: str = "DISKFORGE", *,
+                              boot_image: Path | str | None = None,
+                              boot_platform_id: int = 0,
+                              boot_media: str = "noemul",
+                              boot_info_table: bool = False,
+                              boot_load_segment: int = 0) -> Path:
+    """Build an ISO9660/Joliet image, optionally with a validated El Torito entry.
+
+    A boot image may either be a file inside ``source_directory`` or an external
+    local file.  An external image is copied into the *new* ISO as ``BOOT.IMG``;
+    its source bytes are never changed.  Only standard El Torito media modes are
+    accepted, and the resulting catalog can be inspected with ``inspect_eltorito``.
+    """
     source, target = Path(source_directory), Path(destination)
     if not source.is_dir():
         raise NotADirectoryError(source)
+    if boot_media not in {"noemul", "floppy", "hdemul"}:
+        raise DiskForgeError("El Torito boot media must be noemul, floppy, or hdemul.")
+    if not 0 <= boot_platform_id <= 0xFF:
+        raise DiskForgeError("El Torito platform ID must be an unsigned byte.")
+    if not 0 <= boot_load_segment <= 0xFFFF:
+        raise DiskForgeError("El Torito load segment must fit in 16 bits.")
+    selected_boot = Path(boot_image).resolve() if boot_image is not None else None
+    if selected_boot is not None and not selected_boot.is_file():
+        raise FileNotFoundError(selected_boot)
     iso = pycdlib.PyCdlib()
     iso.new(interchange_level=3, joliet=3, vol_ident=volume_label[:32])
     try:
@@ -545,9 +565,21 @@ def create_iso_from_directory(source_directory: Path | str, destination: Path | 
         for directory in directories:
             relative = directory.relative_to(source).as_posix()
             iso.add_directory(iso_path="/" + relative.upper(), joliet_path="/" + relative)
+        boot_iso_path: str | None = None
         for file_path in (item for item in source.rglob("*") if item.is_file()):
             relative = file_path.relative_to(source).as_posix()
-            iso.add_file(str(file_path), iso_path="/" + relative.upper() + ";1", joliet_path="/" + relative)
+            iso_path = "/" + relative.upper() + ";1"
+            iso.add_file(str(file_path), iso_path=iso_path, joliet_path="/" + relative)
+            if selected_boot is not None and file_path.resolve() == selected_boot:
+                boot_iso_path = iso_path
+        if selected_boot is not None and boot_iso_path is None:
+            boot_iso_path = "/BOOT.IMG;1"
+            iso.add_file(str(selected_boot), iso_path=boot_iso_path, joliet_path="/boot.img")
+        if boot_iso_path is not None:
+            iso.add_eltorito(
+                boot_iso_path, platform_id=boot_platform_id, media_name=boot_media,
+                boot_info_table=boot_info_table, boot_load_seg=boot_load_segment,
+            )
         target.parent.mkdir(parents=True, exist_ok=True)
         iso.write(str(target))
     finally:

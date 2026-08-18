@@ -2,6 +2,25 @@
 
 All notable changes to DiskForge are documented in this file. The project uses semantic versioning for public releases.
 
+## v0.6.0 — Converged Boot, Deployment, Virtual-Disk, and Workflow Studio
+
+DiskForge v0.6.0 is a consolidated capability release rather than a narrow workflow patch. It connects image creation, boot preparation, virtual-disk browsing, deploy planning, automation preflight, portable settings, and visible task history through the same safety model: source images remain intact until an explicit output is chosen, physical writes retain the existing foreground `ERASE` confirmation, and unattended batch recipes still reject raw-device actions.
+
+| Area | Additions in v0.6.0 |
+|---|---|
+| Bootable ISO authoring | Create ISO9660/Joliet images with an optional local El Torito boot image, standard media mode, platform ID, load segment, and optional boot-information table. External boot images are copied into the new ISO; the source file remains unchanged. |
+| Original boot templates | A small, auditable catalog provides a neutral halt sector and a DiskForge message sector. Templates preserve the existing FAT BPB, replace only executable boot-code bytes, use no imported boot program, and create a complete image backup before application. |
+| Virtual-disk browsing | Fixed VHD images now open through an isolated temporary RAW data view that excludes the VHD footer. VHDX, VMDK, and QCOW2 use the same read-only temporary workflow after an explicitly configured converter is available. Temporary copies are removed on close. |
+| FAT deployment | Prepare a fresh neutral-MBR single-partition deployment image, review its LBA and partition details, and only then choose the separately protected physical-device operation if required. The command line can create and emit a structured deployment plan without touching a device. |
+| Conservative device reports | Byte comparison can optionally report equal data after ignoring only full, sector-aligned trailing zero sectors. Default comparison behavior remains strict, and no input is ever modified. |
+| Automation and API | Batch recipes gain a no-side-effect preflight plan and CLI `--dry-run`; the desktop reviews this plan before execution. A typed `diskforge.api` facade exposes safe inspection, hashing, FAT creation, content operations, comparison, conversion, and managed filesystem sessions for Python hosts. |
+| Desktop resilience | The workspace includes a task center showing queued, running, completed, failed, and cancellation states; persistent interface font family and size controls; explicit portable INI settings via `--portable`, `--portable=DIR`, `--portable-directory DIR`, or `DISKFORGE_PORTABLE_DIR`; and seven-language labels for the new primary controls. |
+| Validation | New regression coverage exercises bootable ISO creation, original template BPB preservation and backups, temporary VHD browser cleanup, deployment planning, zero-tail reporting, batch preflight, public API, portable settings, task center, font preferences, CLI JSON behavior, and the desktop VHD browse path. |
+
+### Validation
+
+The full suite runs under strict pytest configuration with warnings promoted to errors. Project modules compile before test execution, and both off-screen desktop smoke scripts run after the complete suite. The source and continuous-integration configuration retain the same warning policy.
+
 ## v0.5.0 — Modern Workspace, Drag-and-Drop, and Strict Quality
 
 DiskForge v0.5.0 turns routine image work into a more direct desktop workflow. The release introduces native file-manager drag-and-drop while preserving the product’s safety model: only local file URLs are accepted, injection is enabled only for writable FAT images, and drag-out always extracts copies into an isolated temporary workspace.

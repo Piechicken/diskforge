@@ -26,9 +26,40 @@ class ComparisonResult:
     source_sha256: str
     destination_sha256: str
     reason: str = ""
+    effective_source_size: int | None = None
+    effective_destination_size: int | None = None
+    ignored_source_zero_tail: int = 0
+    ignored_destination_zero_tail: int = 0
+
+
+def _effective_size_without_zero_sectors(path: Path, sector_size: int) -> int:
+    """Return a report-only endpoint size after removing full trailing zero sectors.
+
+    A partial final sector is never ignored.  The file is opened read-only and no
+    truncation or filesystem interpretation occurs.
+    """
+    size = path.stat().st_size
+    if size % sector_size:
+        return size
+    end = size
+    block = max(_CHUNK_SIZE // sector_size, 1) * sector_size
+    zero_sector = b"\x00" * sector_size
+    with path.open("rb") as handle:
+        while end:
+            take = min(block, end)
+            handle.seek(end - take)
+            data = handle.read(take)
+            offset = take
+            while offset and data[offset - sector_size:offset] == zero_sector:
+                offset -= sector_size
+            end -= take - offset
+            if offset:
+                break
+    return end
 
 
 def compare_streams(source: Path | str, destination: Path | str, *, bytes_to_compare: int | None = None,
+                    ignore_trailing_zero_sectors: bool = False, sector_size: int = 512,
                     progress: ProgressCallback | None = None,
                     token: CancellationToken | None = None) -> ComparisonResult:
     """Compare two readable byte streams without modifying either endpoint.
@@ -39,14 +70,20 @@ def compare_streams(source: Path | str, destination: Path | str, *, bytes_to_com
     """
     left, right = Path(source), Path(destination)
     source_size, destination_size = left.stat().st_size, right.stat().st_size
+    if sector_size <= 0 or sector_size & (sector_size - 1):
+        raise ValueError("sector_size must be a positive power of two.")
+    effective_source_size, effective_destination_size = source_size, destination_size
+    if ignore_trailing_zero_sectors and bytes_to_compare is None:
+        effective_source_size = _effective_size_without_zero_sectors(left, sector_size)
+        effective_destination_size = _effective_size_without_zero_sectors(right, sector_size)
     if bytes_to_compare is not None:
         if bytes_to_compare < 0:
             raise ValueError("bytes_to_compare must be non-negative.")
         limit = min(bytes_to_compare, source_size, destination_size)
         size_reason = "" if source_size >= bytes_to_compare and destination_size >= bytes_to_compare else "comparison limit exceeds an endpoint"
     else:
-        limit = min(source_size, destination_size)
-        size_reason = "" if source_size == destination_size else "endpoint sizes differ"
+        limit = min(effective_source_size, effective_destination_size)
+        size_reason = "" if effective_source_size == effective_destination_size else "endpoint sizes differ"
     left_hash, right_hash = hashlib.sha256(), hashlib.sha256()
     completed, difference = 0, None
     with left.open("rb") as source_handle, right.open("rb") as destination_handle:
@@ -76,6 +113,12 @@ def compare_streams(source: Path | str, destination: Path | str, *, bytes_to_com
     elif size_reason:
         reason = size_reason
     else:
-        reason = "identical"
-    return ComparisonResult(left, right, source_size, destination_size, completed, equal, difference,
-                            left_hash.hexdigest(), right_hash.hexdigest(), reason)
+        ignored_source = source_size - effective_source_size
+        ignored_destination = destination_size - effective_destination_size
+        reason = "identical" if not (ignored_source or ignored_destination) else "identical after ignoring trailing zero sectors"
+    return ComparisonResult(
+        left, right, source_size, destination_size, completed, equal, difference,
+        left_hash.hexdigest(), right_hash.hexdigest(), reason,
+        effective_source_size, effective_destination_size,
+        source_size - effective_source_size, destination_size - effective_destination_size,
+    )

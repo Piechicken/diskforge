@@ -29,14 +29,14 @@
 
 | 平台 | 文件名 | 启动方式 |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.5.0-windows-x64.zip` | 解压后运行 `DiskForge.exe`。 |
-| Linux x64 | `DiskForge-v0.5.0-linux-x64.zip` | 解压后运行 `./DiskForge`。 |
-| macOS Intel | `DiskForge-v0.5.0-macos-intel-x64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
-| macOS Apple Silicon | `DiskForge-v0.5.0-macos-arm64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
+| Windows x64 | `DiskForge-v0.6.0-windows-x64.zip` | 解压后运行 `DiskForge.exe`。 |
+| Linux x64 | `DiskForge-v0.6.0-linux-x64.zip` | 解压后运行 `./DiskForge`。 |
+| macOS Intel | `DiskForge-v0.6.0-macos-intel-x64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
+| macOS Apple Silicon | `DiskForge-v0.6.0-macos-arm64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
 
-## v0.5.0 新增能力
+## v0.6.0 集中收敛能力
 
-v0.5.0 引入了面向可编辑 FAT 映像的原生文件管理器拖放注入，以及将映像内条目临时提取为副本后拖出至其他应用的工作流。目录浏览新增可排序的详细视图、持久化图标网格、最近映像、安全双击预览与浅色/深色主题。图形批处理提取设计器会在写入 JSON v3 配方前校验递增输出名称；检测到的光学介质按只读 ISO 导出。项目采用 pytest 严格配置，任何警告都会作为错误阻断测试。
+v0.6.0 将启动创作、部署规划、虚拟磁盘浏览、自动化预演、可移植设置和任务可见性集中交付。现在可从目录及可选本地启动映像创建带 El Torito 目录的 ISO；外部启动映像只会复制进入新 ISO，源文件保持不变。启动扇区提供完全原创的中性停机和 DiskForge 消息模板，保留 FAT BPB 并在写入前创建完整映像备份。固定 VHD 通过临时 RAW 数据视图只读浏览，关闭后自动清理；配置转换器后其他虚拟格式同样可获得临时只读浏览路径。FAT 部署先生成可审阅的中性 MBR 单分区映像，随后仍须进入独立、受 `ERASE` 保护的物理写入工作流。批处理新增无副作用预演与 CLI `--dry-run`，桌面会在执行前展示计划；任务中心显示排队、运行、完成、失败和取消状态。显式可移植模式使用 INI 保存语言、主题、字体、最近映像和外部工具设置，项目继续采用“警告即错误”的 pytest 严格门槛。
 
 ## 核心能力
 
@@ -44,13 +44,13 @@ DiskForge 将专业映像管理流程整合到统一界面。主窗口包含映�
 
 | 工作流 | 原生能力 | 说明 |
 |---|---|---|
-| 创建映像 | RAW/IMG、FAT12、FAT16、FAT32、DMF 布局 FAT12、ISO9660/Joliet | 创建可编辑 FAT 映像、采用 80×2×21 扇区已知几何布局的 DMF 映像文件，或从本地目录制作 ISO。 |
-| 浏览与提取 | FAT12/16/32、ISO9660/Joliet | 目录树、可排序详细表格、持久化图标网格、安全双击预览、批量提取、映像信息和 MBR/GPT 检查。 |
+| 创建映像 | RAW/IMG、FAT12、FAT16、FAT32、DMF 布局 FAT12、ISO9660/Joliet | 创建可编辑 FAT 映像、采用 80×2×21 扇区已知几何布局的 DMF 映像、普通 ISO，或从本地目录和可选启动映像制作 El Torito ISO。 |
+| 浏览与提取 | FAT12/16/32、ISO9660/Joliet、固定 VHD 数据视图 | 目录树、可排序详细表格、持久化图标网格、安全双击预览、批量提取、映像信息和 MBR/GPT 检查。固定 VHD 以排除尾部元数据的临时 RAW 只读视图打开。 |
 | 修改映像内容 | FAT 文件/目录注入、删除、时间属性编辑 | 可将本地文件或目录直接拖入可编辑 FAT 映像，也可投放到当前显示的目标目录；ISO 按只读介质处理。 |
 | 格式转换 | 原生 RAW/IMG 与固定 VHD | VHDX、VMDK、QCOW2 通过显式配置的 `qemu-img` 适配器处理。 |
 | FAT 紧凑整理 | 基于重建的碎片整理 | 输出新映像，原映像保留作为恢复点。 |
-| 结构与启动检查 | 512 字节十六进制查看/编辑、中性 MBR FAT 封装、尾部零扇区裁剪、El Torito 引导目录 | MBR 封装与裁剪均输出新文件；ISO 启动映像仅以只读方式导出。 |
-| 校验与自动化 | SHA-256、图形设计器、JSON 批处理、可审计日志 | 图形设计器会预览安全的递增名称；支持多源提取，无人值守批处理会明确拒绝物理设备写入。 |
+| 结构与启动检查 | 512 字节十六进制查看/编辑、FAT BPB 属性、原创启动模板、中性 MBR FAT 封装与部署规划、尾部零扇区裁剪、El Torito 引导目录 | 模板保留 BPB 且不使用导入的启动程序；结构修改先备份，封装、部署预处理和裁剪均输出新文件。 |
+| 校验与自动化 | SHA-256、图形设计器、预演计划、JSON 批处理、可审计日志 | 图形设计器会预览安全的递增名称；`--dry-run` 可在不改动任何文件或设备前审阅操作，无人值守批处理会明确拒绝物理设备写入。 |
 | 再分发归档 | 经身份验证的 `.dfb` 容器和带 SHA-256 校验的多映像自解压 `.pyz` 归档 | `.dfb` 支持可选 AES-256-GCM 加密、压缩、注释及逐项校验。 |
 | 读写物理介质 | 流式读取与恢复 | 拒绝系统盘、已挂载目标和容量不匹配设备；必须输入确认短语。检测到的光学介质为只读，并默认导出为 ISO。 |
 
@@ -58,7 +58,11 @@ DiskForge 将专业映像管理流程整合到统一界面。主窗口包含映�
 
 > 磁盘映像工具应当让高风险操作**无法被轻易误触发**。
 
-DiskForge 不会自动挂载映像，也不会自动向物理设备写入数据。执行物理写入前，程序会检查容量、挂载状态和系统盘标记，并要求准确输入 `ERASE`。写入后可以进行字节校验。启动扇区修改也会先创建完整映像备份。对重要介质操作前，请务必先用可丢弃的测试映像熟悉流程。
+DiskForge 不会自动挂载映像，也不会自动向物理设备写入数据。FAT 部署会先生成可审阅的中性 MBR 映像，不会绕过物理写入保护。执行物理写入前，程序会检查容量、挂载状态和系统盘标记，并要求准确输入 `ERASE`。写入后可以进行字节校验。启动扇区修改也会先创建完整映像备份。对重要介质操作前，请务必先用可丢弃的测试映像熟悉流程。
+
+## 可移植配置
+
+以 `diskforge --portable` 启动时，语言、主题、字体、最近映像、目录视图及外部工具路径会写入当前目录的 `DiskForgeData/diskforge.ini`。也可使用 `--portable=目录`、`--portable-directory 目录` 或环境变量 `DISKFORGE_PORTABLE_DIR` 指定位置；该模式使用普通 INI 文件，不依赖系统注册表。
 
 ## 快速开始
 
@@ -75,6 +79,10 @@ diskforge
 diskforge-cli create-fat demo.img --size-mib 32 --fat 16
 diskforge-cli info demo.img
 diskforge-cli list demo.img
+diskforge-cli create-iso folder bootable.iso --boot-image boot.img --boot-media noemul
+diskforge-cli boot-templates
+diskforge-cli prepare-fat-deployment demo.img demo-deploy.img
+diskforge-cli batch recipe.json --dry-run
 diskforge-cli --help
 ```
 
@@ -93,7 +101,7 @@ python scripts/build.py
 | RAW / IMG / IMA / BIN | 支持 | FAT 载荷 | 支持 |
 | FAT12 / FAT16 / FAT32 | 支持 | 支持 | 支持 |
 | ISO9660 / Joliet | 支持 | 只读浏览与提取 | 从目录创建 |
-| 固定 VHD | 支持 | 转换载荷 | 支持 |
+| 固定 VHD | 支持 | 临时只读数据视图与转换 | 支持 |
 | VHDX / VMDK / QCOW2 | 配置适配器后支持 | 通过转换工作流 | 配置适配器后支持 |
 | NTFS / EXT / DMG | 签名或分区提示 | 不提供原生修改 | 建议使用兼容的外部工作流 |
 
@@ -101,7 +109,7 @@ DiskForge 会明确暴露不支持的编辑路径，不会进行未经验证的�
 
 ## 工程质量
 
-项目自动化覆盖 FAT 创建与修改、ISO 创建/提取、原生拖放契约、图形批处理设计、目录视图持久化、主题切换、光学介质识别、固定 VHD、校验和、MBR 解析、自解压归档、物理写入保护、启动扇区备份、目录导出和 FAT 重建式整理。pytest 启用严格配置、严格标记和警告即错误；GUI 同时接受离屏启动验证。持续集成会在 Windows、Linux、macOS Intel 和 macOS Apple Silicon 上运行同一质量门槛，并打包每个原生目标。
+项目自动化覆盖 FAT 创建与修改、可启动 ISO 和 El Torito 检查、原创启动模板的 BPB 保留与备份、固定 VHD 临时浏览与清理、FAT 部署规划、尾部零扇区报告、原生拖放契约、图形批处理设计与无副作用预演、公共 API 会话、可移植设置、任务中心、字体与目录视图持久化、主题切换、光学介质识别、校验和、MBR 解析、自解压归档、物理写入保护、目录导出和 FAT 重建式整理。pytest 启用严格配置、严格标记和警告即错误；GUI 同时接受离屏启动验证。持续集成会在 Windows、Linux、macOS Intel 和 macOS Apple Silicon 上运行同一质量门槛，并打包每个原生目标。
 
 ```bash
 QT_QPA_PLATFORM=offscreen pytest

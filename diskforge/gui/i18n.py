@@ -319,3 +319,54 @@ def language_manager() -> LanguageManager:
     if _manager is None:
         raise RuntimeError("LanguageManager has not been installed")
     return _manager
+
+# Convergence additions: deployable FAT media, bootable ISO authoring and original templates.
+CATALOG["zh_CN"].update({
+    "Prepare FAT deployment image…": "准备 FAT 部署映像…", "Optional ISO boot image": "可选 ISO 启动映像", "Boot media mode": "启动介质模式",
+    "No emulation": "无仿真", "Floppy emulation": "软盘仿真", "Hard-disk emulation": "硬盘仿真",
+    "Write boot info table into the ISO copy": "在 ISO 副本中写入启动信息表", "Apply original template…": "应用原创模板…",
+})
+CATALOG["es"].update({
+    "Prepare FAT deployment image…": "Preparar imagen FAT para despliegue…", "Optional ISO boot image": "Imagen de arranque ISO opcional", "Boot media mode": "Modo de medio de arranque",
+    "No emulation": "Sin emulación", "Floppy emulation": "Emulación de disquete", "Hard-disk emulation": "Emulación de disco duro",
+    "Write boot info table into the ISO copy": "Escribir tabla de información de arranque en la copia ISO", "Apply original template…": "Aplicar plantilla original…",
+})
+CATALOG["fr"].update({
+    "Prepare FAT deployment image…": "Préparer l’image FAT de déploiement…", "Optional ISO boot image": "Image d’amorçage ISO facultative", "Boot media mode": "Mode de média d’amorçage",
+    "No emulation": "Sans émulation", "Floppy emulation": "Émulation de disquette", "Hard-disk emulation": "Émulation de disque dur",
+    "Write boot info table into the ISO copy": "Écrire la table d’informations d’amorçage dans la copie ISO", "Apply original template…": "Appliquer le modèle original…",
+})
+CATALOG["ru"].update({
+    "Prepare FAT deployment image…": "Подготовить FAT-образ для развертывания…", "Optional ISO boot image": "Необязательный загрузочный ISO-образ", "Boot media mode": "Режим загрузочного носителя",
+    "No emulation": "Без эмуляции", "Floppy emulation": "Эмуляция дискеты", "Hard-disk emulation": "Эмуляция жесткого диска",
+    "Write boot info table into the ISO copy": "Записать таблицу загрузочной информации в копию ISO", "Apply original template…": "Применить оригинальный шаблон…",
+})
+CATALOG["ar"].update({
+    "Prepare FAT deployment image…": "إعداد صورة FAT للنشر…", "Optional ISO boot image": "صورة إقلاع ISO اختيارية", "Boot media mode": "وضع وسيط الإقلاع",
+    "No emulation": "بدون محاكاة", "Floppy emulation": "محاكاة القرص المرن", "Hard-disk emulation": "محاكاة القرص الصلب",
+    "Write boot info table into the ISO copy": "كتابة جدول معلومات الإقلاع داخل نسخة ISO", "Apply original template…": "تطبيق قالب أصلي…",
+})
+CATALOG["ja"].update({
+    "Prepare FAT deployment image…": "FAT 展開イメージを準備…", "Optional ISO boot image": "任意の ISO ブートイメージ", "Boot media mode": "ブートメディアモード",
+    "No emulation": "エミュレーションなし", "Floppy emulation": "フロッピーエミュレーション", "Hard-disk emulation": "ハードディスクエミュレーション",
+    "Write boot info table into the ISO copy": "ISO コピーにブート情報テーブルを書き込む", "Apply original template…": "オリジナルテンプレートを適用…",
+})
+TRANSLATABLE = _catalog_keys()
+
+# Task-center workflow additions.
+CATALOG["zh_CN"].update({"Tasks": "任务", "Status": "状态", "Task": "任务", "Detail": "详情", "Clear completed tasks": "清除已完成任务"})
+CATALOG["es"].update({"Tasks": "Tareas", "Status": "Estado", "Task": "Tarea", "Detail": "Detalle", "Clear completed tasks": "Limpiar tareas completadas"})
+CATALOG["fr"].update({"Tasks": "Tâches", "Status": "État", "Task": "Tâche", "Detail": "Détail", "Clear completed tasks": "Effacer les tâches terminées"})
+CATALOG["ru"].update({"Tasks": "Задачи", "Status": "Состояние", "Task": "Задача", "Detail": "Сведения", "Clear completed tasks": "Очистить завершённые задачи"})
+CATALOG["ar"].update({"Tasks": "المهام", "Status": "الحالة", "Task": "المهمة", "Detail": "التفاصيل", "Clear completed tasks": "مسح المهام المكتملة"})
+CATALOG["ja"].update({"Tasks": "タスク", "Status": "状態", "Task": "タスク", "Detail": "詳細", "Clear completed tasks": "完了したタスクを消去"})
+TRANSLATABLE = _catalog_keys()
+
+# Interface accessibility additions.
+CATALOG["zh_CN"].update({"Interface font": "界面字体", "Interface font size": "界面字号"})
+CATALOG["es"].update({"Interface font": "Fuente de interfaz", "Interface font size": "Tamaño de fuente de interfaz"})
+CATALOG["fr"].update({"Interface font": "Police de l’interface", "Interface font size": "Taille de police de l’interface"})
+CATALOG["ru"].update({"Interface font": "Шрифт интерфейса", "Interface font size": "Размер шрифта интерфейса"})
+CATALOG["ar"].update({"Interface font": "خط الواجهة", "Interface font size": "حجم خط الواجهة"})
+CATALOG["ja"].update({"Interface font": "インターフェースフォント", "Interface font size": "インターフェースの文字サイズ"})
+TRANSLATABLE = _catalog_keys()

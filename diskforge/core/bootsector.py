@@ -123,3 +123,92 @@ def edit_fat_boot_properties(image: Path | str, *, oem_name: str | None = None,
         data[offset:offset + 4] = serial_number.to_bytes(4, "little")
     backup = backup_and_write_boot_sector(target, bytes(data), sector)
     return inspect_boot_sector(bytes(data)), backup
+
+
+@dataclass(frozen=True)
+class BootTemplate:
+    """An original, auditable boot-code template that never replaces a FAT BPB."""
+
+    identifier: str
+    name: str
+    description: str
+    license_notice: str
+
+
+_BOOT_TEMPLATES = (
+    BootTemplate(
+        "neutral-halt",
+        "Neutral halt",
+        "Disables interrupts and halts without accessing disks or displaying third-party code.",
+        "Original DiskForge template; MIT licensed.",
+    ),
+    BootTemplate(
+        "diskforge-message",
+        "DiskForge message",
+        "Displays a short original DiskForge message through BIOS video service, then halts.",
+        "Original DiskForge template; MIT licensed.",
+    ),
+)
+
+
+def list_boot_templates() -> tuple[BootTemplate, ...]:
+    """Return the small, original-only boot template catalog."""
+    return _BOOT_TEMPLATES
+
+
+def _boot_code_offset(data: bytes) -> int:
+    details = inspect_boot_sector(data)
+    filesystem = details.filesystem_label.upper()
+    if filesystem.startswith("FAT32"):
+        return 90
+    if filesystem.startswith(("FAT12", "FAT16", "FAT")):
+        return 62
+    raise DiskForgeError("Boot templates are available for FAT boot sectors only.")
+
+
+def render_boot_template(existing: bytes, identifier: str) -> bytes:
+    """Return a template sector while preserving all existing BPB/extended-BPB bytes.
+
+    Neither template embeds external boot code.  They intentionally provide only
+    transparent, minimal behavior suitable for educational media and structural
+    testing; they are not operating-system loaders.
+    """
+    if len(existing) != SECTOR_SIZE:
+        raise DiskForgeError("Boot-sector data must contain exactly 512 bytes.")
+    offset = _boot_code_offset(existing)
+    template = next((item for item in _BOOT_TEMPLATES if item.identifier == identifier), None)
+    if template is None:
+        raise DiskForgeError(f"Unknown boot template: {identifier}")
+    result = bytearray(existing)
+    # A short jump preserves the FAT BPB placed between byte 3 and the code area.
+    jump = offset - 2
+    if not 0 <= jump <= 0x7F:
+        raise DiskForgeError("FAT boot-code offset cannot be represented by the template jump.")
+    result[0:3] = bytes((0xEB, jump, 0x90))
+    result[offset:510] = b"\x00" * (510 - offset)
+    if identifier == "neutral-halt":
+        # cli; hlt; infinite two-byte loop.  This code performs no disk or memory access.
+        payload = b"\xFA\xF4\xEB\xFE"
+    else:
+        message = b"DiskForge boot sector\r\n\x00"
+        message_offset = offset + 18
+        # cli; cld; AH=teletype; BX=page0/light-gray; SI=message; loop lodsb,
+        # test, BIOS int 10h, then halt.  All opcodes are authored for this project.
+        payload = (
+            b"\xFA\xFC\xB4\x0E\xBB\x07\x00\xBE" + message_offset.to_bytes(2, "little")
+            + b"\xAC\x84\xC0\x74\x04\xCD\x10\xEB\xF5\xF4\xEB\xFE" + message
+        )
+    if offset + len(payload) > 510:
+        raise DiskForgeError("Boot template does not fit in the executable boot-sector area.")
+    result[offset:offset + len(payload)] = payload
+    result[510:512] = b"\x55\xAA"
+    return bytes(result)
+
+
+def apply_boot_template(image: Path | str, identifier: str, sector: int = 0) -> tuple[BootSectorInfo, Path]:
+    """Apply an original template after creating a complete image backup."""
+    target = Path(image)
+    data = read_sector(target, sector)
+    rendered = render_boot_template(data, identifier)
+    backup = backup_and_write_boot_sector(target, rendered, sector)
+    return inspect_boot_sector(rendered), backup

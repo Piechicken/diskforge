@@ -29,14 +29,14 @@ La primera versión pública incluye cuatro paquetes nativos de escritorio. Desc
 
 | Plataforma | Paquete | Inicio |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.5.0-windows-x64.zip` | Descomprima y ejecute `DiskForge.exe`. |
-| Linux x64 | `DiskForge-v0.5.0-linux-x64.zip` | Descomprima y ejecute `./DiskForge`. |
-| macOS Intel | `DiskForge-v0.5.0-macos-intel-x64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
-| macOS Apple Silicon | `DiskForge-v0.5.0-macos-arm64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
+| Windows x64 | `DiskForge-v0.6.0-windows-x64.zip` | Descomprima y ejecute `DiskForge.exe`. |
+| Linux x64 | `DiskForge-v0.6.0-linux-x64.zip` | Descomprima y ejecute `./DiskForge`. |
+| macOS Intel | `DiskForge-v0.6.0-macos-intel-x64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
+| macOS Apple Silicon | `DiskForge-v0.6.0-macos-arm64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
 
-## Novedades de v0.5.0
+## Novedades de v0.6.0
 
-La versión 0.5.0 añade inyección nativa por arrastrar y soltar para imágenes FAT editables, extracción temporal de copias al arrastrar archivos fuera de una imagen, vista detallada ordenable y cuadrícula de iconos persistente, archivos recientes, vista previa segura mediante la aplicación predeterminada y temas claro y nocturno. El diseñador gráfico de extracción por lotes valida nombres secuenciales antes de escribir recetas JSON v3; los medios ópticos detectados se exportan como ISO de solo lectura. Las pruebas usan una configuración estricta de pytest, con los avisos convertidos en errores.
+La versión 0.6.0 reúne creación de arranque, planificación de despliegue, exploración de discos virtuales, preflight de automatización, configuración portátil e historial de tareas. Puede crear un ISO El Torito desde un directorio y una imagen de arranque local opcional sin modificar el archivo origen. Los modelos de sector de arranque son originales, conservan el BPB FAT y crean una copia de seguridad completa. Los VHD fijos se exploran mediante una vista RAW temporal de solo lectura; la planificación FAT crea primero una imagen MBR neutral revisable y no evita la confirmación `ERASE` para dispositivos. Las recetas por lotes disponen de `--dry-run`, y el centro de tareas muestra estados de cola, ejecución, finalización, error y cancelación. El modo portátil guarda preferencias en un INI y pytest sigue tratando cualquier aviso como error.
 
 ## Qué puede hacer
 
@@ -44,13 +44,13 @@ DiskForge reúne los flujos de trabajo más prácticos para gestionar imágenes 
 
 | Flujo de trabajo | Capacidad nativa | Notas |
 |---|---|---|
-| Crear imágenes | RAW/IMG, FAT12, FAT16, FAT32, FAT12 con diseño DMF, ISO9660/Joliet | Cree imágenes FAT editables, archivos DMF con geometría documentada de 80×2×21 sectores o medios ISO desde un directorio local. |
-| Explorar y extraer | FAT12/16/32 e ISO9660/Joliet | Vista de árbol, tabla detallada ordenable, cuadrícula de iconos persistente, vista previa segura por doble clic, extracción en lote, información de imagen e inspección MBR/GPT. |
+| Crear imágenes | RAW/IMG, FAT12, FAT16, FAT32, FAT12 con diseño DMF, ISO9660/Joliet | Cree imágenes FAT editables, DMF documentadas, ISO normales o ISO El Torito desde un directorio y una imagen de arranque local opcional. |
+| Explorar y extraer | FAT12/16/32, ISO9660/Joliet y vista de datos VHD fijo | Vista de árbol, tabla detallada ordenable, cuadrícula de iconos persistente, vista previa segura por doble clic, extracción en lote e inspección MBR/GPT. Los VHD fijos se abren mediante una vista RAW temporal de solo lectura sin su pie. |
 | Cambiar el contenido | Inyección FAT, carpetas recursivas, borrado y edición de fechas | Arrastre archivos o carpetas locales a una imagen FAT editable, incluso directamente sobre una carpeta destino visible. Los ISO se tratan como medios de solo lectura. |
 | Convertir formatos | RAW/IMG y VHD fijo de forma nativa | VHDX, VMDK y QCOW2 utilizan un adaptador `qemu-img` configurado explícitamente. |
 | Compactar imágenes FAT | Desfragmentación mediante reconstrucción | Crea una imagen nueva y conserva la original como punto de recuperación. |
-| Inspeccionar estructuras y arranque | Visor/editor hexadecimal de 512 bytes, envoltura FAT en MBR neutral, recorte de sectores cero finales y catálogo El Torito | La envoltura y el recorte siempre crean un archivo nuevo; las imágenes de arranque ISO se exportan en modo de solo lectura. |
-| Verificar y automatizar | SHA-256, diseñador gráfico y recetas JSON por lotes | El diseñador previsualiza nombres incrementales seguros; incluye extracción de múltiples fuentes y las recetas no atendidas rechazan escrituras a dispositivos físicos. |
+| Inspeccionar estructuras y arranque | Visor/editor de 512 bytes, propiedades FAT BPB, modelos originales, MBR neutral y planificación de despliegue, recorte cero y catálogo El Torito | Los modelos conservan BPB y no importan código externo; las operaciones protegidas hacen copia de seguridad y las salidas se crean en archivos nuevos. |
+| Verificar y automatizar | SHA-256, diseñador gráfico, plan de preflight y recetas JSON | `--dry-run` permite revisar acciones sin cambios; las recetas no atendidas rechazan escrituras a dispositivos físicos. |
 | Crear paquetes redistribuibles | Contenedores `.dfb` autenticados y archivos autoextraíbles `.pyz` multiimagen verificados con SHA-256 | Los contenedores admiten cifrado AES-256-GCM opcional, compresión, comentarios y verificación por archivo. |
 | Leer y escribir medios físicos | Lectura y restauración en flujo | Rechaza discos del sistema, destinos montados y tamaños incompatibles; requiere confirmación escrita. Los medios ópticos detectados son de solo lectura y se exportan a ISO por defecto. |
 
@@ -58,7 +58,11 @@ DiskForge reúne los flujos de trabajo más prácticos para gestionar imágenes 
 
 > Una utilidad de imágenes de disco debe hacer que las operaciones peligrosas sean **difíciles de activar por accidente**.
 
-DiskForge no monta imágenes ni escribe dispositivos físicos automáticamente. Antes de una escritura física comprueba la capacidad, el estado de montaje y si se trata de un disco del sistema; después exige la frase exacta `ERASE`. La ruta de escritura puede verificar los bytes al finalizar. Los cambios del sector de arranque también crean primero una copia de seguridad de la imagen completa. Practique siempre con imágenes desechables antes de operar con medios irreemplazables.
+DiskForge no monta imágenes ni escribe dispositivos físicos automáticamente. El despliegue FAT primero crea una imagen MBR neutral revisable y nunca evita la protección de escritura física. Antes de una escritura física comprueba la capacidad, el estado de montaje y si se trata de un disco del sistema; después exige la frase exacta `ERASE`. La ruta de escritura puede verificar los bytes al finalizar. Los cambios del sector de arranque también crean primero una copia de seguridad de la imagen completa. Practique siempre con imágenes desechables antes de operar con medios irreemplazables.
+
+## Configuración portátil
+
+Inicie `diskforge --portable` para guardar idioma, tema, fuente, recientes, vistas y ruta de herramientas en `DiskForgeData/diskforge.ini` dentro del directorio actual. Use `--portable=DIR`, `--portable-directory DIR` o `DISKFORGE_PORTABLE_DIR` para elegir la ubicación. El modo usa un INI portátil y no requiere registro del sistema.
 
 ## Empiece en minutos
 
@@ -75,6 +79,10 @@ diskforge
 diskforge-cli create-fat demo.img --size-mib 32 --fat 16
 diskforge-cli info demo.img
 diskforge-cli list demo.img
+diskforge-cli create-iso carpeta arrancable.iso --boot-image boot.img --boot-media noemul
+diskforge-cli boot-templates
+diskforge-cli prepare-fat-deployment demo.img demo-deploy.img
+diskforge-cli batch recipe.json --dry-run
 diskforge-cli --help
 ```
 
@@ -93,7 +101,7 @@ Compile en cada sistema operativo de destino para generar su aplicación nativa.
 | RAW / IMG / IMA / BIN | Sí | Cargas FAT | Sí |
 | FAT12 / FAT16 / FAT32 | Sí | Sí | Sí |
 | ISO9660 / Joliet | Sí | Lectura y extracción | Crear desde carpeta |
-| VHD fijo | Sí | Convertir la carga | Sí |
+| VHD fijo | Sí | Vista de datos temporal de solo lectura y conversión | Sí |
 | VHDX / VMDK / QCOW2 | Con adaptador | Mediante flujo de conversión | Con adaptador |
 | NTFS / EXT / DMG | Indicio de firma o partición | Sin modificación nativa | Use un flujo externo compatible |
 
@@ -101,7 +109,7 @@ DiskForge expone con claridad las rutas de edición no compatibles en lugar de i
 
 ## Calidad de ingeniería
 
-El proyecto cubre con pruebas automatizadas la creación y edición FAT, creación y extracción ISO, VHD fijo, sumas de comprobación, análisis MBR, autoextractores, seguridad de escritura a dispositivos, copias de seguridad de sectores de arranque, exportación de directorios y compactación FAT por reconstrucción. La interfaz también se valida fuera de pantalla. La integración continua ejecuta pruebas en Windows, Linux, macOS Intel y macOS Apple Silicon, y empaqueta cada destino nativo.
+El proyecto cubre con pruebas automatizadas creación y edición FAT, ISO arrancable y El Torito, preservación BPB y copias de los modelos originales, exploración temporal VHD, planificación de despliegue, informes de cola cero, arrastrar y soltar, diseño y preflight por lotes, API pública, configuración portátil, centro de tareas, fuentes, controles de escritura y compactación FAT. La interfaz también se valida fuera de pantalla. La integración continua ejecuta pruebas en Windows, Linux, macOS Intel y macOS Apple Silicon, y empaqueta cada destino nativo.
 
 ```bash
 QT_QPA_PLATFORM=offscreen pytest

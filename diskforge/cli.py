@@ -8,9 +8,10 @@ from pathlib import Path
 from typing import Any
 
 from .core.batch import BatchRunner, write_example_batch
-from .core.bootsector import edit_fat_boot_properties
+from .core.bootsector import apply_boot_template, edit_fat_boot_properties, list_boot_templates
 from .core.bundle import create_bundle, extract_bundle, inspect_bundle
 from .core.compare import compare_streams
+from .core.deployment import prepare_fat_deployment
 from .core.eltorito import export_boot_image, inspect_eltorito
 from .core.filesystems import FatImageFilesystem, IsoImageFilesystem, create_fat_image, create_iso_from_directory
 from .core.formats import QemuImgConverter, convert_image, inspect_image
@@ -22,7 +23,7 @@ from .core.partitions import inspect_gpt, list_partitions
 from .core.readonly_fs import SleuthKitImageFilesystem
 from .core.resize import resize_image
 from .core.selfextract import create_self_extractor
-from .core.storage import sha256_file
+from .core.storage import DiskForgeError, sha256_file
 
 
 def _progress(event) -> None:
@@ -92,6 +93,12 @@ def parser() -> argparse.ArgumentParser:
     wrap_mbr.add_argument("--bootable", action="store_true", help="Mark the single partition active; no boot code is added")
     wrap_mbr.add_argument("--overwrite", action="store_true")
 
+    deployment = commands.add_parser("prepare-fat-deployment", help="Prepare a neutral-MBR FAT deployment image without writing a device")
+    deployment.add_argument("source", type=Path)
+    deployment.add_argument("prepared_image", type=Path)
+    deployment.add_argument("--not-bootable", action="store_true", help="Leave the single MBR partition inactive")
+    deployment.add_argument("--overwrite", action="store_true")
+
     trim = commands.add_parser("trim-zero-tail", help="Copy an image after removing only full trailing zero sectors")
     trim.add_argument("source", type=Path)
     trim.add_argument("destination", type=Path)
@@ -102,6 +109,11 @@ def parser() -> argparse.ArgumentParser:
     iso.add_argument("directory", type=Path)
     iso.add_argument("image", type=Path)
     iso.add_argument("--label", default="DISKFORGE")
+    iso.add_argument("--boot-image", type=Path, help="Optional local El Torito boot image; copied into the new ISO")
+    iso.add_argument("--boot-platform", type=lambda value: int(value, 0), default=0, help="El Torito platform ID (default: 0/x86)")
+    iso.add_argument("--boot-media", choices=["noemul", "floppy", "hdemul"], default="noemul")
+    iso.add_argument("--boot-info-table", action="store_true", help="Write a boot info table into the ISO copy of the boot image")
+    iso.add_argument("--boot-load-segment", type=lambda value: int(value, 0), default=0)
 
     boot_info = commands.add_parser("iso-boot-info", help="Inspect an ISO El Torito boot catalog without modifying the ISO")
     boot_info.add_argument("image", type=Path)
@@ -127,6 +139,7 @@ def parser() -> argparse.ArgumentParser:
     compare.add_argument("source", type=Path)
     compare.add_argument("destination", type=Path)
     compare.add_argument("--bytes-to-compare", type=int)
+    compare.add_argument("--ignore-trailing-zero-sectors", action="store_true", help="Report-only: ignore full trailing zero sectors when no byte limit is set")
 
     checksum = commands.add_parser("sha256", help="Calculate an image checksum")
     checksum.add_argument("image", type=Path)
@@ -139,6 +152,13 @@ def parser() -> argparse.ArgumentParser:
     boot.add_argument("--oem-name")
     boot.add_argument("--volume-label")
     boot.add_argument("--serial-number", type=lambda value: int(value, 0))
+
+    boot_templates = commands.add_parser("boot-templates", help="List original DiskForge FAT boot templates")
+    boot_templates.add_argument("--verbose", action="store_true")
+    apply_template = commands.add_parser("apply-boot-template", help="Apply an original FAT boot template after full-image backup")
+    apply_template.add_argument("image", type=Path)
+    apply_template.add_argument("template")
+    apply_template.add_argument("--confirm", required=True, help="Must be APPLY_TEMPLATE")
 
     mbr_backup = commands.add_parser("mbr-backup", help="Back up one MBR sector")
     mbr_backup.add_argument("image", type=Path)
@@ -177,6 +197,7 @@ def parser() -> argparse.ArgumentParser:
     batch = commands.add_parser("batch", help="Run or generate batch recipe")
     batch.add_argument("recipe", type=Path, nargs="?")
     batch.add_argument("--example", type=Path)
+    batch.add_argument("--dry-run", action="store_true", help="Validate and print the batch plan without performing operations")
     return root
 
 
@@ -301,14 +322,28 @@ def main(argv: list[str] | None = None) -> int:
             print() if not args.json else None
             _emit(args, {"path": str(result.path), "source": str(result.source), "start_lba": result.partition_start_lba,
                          "sectors": result.partition_sectors, "partition_type": f"0x{result.partition_type:02X}"}, str(result.path))
+        elif args.command == "prepare-fat-deployment":
+            plan = prepare_fat_deployment(args.source, args.prepared_image, bootable=not args.not_bootable,
+                                          overwrite=args.overwrite, progress=progress)
+            print() if not args.json else None
+            _emit(args, {"source": str(plan.source), "prepared_image": str(plan.prepared_image),
+                         "start_lba": plan.partition_start_lba, "sectors": plan.partition_sectors,
+                         "partition_type": f"0x{plan.partition_type:02X}", "bootable": plan.bootable,
+                         "requires_confirmation": plan.requires_confirmation}, str(plan.prepared_image))
         elif args.command == "trim-zero-tail":
             result = trim_zero_tail(args.source, args.destination, minimum_size=args.minimum_bytes, overwrite=args.overwrite, progress=progress)
             print() if not args.json else None
             _emit(args, {"path": str(result.destination), "original_bytes": result.original_size,
                          "trimmed_bytes": result.trimmed_size, "bytes_removed": result.bytes_removed}, str(result.destination))
         elif args.command == "create-iso":
-            created = create_iso_from_directory(args.directory, args.image, args.label)
-            _emit(args, {"path": str(created)}, str(created))
+            created = create_iso_from_directory(
+                args.directory, args.image, args.label, boot_image=args.boot_image,
+                boot_platform_id=args.boot_platform, boot_media=args.boot_media,
+                boot_info_table=args.boot_info_table, boot_load_segment=args.boot_load_segment,
+            )
+            _emit(args, {"path": str(created), "boot_image": str(args.boot_image) if args.boot_image else None,
+                         "boot_platform": args.boot_platform if args.boot_image else None,
+                         "boot_media": args.boot_media if args.boot_image else None}, str(created))
         elif args.command == "iso-boot-info":
             catalog = inspect_eltorito(args.image)
             payload = {"catalog_lba": catalog.catalog_lba, "images": [
@@ -333,8 +368,10 @@ def main(argv: list[str] | None = None) -> int:
             print() if not args.json else None
             _emit(args, result.__dict__, str(result.destination))
         elif args.command == "compare":
-            result = compare_streams(args.source, args.destination, bytes_to_compare=args.bytes_to_compare,
-                                     progress=progress)
+            result = compare_streams(
+                args.source, args.destination, bytes_to_compare=args.bytes_to_compare,
+                ignore_trailing_zero_sectors=args.ignore_trailing_zero_sectors, progress=progress,
+            )
             print() if not args.json else None
             _emit(args, result.__dict__, f"{result.reason}; first difference: {result.first_difference}")
             return 0 if result.equal else 1
@@ -357,6 +394,18 @@ def main(argv: list[str] | None = None) -> int:
                                                      volume_label=args.volume_label,
                                                      serial_number=args.serial_number)
             _emit(args, {"backup": str(backup), "oem": info.oem_name, "label": info.volume_label}, str(backup))
+        elif args.command == "boot-templates":
+            templates = list_boot_templates()
+            payload = [{"id": item.identifier, "name": item.name, "description": item.description,
+                        "license": item.license_notice} for item in templates]
+            text = "\n".join(f"{item.identifier}\t{item.name}\t{item.description}" for item in templates)
+            _emit(args, payload, text)
+        elif args.command == "apply-boot-template":
+            if args.confirm != "APPLY_TEMPLATE":
+                raise DiskForgeError("Refusing to apply boot template without --confirm APPLY_TEMPLATE.")
+            info, backup = apply_boot_template(args.image, args.template)
+            _emit(args, {"backup": str(backup), "template": args.template, "oem": info.oem_name,
+                         "label": info.volume_label}, str(backup))
         elif args.command == "mbr-backup":
             backup = backup_mbr(args.image, args.output)
             _emit(args, {"backup": str(backup.backup), "sha256": backup.sha256}, str(backup.backup))
@@ -384,11 +433,16 @@ def main(argv: list[str] | None = None) -> int:
                 output = write_example_batch(args.example)
                 _emit(args, {"path": str(output)}, str(output))
             elif args.recipe:
-                result = BatchRunner().run(args.recipe, print)
-                payload = {"succeeded": result.succeeded, "failed": result.failed,
-                           "items": [item.__dict__ | {"source": str(item.source), "destination": str(item.destination) if item.destination else None, "operation": item.operation.value} for item in result.items]}
-                _emit(args, payload)
-                return 0 if result.failed == 0 else 1
+                runner = BatchRunner()
+                if args.dry_run:
+                    plan = runner.preview(args.recipe)
+                    _emit(args, {"dry_run": True, "operations": plan})
+                else:
+                    result = runner.run(args.recipe, print)
+                    payload = {"succeeded": result.succeeded, "failed": result.failed,
+                               "items": [item.__dict__ | {"source": str(item.source), "destination": str(item.destination) if item.destination else None, "operation": item.operation.value} for item in result.items]}
+                    _emit(args, payload)
+                    return 0 if result.failed == 0 else 1
             else:
                 raise SystemExit("Provide a recipe or --example output path.")
         return 0
