@@ -105,6 +105,38 @@ CATALOG["ja"].update({
     "Create secure image bundle…": "安全なイメージバンドルを作成…", "Attributes": "属性",
 })
 
+# v0.4 media compatibility and El Torito workflow additions.
+CATALOG["zh_CN"].update({
+    "Wrap FAT image in MBR…": "将 FAT 映像封装到 MBR 中…", "Trim trailing zero sectors…": "裁剪尾部零扇区…",
+    "Inspect / export ISO boot image…": "检查/导出 ISO 启动映像…", "DMF 1.68 MB FAT12 image": "DMF 1.68 MB FAT12 映像",
+    "Creates an 80×2×21-sector FAT12 image file. Physical floppy formatting is not performed.": "创建 80×2×21 扇区的 FAT12 映像文件；不执行物理软盘格式化。",
+})
+CATALOG["es"].update({
+    "Wrap FAT image in MBR…": "Envolver imagen FAT en MBR…", "Trim trailing zero sectors…": "Recortar sectores cero finales…",
+    "Inspect / export ISO boot image…": "Inspeccionar / exportar imagen de arranque ISO…", "DMF 1.68 MB FAT12 image": "Imagen DMF FAT12 de 1,68 MB",
+    "Creates an 80×2×21-sector FAT12 image file. Physical floppy formatting is not performed.": "Crea un archivo de imagen FAT12 de 80×2×21 sectores. No se realiza formateo físico de disquete.",
+})
+CATALOG["fr"].update({
+    "Wrap FAT image in MBR…": "Encapsuler l’image FAT dans un MBR…", "Trim trailing zero sectors…": "Rogner les secteurs zéro finaux…",
+    "Inspect / export ISO boot image…": "Inspecter / exporter l’image d’amorçage ISO…", "DMF 1.68 MB FAT12 image": "Image DMF FAT12 de 1,68 Mo",
+    "Creates an 80×2×21-sector FAT12 image file. Physical floppy formatting is not performed.": "Crée un fichier image FAT12 de 80×2×21 secteurs. Aucun formatage physique de disquette n’est effectué.",
+})
+CATALOG["ru"].update({
+    "Wrap FAT image in MBR…": "Обернуть FAT-образ в MBR…", "Trim trailing zero sectors…": "Удалить нулевые сектора в конце…",
+    "Inspect / export ISO boot image…": "Просмотреть / экспортировать загрузочный образ ISO…", "DMF 1.68 MB FAT12 image": "Образ DMF FAT12 1,68 МБ",
+    "Creates an 80×2×21-sector FAT12 image file. Physical floppy formatting is not performed.": "Создаёт файл FAT12 с геометрией 80×2×21 секторов. Физическое форматирование дискеты не выполняется.",
+})
+CATALOG["ar"].update({
+    "Wrap FAT image in MBR…": "تغليف صورة FAT داخل MBR…", "Trim trailing zero sectors…": "اقتطاع القطاعات الصفرية اللاحقة…",
+    "Inspect / export ISO boot image…": "فحص / تصدير صورة إقلاع ISO…", "DMF 1.68 MB FAT12 image": "صورة DMF FAT12 بحجم 1.68 ميغابايت",
+    "Creates an 80×2×21-sector FAT12 image file. Physical floppy formatting is not performed.": "ينشئ ملف صورة FAT12 بهندسة 80×2×21 قطاعاً. لا يتم إجراء تهيئة فعلية للقرص المرن.",
+})
+CATALOG["ja"].update({
+    "Wrap FAT image in MBR…": "FAT イメージを MBR でラップ…", "Trim trailing zero sectors…": "末尾のゼロセクターをトリミング…",
+    "Inspect / export ISO boot image…": "ISO ブートイメージを検査 / エクスポート…", "DMF 1.68 MB FAT12 image": "DMF 1.68 MB FAT12 イメージ",
+    "Creates an 80×2×21-sector FAT12 image file. Physical floppy formatting is not performed.": "80×2×21 セクターの FAT12 イメージファイルを作成します。物理フロッピーのフォーマットは行いません。",
+})
+
 
 def _catalog_keys() -> set[str]:
     return {key for translations in CATALOG.values() for key in translations}

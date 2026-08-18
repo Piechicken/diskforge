@@ -19,13 +19,14 @@ from .models import (BatchItemResult, BatchResult, ConflictPolicy, ExtractionLay
                      ExtractionPolicy, FileSystemType, ImageFormat, OperationKind)
 from .readonly_fs import SleuthKitImageFilesystem
 from .resize import resize_image
+from .sequence import SequencePattern, planned_paths
 from .storage import DiskForgeError, sha256_file
 
 
 class BatchRunner:
     """Execute a deliberately safe JSON batch specification."""
 
-    _SCHEMAS = {"diskforge.batch/v1", "diskforge.batch/v2"}
+    _SCHEMAS = {"diskforge.batch/v1", "diskforge.batch/v2", "diskforge.batch/v3"}
 
     def __init__(self, converter: QemuImgConverter | None = None) -> None:
         self.converter = converter or QemuImgConverter()
@@ -123,17 +124,27 @@ class BatchRunner:
                                    overwrite=bool(item.get("overwrite", False)))
             return str(resized.destination)
         if kind == OperationKind.EXTRACT:
-            source = Path(item["source"])
-            destination = Path(item["destination"])
             paths = item.get("paths", ["/"])
             if not isinstance(paths, list) or not all(isinstance(value, str) for value in paths):
                 raise DiskForgeError("Batch extraction paths must be a string list.")
-            filesystem = self._filesystem(source)
-            try:
-                filesystem.extract(paths, destination, policy=self._policy(item))
-            finally:
-                filesystem.close()
-            return str(destination)
+            source_values = item.get("sources")
+            if source_values is None:
+                source_paths = [Path(item["source"])]
+                destinations = [Path(item["destination"])]
+            else:
+                if not isinstance(source_values, list) or not source_values or not all(isinstance(value, str) for value in source_values):
+                    raise DiskForgeError("Batch extraction sources must be a non-empty string list.")
+                if "destination_root" not in item or "sequence" not in item:
+                    raise DiskForgeError("Multi-image extraction requires destination_root and sequence.")
+                source_paths = [Path(value) for value in source_values]
+                destinations = list(planned_paths(item["destination_root"], SequencePattern.from_mapping(item["sequence"]), len(source_paths)))
+            for source, destination in zip(source_paths, destinations):
+                filesystem = self._filesystem(source)
+                try:
+                    filesystem.extract(paths, destination, policy=self._policy(item))
+                finally:
+                    filesystem.close()
+            return str(destinations[-1])
         if kind == OperationKind.INJECT:
             source = Path(item["destination"])
             sources = item.get("sources")
@@ -171,7 +182,7 @@ class BatchRunner:
 
 def example_batch() -> dict[str, Any]:
     return {
-        "schema": "diskforge.batch/v2",
+        "schema": "diskforge.batch/v3",
         "operations": [
             {
                 "name": "Convert archival IMG to fixed VHD",

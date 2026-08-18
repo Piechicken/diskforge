@@ -29,10 +29,10 @@
 
 | 平台 | 文件名 | 启动方式 |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.3.0-windows-x64.zip` | 解压后运行 `DiskForge.exe`。 |
-| Linux x64 | `DiskForge-v0.3.0-linux-x64.zip` | 解压后运行 `./DiskForge`。 |
-| macOS Intel | `DiskForge-v0.3.0-macos-intel-x64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
-| macOS Apple Silicon | `DiskForge-v0.3.0-macos-arm64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
+| Windows x64 | `DiskForge-v0.4.0-windows-x64.zip` | 解压后运行 `DiskForge.exe`。 |
+| Linux x64 | `DiskForge-v0.4.0-linux-x64.zip` | 解压后运行 `./DiskForge`。 |
+| macOS Intel | `DiskForge-v0.4.0-macos-intel-x64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
+| macOS Apple Silicon | `DiskForge-v0.4.0-macos-arm64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
 
 ## 核心能力
 
@@ -40,14 +40,14 @@ DiskForge 将专业映像管理流程整合到统一界面。主窗口包含映�
 
 | 工作流 | 原生能力 | 说明 |
 |---|---|---|
-| 创建映像 | RAW/IMG、FAT12、FAT16、FAT32、ISO9660/Joliet | 创建可编辑 FAT 映像，或从本地目录制作 ISO。 |
+| 创建映像 | RAW/IMG、FAT12、FAT16、FAT32、DMF 布局 FAT12、ISO9660/Joliet | 创建可编辑 FAT 映像、采用 80×2×21 扇区已知几何布局的 DMF 映像文件，或从本地目录制作 ISO。 |
 | 浏览与提取 | FAT12/16/32、ISO9660/Joliet | 目录树、批量提取、映像信息和 MBR/GPT 检查。 |
 | 修改映像内容 | FAT 文件/目录注入、删除、时间属性编辑 | ISO 按只读介质处理，可由本地目录重新构建。 |
 | 格式转换 | 原生 RAW/IMG 与固定 VHD | VHDX、VMDK、QCOW2 通过显式配置的 `qemu-img` 适配器处理。 |
 | FAT 紧凑整理 | 基于重建的碎片整理 | 输出新映像，原映像保留作为恢复点。 |
-| 启动扇区检查 | 512 字节十六进制查看/编辑、导入扇区 | 替换前自动创建完整映像备份。 |
-| 校验与自动化 | SHA-256、JSON 批处理、可审计日志 | 无人值守批处理会明确拒绝物理设备写入。 |
-| 再分发归档 | 带 SHA-256 校验的自解压 `.pyz` 归档 | 可纳入原生启动器打包流程。 |
+| 结构与启动检查 | 512 字节十六进制查看/编辑、中性 MBR FAT 封装、尾部零扇区裁剪、El Torito 引导目录 | MBR 封装与裁剪均输出新文件；ISO 启动映像仅以只读方式导出。 |
+| 校验与自动化 | SHA-256、JSON 批处理、可审计日志 | 支持以规划的递增名称进行多源提取；无人值守批处理会明确拒绝物理设备写入。 |
+| 再分发归档 | 经身份验证的 `.dfb` 容器和带 SHA-256 校验的多映像自解压 `.pyz` 归档 | `.dfb` 支持可选 AES-256-GCM 加密、压缩、注释及逐项校验。 |
 | 读写物理介质 | 流式读取与恢复 | 拒绝系统盘、已挂载目标和容量不匹配设备；必须输入确认短语。 |
 
 ## 安全设计

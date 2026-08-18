@@ -421,8 +421,14 @@ class IsoImageFilesystem(ImageFilesystem):
 
 
 def create_fat_image(path: Path | str, size_bytes: int, filesystem: FileSystemType,
-                     label: str = "DISKFORGE") -> Path:
-    """Create a formatted FAT superfloppy image of a requested size."""
+                     label: str = "DISKFORGE", *, media_type: int = 0xF8,
+                     sectors_per_track: int = 0, heads: int = 0) -> Path:
+    """Create a formatted FAT superfloppy image of a requested size.
+
+    ``media_type`` and optional BIOS geometry are deliberately explicit because
+    they are presentation/firmware metadata rather than an instruction to write
+    a physical device.  A zero geometry preserves the formatter default.
+    """
     fat_type = {
         FileSystemType.FAT12: PyFat.FAT_TYPE_FAT12,
         FileSystemType.FAT16: PyFat.FAT_TYPE_FAT16,
@@ -438,11 +444,24 @@ def create_fat_image(path: Path | str, size_bytes: int, filesystem: FileSystemTy
     pyfat = PyFat()
     completed = False
     try:
-        pyfat.mkfs(str(target), fat_type=fat_type, size=size_bytes, label=label[:11])
+        if not 0 <= media_type <= 0xFF:
+            raise DiskForgeError("FAT media type must be a single unsigned byte.")
+        if not 0 <= sectors_per_track <= 0xFFFF or not 0 <= heads <= 0xFFFF:
+            raise DiskForgeError("FAT geometry values must fit in 16-bit BPB fields.")
+        pyfat.mkfs(str(target), fat_type=fat_type, size=size_bytes, label=label[:11], media_type=media_type)
         completed = True
     finally:
         if completed:
             pyfat.close()
+    # pyfatfs writes its final BPB while closing.  Patch optional geometry only
+    # after that flush so its close operation cannot overwrite these fields.
+    if sectors_per_track or heads:
+        with target.open("r+b") as handle:
+            handle.seek(24)
+            handle.write(int(sectors_per_track).to_bytes(2, "little"))
+            handle.write(int(heads).to_bytes(2, "little"))
+            handle.flush()
+            os.fsync(handle.fileno())
     return target
 
 

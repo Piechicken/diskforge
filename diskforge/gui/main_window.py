@@ -30,8 +30,10 @@ from diskforge.core.bootsector import (backup_and_write_boot_sector, edit_fat_bo
 from diskforge.core.bundle import create_bundle
 from diskforge.core.compare import compare_streams
 from diskforge.core.devices import list_devices, read_device_to_image, write_image_to_device
+from diskforge.core.eltorito import export_boot_image, inspect_eltorito
 from diskforge.core.filesystems import FatImageFilesystem, ImageFilesystem, IsoImageFilesystem, create_fat_image, create_iso_from_directory, defragment_fat_image
 from diskforge.core.formats import QemuImgConverter, convert_image, inspect_image
+from diskforge.core.media import create_dmf_image, trim_zero_tail, wrap_fat_image_in_mbr
 from diskforge.core.metadata import load_image_metadata, save_image_comment
 from diskforge.core.models import (ConflictPolicy, DeviceInfo, ExtractionLayout, ExtractionPolicy,
                                    FileSystemType, ImageEntry, ImageFormat, OperationKind, Progress,
@@ -45,7 +47,7 @@ from diskforge.gui.i18n import LANGUAGES, language_manager
 from diskforge.gui.workers import FunctionWorker
 
 
-IMAGE_FILTER = "Disk images (*.img *.ima *.bin *.dd *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
+IMAGE_FILTER = "Disk images (*.img *.ima *.bin *.dd *.dmf *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
 
 
 class NewImageDialog(QDialog):
@@ -60,6 +62,7 @@ class NewImageDialog(QDialog):
         self.kind = QComboBox()
         self.kind.addItem("FAT image (editable)", "fat")
         self.kind.addItem("Raw/IMG image", "raw")
+        self.kind.addItem("DMF 1.68 MB FAT12 image", "dmf")
         self.kind.addItem("ISO9660/Joliet from directory", "iso")
         self.size = QSpinBox()
         self.size.setRange(1, 1024 * 1024)
@@ -97,13 +100,15 @@ class NewImageDialog(QDialog):
 
     def _update_controls(self) -> None:
         mode = self.kind.currentData()
-        self.size.setEnabled(mode != "iso")
+        self.size.setEnabled(mode not in {"iso", "dmf"})
         self.fat.setEnabled(mode == "fat")
         self.source.setEnabled(mode == "iso")
         if mode == "iso":
             self.help.setText("ISO files are authored from a local directory and are read-only after creation.")
         elif mode == "raw":
             self.help.setText("Raw images are sparse zero-filled files; format them externally or write sectors manually.")
+        elif mode == "dmf":
+            self.help.setText("Creates an 80×2×21-sector FAT12 image file. Physical floppy formatting is not performed.")
         else:
             self.help.setText("FAT images are editable and support file injection, deletion and timestamp changes.")
 
@@ -321,6 +326,9 @@ class MainWindow(QMainWindow):
         self.action_resize = self._action("Resize image…", None, self.resize_current_image)
         self.action_compare = self._action("Compare image…", None, self.compare_current_image)
         self.action_bundle = self._action("Create secure image bundle…", None, self.create_bundle)
+        self.action_wrap_mbr = self._action("Wrap FAT image in MBR…", None, self.wrap_current_fat_in_mbr)
+        self.action_trim_zero_tail = self._action("Trim trailing zero sectors…", None, self.trim_current_zero_tail)
+        self.action_iso_boot = self._action("Inspect / export ISO boot image…", None, self.inspect_iso_boot)
         self.action_up = self._action("Up", "Alt+Up", self.go_up)
         self.action_convert = self._action("Convert image…", None, self.convert_image)
         self.action_verify = self._action("Verify SHA-256", None, self.verify_image)
@@ -351,8 +359,8 @@ class MainWindow(QMainWindow):
         menu_image.addActions([self.action_extract, self.action_inject, self.action_delete, self.action_properties,
                                self.action_rename, self.action_attributes, self.action_label, self.action_comment])
         menu_image.addSeparator()
-        menu_image.addActions([self.action_convert, self.action_resize, self.action_compare, self.action_verify,
-                               self.action_defragment, self.action_partitions, self.action_boot])
+        menu_image.addActions([self.action_convert, self.action_resize, self.action_trim_zero_tail, self.action_compare, self.action_verify,
+                               self.action_defragment, self.action_partitions, self.action_boot, self.action_wrap_mbr, self.action_iso_boot])
         menu_image.addSeparator()
         menu_image.addActions([self.action_export, self.action_print, self.action_bundle, self.action_sfx])
         menu_tools = self.menuBar().addMenu("&Tools")
@@ -471,8 +479,10 @@ class MainWindow(QMainWindow):
         fs_writable = isinstance(self.current_fs, FatImageFilesystem) and not getattr(self.current_fs, "read_only", False)
         for action in [self.action_close, self.action_convert, self.action_resize, self.action_compare,
                        self.action_verify, self.action_partitions, self.action_boot, self.action_comment,
-                       self.action_bundle, self.action_sfx]:
+                       self.action_bundle, self.action_sfx, self.action_trim_zero_tail, self.action_iso_boot]:
             action.setEnabled(open_image)
+        self.action_wrap_mbr.setEnabled(open_image and self.current_info is not None and self.current_info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32})
+        self.action_iso_boot.setEnabled(open_image and self.current_info is not None and (self.current_info.image_format == ImageFormat.ISO or self.current_info.filesystem == FileSystemType.ISO9660))
         self.action_extract.setEnabled(open_image and entries and self.current_fs is not None)
         self.action_inject.setEnabled(fs_writable)
         self.action_delete.setEnabled(fs_writable and entries)
@@ -555,7 +565,12 @@ class MainWindow(QMainWindow):
             return
         target = Path(output)
         size = dialog.size.value() * 1024 * 1024
-        if kind == "raw":
+        if kind == "dmf":
+            target = target.with_suffix(".dmf") if target.suffix.lower() not in {".dmf", ".img", ".ima"} else target
+            def create_dmf(progress=None, token=None):
+                return create_dmf_image(target, dialog.label.text())
+            self._run_worker("Creating DMF layout image", create_dmf, on_result=lambda result: self._open_path(Path(result)))
+        elif kind == "raw":
             def create_raw(progress=None, token=None):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 with target.open("wb") as handle:
@@ -995,6 +1010,100 @@ class MainWindow(QMainWindow):
             self._run_worker("Creating secure image bundle", create_bundle, [self.current_path], Path(output), password=secret,
                              comment=comment.text(), description=description.text(), compression_level=compression.currentData(),
                              on_result=lambda info: self.log(f"Created bundle: {info.path}"))
+
+    def wrap_current_fat_in_mbr(self) -> None:
+        """Write a separate neutral-MBR wrapper; the source image is never changed."""
+        if not self.current_path or not self.current_info or self.current_info.filesystem not in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
+            return
+        output, _ = QFileDialog.getSaveFileName(
+            self, "Save MBR-wrapped FAT image", str(self.current_path.with_stem(self.current_path.stem + "-mbr")),
+            "Disk image (*.img *.ima);;All files (*)",
+        )
+        if not output:
+            return
+        self._run_worker(
+            "Creating MBR-wrapped FAT image", wrap_fat_image_in_mbr, self.current_path, Path(output),
+            on_result=lambda result: self._open_path(result.path),
+        )
+
+    def trim_current_zero_tail(self) -> None:
+        """Create a copy after removing only trailing, whole zero-filled sectors."""
+        if not self.current_path:
+            return
+        value, accepted = QInputDialog.getText(
+            self, "Trim trailing zero sectors", "Minimum retained size in bytes (multiple of 512)", text="512",
+        )
+        if not accepted:
+            return
+        try:
+            minimum_size = int(value.strip())
+        except ValueError:
+            QMessageBox.warning(self, "Invalid minimum size", "Enter a whole number of bytes.")
+            return
+        if minimum_size < 0 or minimum_size % 512 or minimum_size > self.current_path.stat().st_size:
+            QMessageBox.warning(self, "Invalid minimum size", "The value must be a non-negative multiple of 512 and cannot exceed the image size.")
+            return
+        answer = QMessageBox.warning(
+            self, "Trim trailing zero sectors",
+            "This creates a new raw image after removing only full zero-filled sectors at the end. It does not repair filesystem or partition metadata. Continue?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel, QMessageBox.StandardButton.Cancel,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        output, _ = QFileDialog.getSaveFileName(
+            self, "Save trimmed image", str(self.current_path.with_stem(self.current_path.stem + "-trimmed")),
+            "Disk image (*.img *.ima *.bin);;All files (*)",
+        )
+        if not output:
+            return
+        self._run_worker(
+            "Trimming trailing zero sectors", trim_zero_tail, self.current_path, Path(output), minimum_size=minimum_size,
+            on_result=lambda result: self._trim_complete(result),
+        )
+
+    def _trim_complete(self, result) -> None:  # type: ignore[no-untyped-def]
+        self.log(f"Trimmed {human_bytes(result.bytes_removed)} from {result.source.name}")
+        self._open_path(result.destination)
+
+    def inspect_iso_boot(self) -> None:
+        """Inspect a boot catalog first, then optionally export one declared boot image."""
+        if not self.current_path:
+            return
+        source = self.current_path
+        self._run_worker(
+            "Inspecting El Torito boot catalog", lambda progress=None, token=None: inspect_eltorito(source),
+            on_result=self._show_iso_boot_catalog,
+        )
+
+    def _show_iso_boot_catalog(self, catalog) -> None:  # type: ignore[no-untyped-def]
+        rows = [f"Catalog LBA: {catalog.catalog_lba}", ""]
+        for image in catalog.images:
+            rows.append(
+                f"{image.index}: {'bootable' if image.bootable else 'not bootable'} · LBA {image.lba} · "
+                f"{human_bytes(image.byte_count)} · media type 0x{image.media_type:02X} · system 0x{image.system_type:02X}"
+            )
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle("ISO boot catalog")
+        dialog.setIcon(QMessageBox.Icon.Information)
+        dialog.setText("El Torito boot images are available for read-only export.")
+        dialog.setDetailedText("\n".join(rows))
+        export_button = dialog.addButton("Export boot image…", QMessageBox.ButtonRole.ActionRole)
+        dialog.addButton(QMessageBox.StandardButton.Close)
+        dialog.exec()
+        if dialog.clickedButton() != export_button:
+            return
+        index, accepted = QInputDialog.getInt(self, "Export boot image", "Catalog image index", 0, 0, len(catalog.images) - 1)
+        if not accepted:
+            return
+        output, _ = QFileDialog.getSaveFileName(
+            self, "Export El Torito boot image", f"{catalog.iso_path.stem}-boot-{index}.img",
+            "Boot image (*.img *.ima *.bin);;All files (*)",
+        )
+        if output:
+            self._run_worker(
+                "Exporting El Torito boot image", export_boot_image, catalog.iso_path, Path(output), index=index,
+                on_result=lambda path: self.log(f"Exported ISO boot image: {path}"),
+            )
 
     def defragment_image(self) -> None:
         if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:

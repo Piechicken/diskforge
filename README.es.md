@@ -29,10 +29,10 @@ La primera versión pública incluye cuatro paquetes nativos de escritorio. Desc
 
 | Plataforma | Paquete | Inicio |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.3.0-windows-x64.zip` | Descomprima y ejecute `DiskForge.exe`. |
-| Linux x64 | `DiskForge-v0.3.0-linux-x64.zip` | Descomprima y ejecute `./DiskForge`. |
-| macOS Intel | `DiskForge-v0.3.0-macos-intel-x64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
-| macOS Apple Silicon | `DiskForge-v0.3.0-macos-arm64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
+| Windows x64 | `DiskForge-v0.4.0-windows-x64.zip` | Descomprima y ejecute `DiskForge.exe`. |
+| Linux x64 | `DiskForge-v0.4.0-linux-x64.zip` | Descomprima y ejecute `./DiskForge`. |
+| macOS Intel | `DiskForge-v0.4.0-macos-intel-x64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
+| macOS Apple Silicon | `DiskForge-v0.4.0-macos-arm64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
 
 ## Qué puede hacer
 
@@ -40,14 +40,14 @@ DiskForge reúne los flujos de trabajo más prácticos para gestionar imágenes 
 
 | Flujo de trabajo | Capacidad nativa | Notas |
 |---|---|---|
-| Crear imágenes | RAW/IMG, FAT12, FAT16, FAT32, ISO9660/Joliet | Cree imágenes FAT editables o medios ISO desde un directorio local. |
+| Crear imágenes | RAW/IMG, FAT12, FAT16, FAT32, FAT12 con diseño DMF, ISO9660/Joliet | Cree imágenes FAT editables, archivos DMF con geometría documentada de 80×2×21 sectores o medios ISO desde un directorio local. |
 | Explorar y extraer | FAT12/16/32 e ISO9660/Joliet | Vista de árbol, extracción en lote, información de imagen e inspección MBR/GPT. |
 | Cambiar el contenido | Inyección FAT, carpetas recursivas, borrado y edición de fechas | Los ISO se tratan como medios de solo lectura y se reconstruyen desde una carpeta. |
 | Convertir formatos | RAW/IMG y VHD fijo de forma nativa | VHDX, VMDK y QCOW2 utilizan un adaptador `qemu-img` configurado explícitamente. |
 | Compactar imágenes FAT | Desfragmentación mediante reconstrucción | Crea una imagen nueva y conserva la original como punto de recuperación. |
-| Inspeccionar sectores de arranque | Visor/editor hexadecimal de 512 bytes e importación de sectores | Realiza una copia de seguridad completa antes de sustituir el sector. |
-| Verificar y automatizar | SHA-256, recetas JSON por lotes y registros auditables | Las recetas no atendidas rechazan las escrituras a dispositivos físicos. |
-| Crear paquetes redistribuibles | Archivos autoextraíbles `.pyz` verificados con SHA-256 | Se pueden integrar en un flujo de empaquetado con lanzador nativo. |
+| Inspeccionar estructuras y arranque | Visor/editor hexadecimal de 512 bytes, envoltura FAT en MBR neutral, recorte de sectores cero finales y catálogo El Torito | La envoltura y el recorte siempre crean un archivo nuevo; las imágenes de arranque ISO se exportan en modo de solo lectura. |
+| Verificar y automatizar | SHA-256, recetas JSON por lotes y registros auditables | Incluye extracción de múltiples fuentes con nombres incrementales planificados; las recetas no atendidas rechazan escrituras a dispositivos físicos. |
+| Crear paquetes redistribuibles | Contenedores `.dfb` autenticados y archivos autoextraíbles `.pyz` multiimagen verificados con SHA-256 | Los contenedores admiten cifrado AES-256-GCM opcional, compresión, comentarios y verificación por archivo. |
 | Leer y escribir medios físicos | Lectura y restauración en flujo | Rechaza discos del sistema, destinos montados y tamaños incompatibles; requiere confirmación escrita. |
 
 ## Seguridad primero

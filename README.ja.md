@@ -29,10 +29,10 @@
 
 | プラットフォーム | パッケージ | 起動方法 |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.3.0-windows-x64.zip` | 展開して `DiskForge.exe` を実行します。 |
-| Linux x64 | `DiskForge-v0.3.0-linux-x64.zip` | 展開して `./DiskForge` を実行します。 |
-| macOS Intel | `DiskForge-v0.3.0-macos-intel-x64.zip` | 展開し、`DiskForge.app` を Applications に移動します。 |
-| macOS Apple Silicon | `DiskForge-v0.3.0-macos-arm64.zip` | 展開し、`DiskForge.app` を Applications に移動します。 |
+| Windows x64 | `DiskForge-v0.4.0-windows-x64.zip` | 展開して `DiskForge.exe` を実行します。 |
+| Linux x64 | `DiskForge-v0.4.0-linux-x64.zip` | 展開して `./DiskForge` を実行します。 |
+| macOS Intel | `DiskForge-v0.4.0-macos-intel-x64.zip` | 展開し、`DiskForge.app` を Applications に移動します。 |
+| macOS Apple Silicon | `DiskForge-v0.4.0-macos-arm64.zip` | 展開し、`DiskForge.app` を Applications に移動します。 |
 
 ## 主な機能
 
@@ -40,14 +40,14 @@ DiskForge は実用的なイメージ管理の流れを一つの UI に統合し
 
 | ワークフロー | ネイティブ機能 | 備考 |
 |---|---|---|
-| イメージ作成 | RAW/IMG、FAT12、FAT16、FAT32、ISO9660/Joliet | 編集可能な FAT イメージ、またはローカルフォルダーから ISO を作成できます。 |
+| イメージ作成 | RAW/IMG、FAT12、FAT16、FAT32、DMF レイアウト FAT12、ISO9660/Joliet | 編集可能な FAT イメージ、文書化された 80×2×21 セクター構成の DMF イメージファイル、またはローカルフォルダーから ISO を作成できます。 |
 | 閲覧と抽出 | FAT12/16/32、ISO9660/Joliet | ツリービュー、一括抽出、イメージ情報、MBR/GPT 検査。 |
 | 内容の変更 | FAT ファイル/フォルダーの注入、削除、時刻変更 | ISO は読み取り専用メディアとして扱い、フォルダーから再構築します。 |
 | 形式変換 | RAW/IMG と固定 VHD をネイティブ変換 | VHDX、VMDK、QCOW2 は明示的に設定した `qemu-img` アダプターを使用します。 |
 | FAT のコンパクト化 | 再構築方式のデフラグ | 元のイメージを保持したまま、新しいイメージを書き出します。 |
-| ブートセクター | 512 バイトの 16 進ビュー/編集とセクターのインポート | 置換前にイメージ全体のバックアップを作成します。 |
-| 検証と自動化 | SHA-256、JSON バッチ、監査可能なログ | 無人バッチは物理デバイスへの書き込みを拒否します。 |
-| 再配布用アーカイブ | SHA-256 検証付き自己展開 `.pyz` | ネイティブランチャーの配布フローにも組み込めます。 |
+| 構造とブートの検査 | 512 バイトの 16 進ビュー/編集、中立 MBR への FAT ラップ、末尾ゼロセクターのトリミング、El Torito カタログ | MBR ラップとトリミングは常に新しいファイルを作成し、ISO ブートイメージは読み取り専用でエクスポートされます。 |
+| 検証と自動化 | SHA-256、JSON バッチ、監査可能なログ | 計画された連番での複数ソース抽出をサポートし、無人バッチは物理デバイスへの書き込みを拒否します。 |
+| 再配布用アーカイブ | 認証付き `.dfb` コンテナーと SHA-256 検証付き複数イメージ自己展開 `.pyz` | `.dfb` は任意の AES-256-GCM 暗号化、圧縮、コメント、項目ごとの検証に対応します。 |
 | 物理メディアの読書き | ストリーミングによる取得と復元 | システムディスク、マウント済みターゲット、容量不一致を拒否し、入力確認を求めます。 |
 
 ## 安全性を最優先

@@ -11,9 +11,11 @@ from .core.batch import BatchRunner, write_example_batch
 from .core.bootsector import edit_fat_boot_properties
 from .core.bundle import create_bundle, extract_bundle, inspect_bundle
 from .core.compare import compare_streams
+from .core.eltorito import export_boot_image, inspect_eltorito
 from .core.filesystems import FatImageFilesystem, IsoImageFilesystem, create_fat_image, create_iso_from_directory
 from .core.formats import QemuImgConverter, convert_image, inspect_image
 from .core.mbr import backup_mbr, reset_mbr_to_neutral, restore_mbr
+from .core.media import create_dmf_image, trim_zero_tail, wrap_fat_image_in_mbr
 from .core.metadata import load_image_metadata, save_image_comment
 from .core.models import ConflictPolicy, ExtractionLayout, ExtractionPolicy, FileSystemType, ImageFormat
 from .core.partitions import inspect_gpt, list_partitions
@@ -80,10 +82,34 @@ def parser() -> argparse.ArgumentParser:
     create.add_argument("--fat", choices=["12", "16", "32"], default="16")
     create.add_argument("--label", default="DISKFORGE")
 
+    dmf = commands.add_parser("create-dmf", help="Create an 80x2x21 FAT12 DMF-layout image file")
+    dmf.add_argument("image", type=Path)
+    dmf.add_argument("--label", default="DISKFORGE")
+
+    wrap_mbr = commands.add_parser("wrap-mbr", help="Wrap a FAT superfloppy image in a neutral single-partition MBR image")
+    wrap_mbr.add_argument("source", type=Path)
+    wrap_mbr.add_argument("destination", type=Path)
+    wrap_mbr.add_argument("--bootable", action="store_true", help="Mark the single partition active; no boot code is added")
+    wrap_mbr.add_argument("--overwrite", action="store_true")
+
+    trim = commands.add_parser("trim-zero-tail", help="Copy an image after removing only full trailing zero sectors")
+    trim.add_argument("source", type=Path)
+    trim.add_argument("destination", type=Path)
+    trim.add_argument("--minimum-bytes", type=int, default=512)
+    trim.add_argument("--overwrite", action="store_true")
+
     iso = commands.add_parser("create-iso", help="Create ISO9660/Joliet image from directory")
     iso.add_argument("directory", type=Path)
     iso.add_argument("image", type=Path)
     iso.add_argument("--label", default="DISKFORGE")
+
+    boot_info = commands.add_parser("iso-boot-info", help="Inspect an ISO El Torito boot catalog without modifying the ISO")
+    boot_info.add_argument("image", type=Path)
+    boot_export = commands.add_parser("export-boot-image", help="Export one ISO El Torito boot image")
+    boot_export.add_argument("image", type=Path)
+    boot_export.add_argument("output", type=Path)
+    boot_export.add_argument("--index", type=int, default=0)
+    boot_export.add_argument("--overwrite", action="store_true")
 
     convert = commands.add_parser("convert", help="Convert an image")
     convert.add_argument("source", type=Path)
@@ -142,9 +168,11 @@ def parser() -> argparse.ArgumentParser:
     unbundle.add_argument("--overwrite", action="store_true")
 
     sfx = commands.add_parser("self-extract", help="Create portable self-extracting .pyz bundle")
-    sfx.add_argument("image", type=Path)
+    sfx.add_argument("image", type=Path, help="Primary image payload")
     sfx.add_argument("output", type=Path)
+    sfx.add_argument("--add", action="append", type=Path, default=[], help="Additional image payload; repeatable")
     sfx.add_argument("--description", default="")
+    sfx.add_argument("--overwrite", action="store_true")
 
     batch = commands.add_parser("batch", help="Run or generate batch recipe")
     batch.add_argument("recipe", type=Path, nargs="?")
@@ -193,6 +221,7 @@ def _password_from_stdin(enabled: bool) -> str | None:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    progress = None if args.json else _progress
     try:
         if args.command == "info":
             info = inspect_image(args.image, QemuImgConverter())
@@ -214,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "extract":
             fs = _filesystem(args.image)
             try:
-                outputs = fs.extract(args.paths, args.destination, _progress, policy=_policy(args))
+                outputs = fs.extract(args.paths, args.destination, progress, policy=_policy(args))
                 print() if outputs and not args.json else None
                 _emit(args, {"outputs": [str(output) for output in outputs]}, "\n".join(str(output) for output in outputs))
             finally:
@@ -224,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 if not isinstance(fs, FatImageFilesystem):
                     raise SystemExit("Only FAT images are writable.")
-                outputs = fs.inject(args.sources, args.target_directory, _progress)
+                outputs = fs.inject(args.sources, args.target_directory, progress)
                 print() if outputs and not args.json else None
                 _emit(args, {"paths": outputs}, "\n".join(outputs))
             finally:
@@ -264,27 +293,53 @@ def main(argv: list[str] | None = None) -> int:
             fat = FileSystemType(f"FAT{args.fat}")
             created = create_fat_image(args.image, args.size_mib * 1024 * 1024, fat, args.label)
             _emit(args, {"path": str(created)}, str(created))
+        elif args.command == "create-dmf":
+            created = create_dmf_image(args.image, args.label)
+            _emit(args, {"path": str(created), "layout": "80x2x21", "bytes": created.stat().st_size}, str(created))
+        elif args.command == "wrap-mbr":
+            result = wrap_fat_image_in_mbr(args.source, args.destination, bootable=args.bootable, overwrite=args.overwrite, progress=progress)
+            print() if not args.json else None
+            _emit(args, {"path": str(result.path), "source": str(result.source), "start_lba": result.partition_start_lba,
+                         "sectors": result.partition_sectors, "partition_type": f"0x{result.partition_type:02X}"}, str(result.path))
+        elif args.command == "trim-zero-tail":
+            result = trim_zero_tail(args.source, args.destination, minimum_size=args.minimum_bytes, overwrite=args.overwrite, progress=progress)
+            print() if not args.json else None
+            _emit(args, {"path": str(result.destination), "original_bytes": result.original_size,
+                         "trimmed_bytes": result.trimmed_size, "bytes_removed": result.bytes_removed}, str(result.destination))
         elif args.command == "create-iso":
             created = create_iso_from_directory(args.directory, args.image, args.label)
             _emit(args, {"path": str(created)}, str(created))
+        elif args.command == "iso-boot-info":
+            catalog = inspect_eltorito(args.image)
+            payload = {"catalog_lba": catalog.catalog_lba, "images": [
+                {"index": image.index, "bootable": image.bootable, "media_type": image.media_type,
+                 "load_segment": image.load_segment, "system_type": image.system_type,
+                 "sectors_512": image.sector_count_512, "lba": image.lba, "bytes": image.byte_count}
+                for image in catalog.images
+            ]}
+            _emit(args, payload, "\n".join(f"{image.index}\tLBA {image.lba}\t{image.byte_count} bytes\t{'bootable' if image.bootable else 'not bootable'}" for image in catalog.images))
+        elif args.command == "export-boot-image":
+            output = export_boot_image(args.image, args.output, index=args.index, overwrite=args.overwrite, progress=progress)
+            print() if not args.json else None
+            _emit(args, {"path": str(output), "index": args.index, "bytes": output.stat().st_size}, str(output))
         elif args.command == "convert":
             result = convert_image(args.source, args.destination, ImageFormat(args.format), QemuImgConverter(),
-                                   _progress, overwrite=args.overwrite)
+                                   progress, overwrite=args.overwrite)
             print() if not args.json else None
             _emit(args, {"path": str(result.path), "format": result.image_format.value}, str(result.path))
         elif args.command == "resize":
-            result = resize_image(args.source, args.destination, args.size_bytes, progress=_progress,
+            result = resize_image(args.source, args.destination, args.size_bytes, progress=progress,
                                   overwrite=args.overwrite)
             print() if not args.json else None
             _emit(args, result.__dict__, str(result.destination))
         elif args.command == "compare":
             result = compare_streams(args.source, args.destination, bytes_to_compare=args.bytes_to_compare,
-                                     progress=_progress)
+                                     progress=progress)
             print() if not args.json else None
             _emit(args, result.__dict__, f"{result.reason}; first difference: {result.first_difference}")
             return 0 if result.equal else 1
         elif args.command == "sha256":
-            digest = sha256_file(args.image, progress=_progress)
+            digest = sha256_file(args.image, progress=progress)
             print() if not args.json else None
             _emit(args, {"sha256": digest}, digest)
         elif args.command == "partitions":
@@ -322,8 +377,8 @@ def main(argv: list[str] | None = None) -> int:
                                      names=args.names, overwrite=args.overwrite)
             _emit(args, {"outputs": [str(item) for item in outputs]}, "\n".join(str(item) for item in outputs))
         elif args.command == "self-extract":
-            output = create_self_extractor(args.image, args.output, description=args.description)
-            _emit(args, {"path": str(output)}, str(output))
+            output = create_self_extractor([args.image, *args.add], args.output, description=args.description, overwrite=args.overwrite)
+            _emit(args, {"path": str(output), "items": [str(path) for path in [args.image, *args.add]]}, str(output))
         elif args.command == "batch":
             if args.example:
                 output = write_example_batch(args.example)
