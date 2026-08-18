@@ -57,7 +57,8 @@ def save_image_comment(image: Path | str, comment: str) -> ImageMetadata:
     sidecar = metadata_path(target)
     temporary = sidecar.with_name(sidecar.name + ".tmp")
     temporary.write_text(json.dumps(record, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    with temporary.open("rb") as handle:
+    with temporary.open("r+b") as handle:
+        handle.flush()
         os.fsync(handle.fileno())
     os.replace(temporary, sidecar)
     return load_image_metadata(target)
