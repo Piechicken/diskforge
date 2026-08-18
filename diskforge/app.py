@@ -4,9 +4,10 @@ from __future__ import annotations
 import sys
 import traceback
 
-from PySide6.QtCore import QCoreApplication, Qt
+from PySide6.QtCore import QCoreApplication, QSettings, Qt
 from PySide6.QtWidgets import QApplication, QMessageBox
 
+from diskforge.gui.i18n import install_language_manager
 from diskforge.gui.main_window import MainWindow
 
 
@@ -43,6 +44,8 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     app.setStyleSheet(STYLE)
+    settings = QSettings("DiskForge", "DiskForge")
+    install_language_manager(app, settings)
     sys.excepthook = _exception_hook
     window = MainWindow()
     window.show()

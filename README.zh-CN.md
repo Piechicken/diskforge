@@ -29,10 +29,10 @@
 
 | 平台 | 文件名 | 启动方式 |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.1.0-windows-x64.zip` | 解压后运行 `DiskForge.exe`。 |
-| Linux x64 | `DiskForge-v0.1.0-linux-x64.zip` | 解压后运行 `./DiskForge`。 |
-| macOS Intel | `DiskForge-v0.1.0-macos-intel-x64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
-| macOS Apple Silicon | `DiskForge-v0.1.0-macos-arm64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
+| Windows x64 | `DiskForge-v0.2.0-windows-x64.zip` | 解压后运行 `DiskForge.exe`。 |
+| Linux x64 | `DiskForge-v0.2.0-linux-x64.zip` | 解压后运行 `./DiskForge`。 |
+| macOS Intel | `DiskForge-v0.2.0-macos-intel-x64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
+| macOS Apple Silicon | `DiskForge-v0.2.0-macos-arm64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
 
 ## 核心能力
 

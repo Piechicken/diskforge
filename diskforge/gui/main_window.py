@@ -32,6 +32,7 @@ from diskforge.core.models import DeviceInfo, FileSystemType, ImageEntry, ImageF
 from diskforge.core.partitions import list_partitions
 from diskforge.core.selfextract import create_self_extractor
 from diskforge.core.storage import DiskForgeError, sha256_file
+from diskforge.gui.i18n import LANGUAGES, language_manager
 from diskforge.gui.workers import FunctionWorker
 
 
@@ -338,8 +339,31 @@ class MainWindow(QMainWindow):
         menu_image.addActions([self.action_export, self.action_print, self.action_sfx])
         menu_tools = self.menuBar().addMenu("&Tools")
         menu_tools.addActions([self.action_devices, self.action_batch, self.action_preferences])
+        menu_language = menu_tools.addMenu("&Language")
+        self.language_actions: list[QAction] = []
+        try:
+            active_language = language_manager().language.code
+        except RuntimeError:
+            active_language = "en"
+        for language in LANGUAGES:
+            action = QAction(language.native_name, self)
+            action.setCheckable(True)
+            action.setChecked(language.code == active_language)
+            action.triggered.connect(lambda checked=False, code=language.code: self._change_language(code))
+            menu_language.addAction(action)
+            self.language_actions.append(action)
         menu_help = self.menuBar().addMenu("&Help")
         menu_help.addAction(self.action_about)
+
+    def _change_language(self, code: str) -> None:
+        try:
+            manager = language_manager()
+        except RuntimeError:
+            return
+        manager.set_language(code)
+        for action, language in zip(self.language_actions, LANGUAGES):
+            action.setChecked(language.code == code)
+        self.log(f"Interface language: {next(item.native_name for item in LANGUAGES if item.code == code)}")
 
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Main tools", self)

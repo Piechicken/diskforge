@@ -12,6 +12,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0EA5E9.svg" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/Python-3.10%2B-2563EB.svg" alt="Python 3.10 or newer">
   <img src="https://img.shields.io/badge/GUI-Qt-16A34A.svg" alt="Qt GUI">
+  <img src="https://img.shields.io/badge/UI-7%20languages-9333EA.svg" alt="Seven interface languages">
 </p>
 
 <p align="center">
@@ -29,10 +30,20 @@ The first public release provides four native desktop builds. Download the packa
 
 | Platform | Package | Launch |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.1.0-windows-x64.zip` | Extract, then run `DiskForge.exe`. |
-| Linux x64 | `DiskForge-v0.1.0-linux-x64.zip` | Extract, then run `./DiskForge`. |
-| macOS Intel | `DiskForge-v0.1.0-macos-intel-x64.zip` | Extract, then move `DiskForge.app` to Applications. |
-| macOS Apple Silicon | `DiskForge-v0.1.0-macos-arm64.zip` | Extract, then move `DiskForge.app` to Applications. |
+| Windows x64 | `DiskForge-v0.2.0-windows-x64.zip` | Extract, then run `DiskForge.exe`. |
+| Linux x64 | `DiskForge-v0.2.0-linux-x64.zip` | Extract, then run `./DiskForge`. |
+| macOS Intel | `DiskForge-v0.2.0-macos-intel-x64.zip` | Extract, then move `DiskForge.app` to Applications. |
+| macOS Apple Silicon | `DiskForge-v0.2.0-macos-arm64.zip` | Extract, then move `DiskForge.app` to Applications. |
+
+## Interface languages
+
+DiskForge v0.2.0 localizes its desktop interface at runtime. Select **Tools → Language** to switch immediately between the six United Nations working languages—**Arabic, Chinese, English, French, Russian, and Spanish**—plus **Japanese**. The preference is retained for the next launch. Selecting Arabic switches the complete Qt layout to right-to-left while preserving technical values such as device paths, checksums, file extensions, and the physical-write confirmation phrase `ERASE`.
+
+Read [LOCALIZATION.md](docs/LOCALIZATION.md) for the language matrix, RTL behavior, safety boundaries, and translation-maintenance workflow.
+
+<p align="center">
+  <img src="assets/diskforge-arabic-rtl.png" alt="DiskForge interface in Arabic with right-to-left layout" width="700">
+</p>
 
 ## What it does
 
@@ -102,6 +113,7 @@ The project includes automated coverage for FAT creation and editing, ISO creati
 ```bash
 QT_QPA_PLATFORM=offscreen pytest
 QT_QPA_PLATFORM=offscreen python scripts/gui_smoke.py
+QT_QPA_PLATFORM=offscreen python scripts/gui_i18n_smoke.py
 ```
 
 Read [BUILDING.md](docs/BUILDING.md) for build and release details. The visual smoke-test note is available in [gui_validation.md](artifacts/gui_validation.md).

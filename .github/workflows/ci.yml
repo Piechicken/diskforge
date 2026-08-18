@@ -63,19 +63,19 @@ jobs:
           - id: windows-x64
             label: Windows x64
             os: windows-latest
-            archive: DiskForge-v0.1.0-windows-x64.zip
+            archive: DiskForge-v0.2.0-windows-x64.zip
           - id: linux-x64
             label: Linux x64
             os: ubuntu-latest
-            archive: DiskForge-v0.1.0-linux-x64.zip
+            archive: DiskForge-v0.2.0-linux-x64.zip
           - id: macos-intel-x64
             label: macOS Intel x64
             os: macos-26-intel
-            archive: DiskForge-v0.1.0-macos-intel-x64.zip
+            archive: DiskForge-v0.2.0-macos-intel-x64.zip
           - id: macos-arm64
             label: macOS Apple Silicon
             os: macos-latest
-            archive: DiskForge-v0.1.0-macos-arm64.zip
+            archive: DiskForge-v0.2.0-macos-arm64.zip
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
