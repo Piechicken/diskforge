@@ -77,3 +77,49 @@ def load_boot_sector_file(path: Path | str) -> bytes:
     if len(data) != SECTOR_SIZE:
         raise DiskForgeError("A boot-sector file must be exactly 512 bytes.")
     return data
+
+
+def _ascii_field(value: str, width: int, description: str, *, allow_empty: bool = False) -> bytes:
+    normalized = value.strip()
+    if not normalized and not allow_empty:
+        raise DiskForgeError(f"{description} must not be empty.")
+    try:
+        encoded = normalized.encode("ascii")
+    except UnicodeEncodeError as exc:
+        raise DiskForgeError(f"{description} must contain ASCII characters only.") from exc
+    if len(encoded) > width or any(byte < 32 or byte > 126 for byte in encoded):
+        raise DiskForgeError(f"{description} must contain 1–{width} printable ASCII characters.")
+    return encoded.ljust(width, b" ")
+
+
+def edit_fat_boot_properties(image: Path | str, *, oem_name: str | None = None,
+                             volume_label: str | None = None, serial_number: int | None = None,
+                             sector: int = 0) -> tuple[BootSectorInfo, Path]:
+    """Safely edit the documented FAT BPB properties and return its backup.
+
+    The function only writes the OEM string, volume label and volume serial
+    fields.  It refuses non-FAT sectors and creates a complete image backup
+    before committing the changed sector.
+    """
+    target = Path(image)
+    with target.open("rb") as handle:
+        handle.seek(sector * SECTOR_SIZE)
+        data = bytearray(handle.read(SECTOR_SIZE))
+    if len(data) != SECTOR_SIZE:
+        raise DiskForgeError("Boot sector is outside the image bounds.")
+    details = inspect_boot_sector(bytes(data))
+    is_fat32 = details.filesystem_label.upper().startswith("FAT32")
+    is_fat = is_fat32 or details.filesystem_label.upper().startswith(("FAT12", "FAT16", "FAT"))
+    if not is_fat:
+        raise DiskForgeError("Structured boot properties are available for FAT boot sectors only.")
+    if oem_name is not None:
+        data[3:11] = _ascii_field(oem_name, 8, "OEM name")
+    if volume_label is not None:
+        data[71 if is_fat32 else 43:(71 if is_fat32 else 43) + 11] = _ascii_field(volume_label, 11, "Volume label")
+    if serial_number is not None:
+        if not 0 <= serial_number <= 0xFFFFFFFF:
+            raise DiskForgeError("Volume serial number must be an unsigned 32-bit integer.")
+        offset = 67 if is_fat32 else 39
+        data[offset:offset + 4] = serial_number.to_bytes(4, "little")
+    backup = backup_and_write_boot_sector(target, bytes(data), sector)
+    return inspect_boot_sector(bytes(data)), backup

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -88,3 +89,34 @@ def test_fat_export_supports_html_and_timestamp_edit(tmp_path: Path) -> None:
         assert "record.txt" in result.read_text(encoding="utf-8")
     finally:
         fs.close()
+
+
+def test_fat_rename_attributes_times_and_volume_label(tmp_path: Path) -> None:
+    image = tmp_path / "editable.img"
+    source = tmp_path / "payload.txt"
+    source.write_text("metadata", encoding="utf-8")
+    create_fat_image(image, 8 * 1024 * 1024, FileSystemType.FAT16, "ORIGINAL")
+
+    filesystem = FatImageFilesystem(image)
+    try:
+        filesystem.inject([source])
+        renamed = filesystem.rename("/payload.txt", "renamed.txt")
+        assert renamed == "/renamed.txt"
+        assert filesystem.set_attributes(renamed, read_only=True, hidden=True, archive=True) == "RHA"
+        changed = datetime(2024, 1, 2, 3, 4, 6, tzinfo=timezone.utc)
+        filesystem.set_times(renamed, created=changed, modified=changed, accessed=changed)
+        assert filesystem.set_volume_label("DISKFORGE") == "DISKFORGE"
+        assert filesystem.volume_label() == "DISKFORGE"
+    finally:
+        filesystem.close()
+
+    reopened = FatImageFilesystem(image, read_only=True)
+    try:
+        entry = reopened.list_entries("/")[0]
+        assert entry.name == "renamed.txt"
+        assert entry.attributes == "RHA"
+        assert entry.created is not None
+        assert entry.modified is not None
+        assert reopened.volume_label() == "DISKFORGE"
+    finally:
+        reopened.close()

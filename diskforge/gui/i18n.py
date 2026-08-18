@@ -66,6 +66,45 @@ CATALOG: dict[str, dict[str, str]] = {
     },
 }
 
+# Feature additions after the initial catalog. Keeping these mappings adjacent to
+# the catalog preserves the source-string contract used by the runtime manager.
+CATALOG["zh_CN"].update({
+    "Rename selected…": "重命名所选内容…", "Edit DOS attributes…": "编辑 DOS 属性…",
+    "Change volume label…": "更改卷标…", "Edit image comment…": "编辑映像注释…",
+    "Resize image…": "调整映像大小…", "Compare image…": "比较映像…",
+    "Create secure image bundle…": "创建安全映像包…", "Attributes": "属性",
+})
+CATALOG["es"].update({
+    "Rename selected…": "Renombrar selección…", "Edit DOS attributes…": "Editar atributos DOS…",
+    "Change volume label…": "Cambiar etiqueta de volumen…", "Edit image comment…": "Editar comentario de imagen…",
+    "Resize image…": "Redimensionar imagen…", "Compare image…": "Comparar imagen…",
+    "Create secure image bundle…": "Crear paquete seguro de imágenes…", "Attributes": "Atributos",
+})
+CATALOG["fr"].update({
+    "Rename selected…": "Renommer la sélection…", "Edit DOS attributes…": "Modifier les attributs DOS…",
+    "Change volume label…": "Changer l’étiquette du volume…", "Edit image comment…": "Modifier le commentaire de l’image…",
+    "Resize image…": "Redimensionner l’image…", "Compare image…": "Comparer l’image…",
+    "Create secure image bundle…": "Créer un paquet d’images sécurisé…", "Attributes": "Attributs",
+})
+CATALOG["ru"].update({
+    "Rename selected…": "Переименовать выбранное…", "Edit DOS attributes…": "Изменить атрибуты DOS…",
+    "Change volume label…": "Изменить метку тома…", "Edit image comment…": "Изменить комментарий к образу…",
+    "Resize image…": "Изменить размер образа…", "Compare image…": "Сравнить образ…",
+    "Create secure image bundle…": "Создать защищённый пакет образов…", "Attributes": "Атрибуты",
+})
+CATALOG["ar"].update({
+    "Rename selected…": "إعادة تسمية المحدد…", "Edit DOS attributes…": "تحرير سمات DOS…",
+    "Change volume label…": "تغيير تسمية وحدة التخزين…", "Edit image comment…": "تحرير تعليق الصورة…",
+    "Resize image…": "تغيير حجم الصورة…", "Compare image…": "مقارنة الصورة…",
+    "Create secure image bundle…": "إنشاء حزمة صور آمنة…", "Attributes": "السمات",
+})
+CATALOG["ja"].update({
+    "Rename selected…": "選択項目の名前を変更…", "Edit DOS attributes…": "DOS 属性を編集…",
+    "Change volume label…": "ボリュームラベルを変更…", "Edit image comment…": "イメージのコメントを編集…",
+    "Resize image…": "イメージのサイズを変更…", "Compare image…": "イメージを比較…",
+    "Create secure image bundle…": "安全なイメージバンドルを作成…", "Attributes": "属性",
+})
+
 
 def _catalog_keys() -> set[str]:
     return {key for translations in CATALOG.values() for key in translations}

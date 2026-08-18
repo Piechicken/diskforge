@@ -14,11 +14,14 @@ from pathlib import Path
 from typing import Iterable, Iterator, Sequence
 
 import pycdlib
+from pyfatfs.EightDotThree import EightDotThree
+from pyfatfs.FATDirectoryEntry import FATDirectoryEntry
 from pyfatfs.PyFat import PyFat
 from pyfatfs.PyFatFS import PyFatFS
 
 from .formats import inspect_image
-from .models import FileSystemType, ImageEntry, OperationKind, Progress, ProgressCallback, iter_parent_paths
+from .models import (ConflictPolicy, ExtractionLayout, ExtractionPolicy, FileSystemType,
+                     ImageEntry, OperationKind, Progress, ProgressCallback, iter_parent_paths)
 from .partitions import fat_partition_offset
 from .storage import CancellationToken, DiskForgeError
 
@@ -31,7 +34,8 @@ class ImageFilesystem:
 
     def extract(self, paths: Sequence[str], destination: Path,
                 progress: ProgressCallback | None = None,
-                token: CancellationToken | None = None) -> list[Path]:
+                token: CancellationToken | None = None,
+                policy: ExtractionPolicy | None = None) -> list[Path]:
         raise NotImplementedError
 
     def close(self) -> None:
@@ -41,6 +45,55 @@ class ImageFilesystem:
 def _normal(path: str) -> str:
     path = "/" + path.replace("\\", "/").strip("/")
     return posixpath.normpath(path)
+
+
+_DOS_ATTRIBUTE_FLAGS = {
+    "read_only": FATDirectoryEntry.ATTR_READ_ONLY,
+    "hidden": FATDirectoryEntry.ATTR_HIDDEN,
+    "system": FATDirectoryEntry.ATTR_SYSTEM,
+    "archive": FATDirectoryEntry.ATTR_ARCHIVE,
+}
+
+
+def _format_dos_attributes(value: int) -> str:
+    """Render the editable DOS attribute bits in a stable user-facing order."""
+    labels = (("R", FATDirectoryEntry.ATTR_READ_ONLY), ("H", FATDirectoryEntry.ATTR_HIDDEN),
+              ("S", FATDirectoryEntry.ATTR_SYSTEM), ("A", FATDirectoryEntry.ATTR_ARCHIVE))
+    return "".join(label for label, flag in labels if value & flag)
+
+
+def _extraction_target(destination: Path, entry: ImageEntry, policy: ExtractionPolicy,
+                       claimed: set[str]) -> Path | None:
+    """Choose a safe output path according to explicit layout/conflict policy."""
+    relative = entry.name if policy.layout == ExtractionLayout.FLATTEN else entry.path.lstrip("/")
+    candidate = destination / relative
+    root = destination.resolve()
+    resolved = candidate.resolve()
+    if root != resolved and root not in resolved.parents:
+        raise DiskForgeError("Extraction path escapes the selected destination.")
+    key = str(resolved).casefold()
+    conflict = key in claimed or candidate.exists()
+    if not conflict:
+        claimed.add(key)
+        return candidate
+    if policy.conflict == ConflictPolicy.ERROR:
+        raise FileExistsError(candidate)
+    if policy.conflict == ConflictPolicy.SKIP:
+        return None
+    if policy.conflict == ConflictPolicy.OVERWRITE:
+        if candidate.is_dir():
+            raise IsADirectoryError(candidate)
+        claimed.add(key)
+        return candidate
+    stem, suffix = candidate.stem, candidate.suffix
+    index = 2
+    while True:
+        renamed = candidate.with_name(f"{stem}-{index}{suffix}")
+        renamed_key = str(renamed.resolve()).casefold()
+        if renamed_key not in claimed and not renamed.exists():
+            claimed.add(renamed_key)
+            return renamed
+        index += 1
 
 
 class FatImageFilesystem(ImageFilesystem):
@@ -62,6 +115,7 @@ class FatImageFilesystem(ImageFilesystem):
             entry_path = _normal(posixpath.join(root, name))
             info = self.fs.getinfo(entry_path, namespaces=["details"])
             details = info.raw.get("details", {})
+            dentry = self.fs._get_dir_entry(entry_path)
             entries.append(ImageEntry(
                 path=entry_path,
                 name=name,
@@ -69,6 +123,7 @@ class FatImageFilesystem(ImageFilesystem):
                 size=int(details.get("size", 0) or 0),
                 modified=_from_timestamp(details.get("modified")),
                 created=_from_timestamp(details.get("created")),
+                attributes=_format_dos_attributes(dentry.attr),
             ))
         return sorted(entries, key=lambda item: (not item.is_dir, item.name.lower()))
 
@@ -83,37 +138,40 @@ class FatImageFilesystem(ImageFilesystem):
 
     def extract(self, paths: Sequence[str], destination: Path,
                 progress: ProgressCallback | None = None,
-                token: CancellationToken | None = None) -> list[Path]:
+                token: CancellationToken | None = None,
+                policy: ExtractionPolicy | None = None) -> list[Path]:
         destination = Path(destination)
         destination.mkdir(parents=True, exist_ok=True)
+        active_policy = policy or ExtractionPolicy()
         selected: list[ImageEntry] = []
         for item_path in paths:
             normalized = _normal(item_path)
             info = self.fs.getinfo(normalized, namespaces=["details"])
             selected.append(ImageEntry(normalized, Path(normalized).name, bool(info.is_dir),
                                       int(info.raw.get("details", {}).get("size", 0) or 0)))
-        files = [entry for entry in selected if not entry.is_dir]
+        files: list[ImageEntry] = []
+        for entry in selected:
+            if not entry.is_dir:
+                files.append(entry)
+            elif active_policy.layout != ExtractionLayout.IGNORE_SUBDIRECTORIES:
+                files.extend(child for child in self._walk(entry.path) if not child.is_dir)
+        deduplicated = {entry.path: entry for entry in files}
+        files = list(deduplicated.values())
         total = sum(entry.size for entry in files) or len(files)
         done = 0
         extracted: list[Path] = []
-        for entry in selected:
+        claimed: set[str] = set()
+        for entry in files:
             if token:
                 token.raise_if_cancelled()
-            if entry.is_dir:
-                for child in self._walk(entry.path):
-                    if not child.is_dir:
-                        self._extract_file(child, destination / child.path.lstrip("/"), token)
-                        done += child.size or 1
-                        if progress:
-                            progress(Progress(OperationKind.EXTRACT, done, total, f"Extracting {child.name}"))
-                        extracted.append(destination / child.path.lstrip("/"))
-            else:
-                output = destination / entry.path.lstrip("/")
-                self._extract_file(entry, output, token)
-                done += entry.size or 1
-                if progress:
-                    progress(Progress(OperationKind.EXTRACT, done, total, f"Extracting {entry.name}"))
-                extracted.append(output)
+            output = _extraction_target(destination, entry, active_policy, claimed)
+            if output is None:
+                continue
+            self._extract_file(entry, output, token)
+            done += entry.size or 1
+            if progress:
+                progress(Progress(OperationKind.EXTRACT, done, total, f"Extracting {entry.name}"))
+            extracted.append(output)
         return extracted
 
     def _extract_file(self, entry: ImageEntry, output: Path, token: CancellationToken | None) -> None:
@@ -172,10 +230,96 @@ class FatImageFilesystem(ImageFilesystem):
             else:
                 self.fs.remove(item_path)
 
-    def set_modified(self, item_path: str, modified: datetime) -> None:
+    def rename(self, item_path: str, new_name: str) -> str:
+        """Rename a FAT file or directory within its current parent directory."""
         if self.read_only:
             raise DiskForgeError("This FAT image is open read-only.")
-        self.fs.setinfo(_normal(item_path), {"details": {"modified": modified.timestamp()}})
+        source = _normal(item_path)
+        candidate = new_name.strip()
+        if not candidate or candidate in {".", ".."} or "/" in candidate or "\\" in candidate:
+            raise DiskForgeError("A new name must be a single non-empty filename.")
+        destination = _normal(posixpath.join(posixpath.dirname(source), candidate))
+        if destination == source:
+            return source
+        if self.fs.exists(destination):
+            raise FileExistsError(destination)
+        self.fs.move(source, destination)
+        return destination
+
+    def set_attributes(self, item_path: str, *, read_only: bool | None = None,
+                       hidden: bool | None = None, system: bool | None = None,
+                       archive: bool | None = None) -> str:
+        """Update the standard editable DOS attribute bits of one FAT entry."""
+        if self.read_only:
+            raise DiskForgeError("This FAT image is open read-only.")
+        entry = self.fs._get_dir_entry(_normal(item_path))
+        requested = {
+            "read_only": read_only,
+            "hidden": hidden,
+            "system": system,
+            "archive": archive,
+        }
+        value = entry.attr
+        for name, enabled in requested.items():
+            if enabled is None:
+                continue
+            flag = _DOS_ATTRIBUTE_FLAGS[name]
+            value = value | flag if enabled else value & ~flag
+        entry.attr = value
+        self.fs.fs.update_directory_entry(entry.get_parent_dir())
+        return _format_dos_attributes(value)
+
+    def set_times(self, item_path: str, *, created: datetime | None = None,
+                  modified: datetime | None = None, accessed: datetime | None = None) -> None:
+        """Update FAT timestamps without changing omitted fields."""
+        if self.read_only:
+            raise DiskForgeError("This FAT image is open read-only.")
+        details = {
+            name: value.timestamp()
+            for name, value in (("created", created), ("modified", modified), ("accessed", accessed))
+            if value is not None
+        }
+        if not details:
+            return
+        self.fs.setinfo(_normal(item_path), {"details": details})
+
+    def set_modified(self, item_path: str, modified: datetime) -> None:
+        """Backward-compatible shorthand for timestamp editing."""
+        self.set_times(item_path, modified=modified)
+
+    def volume_label(self) -> str:
+        """Return the FAT BPB volume label (without trailing padding)."""
+        header = self.fs.fs.bpb_header
+        label = header.get("BS_VolLab", b"")
+        if isinstance(label, str):
+            return label.rstrip()
+        return bytes(label).decode("ascii", errors="replace").rstrip()
+
+    def set_volume_label(self, label: str) -> str:
+        """Update both the BPB label and the root-directory volume-ID entry."""
+        if self.read_only:
+            raise DiskForgeError("This FAT image is open read-only.")
+        normalized = label.strip().upper()
+        if not normalized or len(normalized) > 11 or any(ord(character) < 32 or ord(character) > 126 for character in normalized):
+            raise DiskForgeError("A FAT volume label must contain 1–11 printable ASCII characters.")
+        fat = self.fs.fs
+        fat.bpb_header["BS_VolLab"] = normalized.ljust(11).encode("ascii")
+        fat._write_bpb_header()
+        _, _, specials = fat.root_dir.get_entries()
+        volume_entry = next((entry for entry in specials if entry.is_volume_id()), None)
+        if volume_entry is None:
+            label_name = EightDotThree(encoding=fat.encoding)
+            label_name.set_str_name(EightDotThree.make_8dot3_name(normalized, fat.root_dir))
+            volume_entry = FATDirectoryEntry.new(name=label_name, tz=datetime.now().astimezone().tzinfo,
+                                                 encoding=fat.encoding,
+                                                 attr=FATDirectoryEntry.ATTR_VOLUME_ID)
+            fat.root_dir.add_subdirectory(volume_entry)
+        else:
+            label_name = EightDotThree(encoding=fat.encoding)
+            label_name.set_str_name(EightDotThree.make_8dot3_name(normalized, fat.root_dir))
+            volume_entry.name = label_name
+        fat.update_directory_entry(fat.root_dir)
+        return normalized
 
     def export_listing(self, output: Path, html: bool = False) -> Path:
         entries = self.all_entries()
@@ -238,8 +382,11 @@ class IsoImageFilesystem(ImageFilesystem):
 
     def extract(self, paths: Sequence[str], destination: Path,
                 progress: ProgressCallback | None = None,
-                token: CancellationToken | None = None) -> list[Path]:
+                token: CancellationToken | None = None,
+                policy: ExtractionPolicy | None = None) -> list[Path]:
+        destination = Path(destination)
         destination.mkdir(parents=True, exist_ok=True)
+        active_policy = policy or ExtractionPolicy()
         targets: list[ImageEntry] = []
         for selected in paths:
             normalized = _normal(selected)
@@ -247,16 +394,23 @@ class IsoImageFilesystem(ImageFilesystem):
             if not candidates:
                 raise FileNotFoundError(selected)
             targets.extend(candidates)
-        files = []
+        files: list[ImageEntry] = []
         for entry in targets:
-            files.extend([entry] if not entry.is_dir else [child for child in self._walk(entry.path) if not child.is_dir])
+            if not entry.is_dir:
+                files.append(entry)
+            elif active_policy.layout != ExtractionLayout.IGNORE_SUBDIRECTORIES:
+                files.extend(child for child in self._walk(entry.path) if not child.is_dir)
+        files = list({entry.path: entry for entry in files}.values())
         total = sum(entry.size for entry in files) or len(files)
         complete = 0
         outputs: list[Path] = []
+        claimed: set[str] = set()
         for entry in files:
             if token:
                 token.raise_if_cancelled()
-            output = destination / entry.path.lstrip("/")
+            output = _extraction_target(destination, entry, active_policy, claimed)
+            if output is None:
+                continue
             output.parent.mkdir(parents=True, exist_ok=True)
             self.iso.get_file_from_iso(str(output), iso_path=self._iso_path(entry.path))
             complete += entry.size or 1

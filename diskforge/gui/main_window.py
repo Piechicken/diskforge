@@ -17,19 +17,28 @@ from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
     QFileDialog, QFormLayout, QFrame, QGroupBox, QHBoxLayout, QHeaderView, QLabel,
-    QLineEdit, QMainWindow, QMenu, QMessageBox, QPlainTextEdit, QProgressBar,
+    QLineEdit, QInputDialog, QMainWindow, QMenu, QMessageBox, QPlainTextEdit, QProgressBar,
     QPushButton, QSpinBox, QDateTimeEdit, QSplitter, QStatusBar, QTableWidget, QTableWidgetItem,
     QTabWidget, QTextBrowser, QToolBar, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
     QWidget,
 )
 
 from diskforge.core.batch import BatchRunner
-from diskforge.core.bootsector import backup_and_write_boot_sector, inspect_boot_sector, load_boot_sector_file, parse_hexdump, read_sector, sector_hexdump
+from diskforge.core.bootsector import (backup_and_write_boot_sector, edit_fat_boot_properties,
+                                       inspect_boot_sector, load_boot_sector_file, parse_hexdump,
+                                       read_sector, sector_hexdump)
+from diskforge.core.bundle import create_bundle
+from diskforge.core.compare import compare_streams
 from diskforge.core.devices import list_devices, read_device_to_image, write_image_to_device
 from diskforge.core.filesystems import FatImageFilesystem, ImageFilesystem, IsoImageFilesystem, create_fat_image, create_iso_from_directory, defragment_fat_image
 from diskforge.core.formats import QemuImgConverter, convert_image, inspect_image
-from diskforge.core.models import DeviceInfo, FileSystemType, ImageEntry, ImageFormat, OperationKind, Progress, human_bytes
+from diskforge.core.metadata import load_image_metadata, save_image_comment
+from diskforge.core.models import (ConflictPolicy, DeviceInfo, ExtractionLayout, ExtractionPolicy,
+                                   FileSystemType, ImageEntry, ImageFormat, OperationKind, Progress,
+                                   human_bytes)
 from diskforge.core.partitions import list_partitions
+from diskforge.core.readonly_fs import SleuthKitImageFilesystem
+from diskforge.core.resize import resize_image
 from diskforge.core.selfextract import create_self_extractor
 from diskforge.core.storage import DiskForgeError, sha256_file
 from diskforge.gui.i18n import LANGUAGES, language_manager
@@ -305,6 +314,13 @@ class MainWindow(QMainWindow):
         self.action_inject = self._action("Inject files…", "Ctrl+I", self.inject_files)
         self.action_delete = self._action("Delete selected", "Delete", self.delete_selected)
         self.action_properties = self._action("Modify selected timestamp…", None, self.modify_timestamp)
+        self.action_rename = self._action("Rename selected…", "F2", self.rename_selected)
+        self.action_attributes = self._action("Edit DOS attributes…", None, self.edit_attributes)
+        self.action_label = self._action("Change volume label…", None, self.change_volume_label)
+        self.action_comment = self._action("Edit image comment…", None, self.edit_image_comment)
+        self.action_resize = self._action("Resize image…", None, self.resize_current_image)
+        self.action_compare = self._action("Compare image…", None, self.compare_current_image)
+        self.action_bundle = self._action("Create secure image bundle…", None, self.create_bundle)
         self.action_up = self._action("Up", "Alt+Up", self.go_up)
         self.action_convert = self._action("Convert image…", None, self.convert_image)
         self.action_verify = self._action("Verify SHA-256", None, self.verify_image)
@@ -332,11 +348,13 @@ class MainWindow(QMainWindow):
         menu_file.addSeparator()
         menu_file.addAction("Exit", self.close)
         menu_image = self.menuBar().addMenu("&Image")
-        menu_image.addActions([self.action_extract, self.action_inject, self.action_delete, self.action_properties])
+        menu_image.addActions([self.action_extract, self.action_inject, self.action_delete, self.action_properties,
+                               self.action_rename, self.action_attributes, self.action_label, self.action_comment])
         menu_image.addSeparator()
-        menu_image.addActions([self.action_convert, self.action_verify, self.action_defragment, self.action_partitions, self.action_boot])
+        menu_image.addActions([self.action_convert, self.action_resize, self.action_compare, self.action_verify,
+                               self.action_defragment, self.action_partitions, self.action_boot])
         menu_image.addSeparator()
-        menu_image.addActions([self.action_export, self.action_print, self.action_sfx])
+        menu_image.addActions([self.action_export, self.action_print, self.action_bundle, self.action_sfx])
         menu_tools = self.menuBar().addMenu("&Tools")
         menu_tools.addActions([self.action_devices, self.action_batch, self.action_preferences])
         menu_language = menu_tools.addMenu("&Language")
@@ -391,17 +409,18 @@ class MainWindow(QMainWindow):
         up_button.clicked.connect(self.go_up)
         path_row.addWidget(up_button)
         right_layout.addLayout(path_row)
-        self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(["Name", "Type", "Size", "Modified", "Path"])
+        self.table = QTableWidget(0, 6)
+        self.table.setHorizontalHeaderLabels(["Name", "Type", "Size", "Modified", "Attributes", "Path"])
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSortingEnabled(True)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
         self.table.setColumnWidth(1, 100)
         self.table.setColumnWidth(2, 100)
         self.table.setColumnWidth(3, 160)
+        self.table.setColumnWidth(4, 110)
         self.table.itemDoubleClicked.connect(self._table_open)
         right_layout.addWidget(self.table, 1)
         splitter.addWidget(right)
@@ -450,12 +469,17 @@ class MainWindow(QMainWindow):
         open_image = self.current_path is not None
         entries = bool(self._selected_paths())
         fs_writable = isinstance(self.current_fs, FatImageFilesystem) and not getattr(self.current_fs, "read_only", False)
-        for action in [self.action_close, self.action_convert, self.action_verify, self.action_partitions, self.action_boot, self.action_sfx]:
+        for action in [self.action_close, self.action_convert, self.action_resize, self.action_compare,
+                       self.action_verify, self.action_partitions, self.action_boot, self.action_comment,
+                       self.action_bundle, self.action_sfx]:
             action.setEnabled(open_image)
         self.action_extract.setEnabled(open_image and entries and self.current_fs is not None)
         self.action_inject.setEnabled(fs_writable)
         self.action_delete.setEnabled(fs_writable and entries)
         self.action_properties.setEnabled(fs_writable and entries)
+        self.action_rename.setEnabled(fs_writable and len(self._selected_paths()) == 1)
+        self.action_attributes.setEnabled(fs_writable and len(self._selected_paths()) == 1)
+        self.action_label.setEnabled(fs_writable)
         self.action_export.setEnabled(open_image and self.current_fs is not None)
         self.action_print.setEnabled(open_image and self.current_fs is not None)
         self.action_defragment.setEnabled(fs_writable)
@@ -560,6 +584,8 @@ class MainWindow(QMainWindow):
                 self.current_fs = FatImageFilesystem(path)
             elif self.current_info.filesystem == FileSystemType.ISO9660 or self.current_info.image_format == ImageFormat.ISO:
                 self.current_fs = IsoImageFilesystem(path)
+            elif self.current_info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT}:
+                self.current_fs = SleuthKitImageFilesystem(path, self.current_info.filesystem)
             else:
                 self.current_fs = None
             self.settings.setValue("last_directory", str(path.parent))
@@ -644,14 +670,15 @@ class MainWindow(QMainWindow):
                     self.table.setItem(row, 1, QTableWidgetItem("Folder" if entry.is_dir else "File"))
                     self.table.setItem(row, 2, QTableWidgetItem("—" if entry.is_dir else human_bytes(entry.size)))
                     self.table.setItem(row, 3, QTableWidgetItem(entry.modified.strftime("%Y-%m-%d %H:%M:%S") if entry.modified else ""))
-                    self.table.setItem(row, 4, QTableWidgetItem(entry.path))
+                    self.table.setItem(row, 4, QTableWidgetItem(entry.attributes))
+                    self.table.setItem(row, 5, QTableWidgetItem(entry.path))
             except Exception as exc:
                 self.log(f"Unable to list {path}: {exc}")
         elif self.current_path:
             item = QTableWidgetItem("Filesystem browsing is not available for this format. Inspect metadata, partitions, convert to RAW, or install qemu-img for virtual-disk conversion.")
             item.setFlags(Qt.ItemFlag.ItemIsEnabled)
             self.table.setRowCount(1)
-            self.table.setSpan(0, 0, 1, 5)
+            self.table.setSpan(0, 0, 1, 6)
             self.table.setItem(0, 0, item)
         self.table.setSortingEnabled(True)
         self._update_action_state()
@@ -691,6 +718,29 @@ class MainWindow(QMainWindow):
         table = "".join(f"<tr><th align='left'>{key}</th><td>{value}</td></tr>" for key, value in rows)
         self.info_view.setHtml(f"<h3>{info.path.name}</h3><table>{table}</table><h4>Inspection notes</h4><ul>{notes}</ul><p><i>DiskForge does not mount images automatically. Physical device writes remain separately protected.</i></p>")
 
+    def _choose_extraction_policy(self) -> ExtractionPolicy | None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Extraction options")
+        form = QFormLayout(dialog)
+        layout = QComboBox()
+        layout.addItem("Preserve image paths", ExtractionLayout.PRESERVE_PATHS)
+        layout.addItem("Extract all files into one directory", ExtractionLayout.FLATTEN)
+        layout.addItem("Ignore selected subdirectories", ExtractionLayout.IGNORE_SUBDIRECTORIES)
+        conflict = QComboBox()
+        conflict.addItem("Stop on existing file", ConflictPolicy.ERROR)
+        conflict.addItem("Overwrite existing file", ConflictPolicy.OVERWRITE)
+        conflict.addItem("Skip existing file", ConflictPolicy.SKIP)
+        conflict.addItem("Rename conflicting file", ConflictPolicy.RENAME)
+        form.addRow("Layout", layout)
+        form.addRow("Existing files", conflict)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        form.addRow(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return None
+        return ExtractionPolicy(layout.currentData(), conflict.currentData())
+
     def extract_selected(self) -> None:
         if not self.current_fs:
             return
@@ -698,15 +748,23 @@ class MainWindow(QMainWindow):
         if not paths:
             QMessageBox.information(self, "Select files", "Select one or more files or folders to extract.")
             return
+        policy = self._choose_extraction_policy()
+        if policy is None:
+            return
         destination = QFileDialog.getExistingDirectory(self, "Extract to directory")
         if not destination:
             return
         source = self.current_path
         fs_type = self.current_info.filesystem if self.current_info else FileSystemType.UNKNOWN
         def job(progress=None, token=None):
-            fs = FatImageFilesystem(source, read_only=True) if fs_type in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32} else IsoImageFilesystem(source)
+            if fs_type in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
+                fs = FatImageFilesystem(source, read_only=True)
+            elif fs_type == FileSystemType.ISO9660:
+                fs = IsoImageFilesystem(source)
+            else:
+                fs = SleuthKitImageFilesystem(source, fs_type)
             try:
-                return fs.extract(paths, Path(destination), progress, token)
+                return fs.extract(paths, Path(destination), progress, token, policy)
             finally:
                 fs.close()
         self._run_worker("Extracting selected items", job, on_result=lambda outputs: self.log(f"Extracted {len(outputs)} file(s) to {destination}"))
@@ -776,6 +834,167 @@ class MainWindow(QMainWindow):
             finally:
                 fs.close()
         self._run_worker("Updating image timestamps", job, on_result=lambda count: self._after_fs_change(f"Updated timestamp for {count} item(s)"))
+
+    def rename_selected(self) -> None:
+        if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
+            return
+        paths = self._selected_paths()
+        if len(paths) != 1:
+            return
+        current = next((entry for entry in self.current_entries if entry.path == paths[0]), None)
+        value, accepted = QInputDialog.getText(self, "Rename image entry", "New name", text=current.name if current else "")
+        if not accepted or not value.strip():
+            return
+        source = self.current_path
+        self._run_worker("Renaming image entry", lambda progress=None, token=None: self._rename_in_image(source, paths[0], value), on_result=lambda path: self._after_fs_change(f"Renamed entry to {path}"))
+
+    @staticmethod
+    def _rename_in_image(source: Path, path: str, value: str) -> str:
+        fs = FatImageFilesystem(source)
+        try:
+            return fs.rename(path, value)
+        finally:
+            fs.close()
+
+    def edit_attributes(self) -> None:
+        if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
+            return
+        paths = self._selected_paths()
+        if len(paths) != 1:
+            return
+        entry = next((item for item in self.current_entries if item.path == paths[0]), None)
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Edit DOS attributes")
+        form = QFormLayout(dialog)
+        boxes: dict[str, QCheckBox] = {}
+        for key, label in (("read_only", "Read-only"), ("hidden", "Hidden"), ("system", "System"), ("archive", "Archive")):
+            box = QCheckBox(label)
+            box.setChecked(bool(entry and label[0] in entry.attributes))
+            boxes[key] = box
+            form.addRow(box)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Apply | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        form.addRow(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        source, path = self.current_path, paths[0]
+        values = {key: box.isChecked() for key, box in boxes.items()}
+        def job(progress=None, token=None):
+            fs = FatImageFilesystem(source)
+            try:
+                return fs.set_attributes(path, **values)
+            finally:
+                fs.close()
+        self._run_worker("Updating DOS attributes", job, on_result=lambda attrs: self._after_fs_change(f"Updated attributes: {attrs}"))
+
+    def change_volume_label(self) -> None:
+        if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
+            return
+        value, accepted = QInputDialog.getText(self, "Change volume label", "Volume label", text=self.current_fs.volume_label())
+        if not accepted:
+            return
+        source = self.current_path
+        def job(progress=None, token=None):
+            fs = FatImageFilesystem(source)
+            try:
+                return fs.set_volume_label(value)
+            finally:
+                fs.close()
+        self._run_worker("Updating volume label", job, on_result=lambda label: self._after_fs_change(f"Volume label: {label}"))
+
+    def edit_image_comment(self) -> None:
+        if not self.current_path:
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Edit image comment")
+        layout = QVBoxLayout(dialog)
+        editor = QPlainTextEdit(load_image_metadata(self.current_path).comment)
+        editor.setPlaceholderText("Stored in a DiskForge sidecar file; image bytes are not changed.")
+        layout.addWidget(editor)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            metadata = save_image_comment(self.current_path, editor.toPlainText())
+            self.log("Image comment saved")
+            self._show_info()
+
+    def resize_current_image(self) -> None:
+        if not self.current_path:
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Resize image")
+        form = QFormLayout(dialog)
+        size = QLineEdit(str(self.current_path.stat().st_size))
+        form.addRow("New size in bytes (multiple of 512)", size)
+        notice = QLabel("A new image is created. FAT images are rebuilt; raw images cannot be shrunk if non-zero data would be discarded.")
+        notice.setWordWrap(True)
+        form.addRow(notice)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        form.addRow(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            requested = int(size.text().strip())
+        except ValueError:
+            QMessageBox.warning(self, "Invalid size", "Enter a whole number of bytes.")
+            return
+        output, _ = QFileDialog.getSaveFileName(self, "Save resized image", str(self.current_path.with_stem(self.current_path.stem + "-resized")), "Disk image (*.img);;All files (*)")
+        if output:
+            self._run_worker("Resizing image", resize_image, self.current_path, Path(output), requested, on_result=lambda result: self._open_path(result.destination))
+
+    def compare_current_image(self) -> None:
+        if not self.current_path:
+            return
+        other, _ = QFileDialog.getOpenFileName(self, "Compare image with", str(self.current_path.parent), IMAGE_FILTER)
+        if not other:
+            return
+        def completed(result) -> None:
+            message = "Images are byte-identical." if result.equal else f"Difference: {result.reason}; first offset: {result.first_difference}"
+            self.log(message)
+            QMessageBox.information(self, "Image comparison", message)
+        self._run_worker("Comparing images", compare_streams, self.current_path, Path(other), on_result=completed)
+
+    def create_bundle(self) -> None:
+        if not self.current_path:
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Create secure image bundle")
+        form = QFormLayout(dialog)
+        comment = QLineEdit()
+        description = QLineEdit()
+        password = QLineEdit()
+        password.setEchoMode(QLineEdit.EchoMode.Password)
+        confirm = QLineEdit()
+        confirm.setEchoMode(QLineEdit.EchoMode.Password)
+        compression = QComboBox()
+        for level in range(10):
+            compression.addItem(str(level), level)
+        compression.setCurrentIndex(6)
+        form.addRow("Comment", comment)
+        form.addRow("Description", description)
+        form.addRow("Password (optional)", password)
+        form.addRow("Confirm password", confirm)
+        form.addRow("Compression level", compression)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        form.addRow(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        if password.text() != confirm.text():
+            QMessageBox.warning(self, "Password mismatch", "The two password fields do not match.")
+            return
+        output, _ = QFileDialog.getSaveFileName(self, "Create DiskForge bundle", str(self.current_path.with_suffix(".dfb")), "DiskForge bundle (*.dfb)")
+        if output:
+            secret = password.text() or None
+            self._run_worker("Creating secure image bundle", create_bundle, [self.current_path], Path(output), password=secret,
+                             comment=comment.text(), description=description.text(), compression_level=compression.currentData(),
+                             on_result=lambda info: self.log(f"Created bundle: {info.path}"))
 
     def defragment_image(self) -> None:
         if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:

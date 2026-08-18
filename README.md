@@ -30,14 +30,14 @@ The first public release provides four native desktop builds. Download the packa
 
 | Platform | Package | Launch |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.2.0-windows-x64.zip` | Extract, then run `DiskForge.exe`. |
-| Linux x64 | `DiskForge-v0.2.0-linux-x64.zip` | Extract, then run `./DiskForge`. |
-| macOS Intel | `DiskForge-v0.2.0-macos-intel-x64.zip` | Extract, then move `DiskForge.app` to Applications. |
-| macOS Apple Silicon | `DiskForge-v0.2.0-macos-arm64.zip` | Extract, then move `DiskForge.app` to Applications. |
+| Windows x64 | `DiskForge-v0.3.0-windows-x64.zip` | Extract, then run `DiskForge.exe`. |
+| Linux x64 | `DiskForge-v0.3.0-linux-x64.zip` | Extract, then run `./DiskForge`. |
+| macOS Intel | `DiskForge-v0.3.0-macos-intel-x64.zip` | Extract, then move `DiskForge.app` to Applications. |
+| macOS Apple Silicon | `DiskForge-v0.3.0-macos-arm64.zip` | Extract, then move `DiskForge.app` to Applications. |
 
 ## Interface languages
 
-DiskForge v0.2.0 localizes its desktop interface at runtime. Select **Tools → Language** to switch immediately between the six United Nations working languages—**Arabic, Chinese, English, French, Russian, and Spanish**—plus **Japanese**. The preference is retained for the next launch. Selecting Arabic switches the complete Qt layout to right-to-left while preserving technical values such as device paths, checksums, file extensions, and the physical-write confirmation phrase `ERASE`.
+DiskForge v0.3.0 localizes its desktop interface at runtime. Select **Tools → Language** to switch immediately between the six United Nations working languages—**Arabic, Chinese, English, French, Russian, and Spanish**—plus **Japanese**. The preference is retained for the next launch. Selecting Arabic switches the complete Qt layout to right-to-left while preserving technical values such as device paths, checksums, file extensions, and the physical-write confirmation phrase `ERASE`.
 
 Read [LOCALIZATION.md](docs/LOCALIZATION.md) for the language matrix, RTL behavior, safety boundaries, and translation-maintenance workflow.
 
@@ -52,13 +52,14 @@ DiskForge brings the most useful image-management workflows into one original, a
 | Workflow | Native capability | Notes |
 |---|---|---|
 | Create images | RAW/IMG, FAT12, FAT16, FAT32, ISO9660/Joliet | Create editable FAT images or author ISO media from a local directory. |
-| Browse and extract | FAT12/16/32 and ISO9660/Joliet | Tree view, bulk extraction, image information, and MBR/GPT inspection. |
-| Change image contents | FAT injection, recursive folders, deletion, timestamp editing | ISO files are treated as read-only media and can be rebuilt from a folder. |
+| Browse and extract | FAT12/16/32, ISO9660/Joliet, and optional NTFS/EXT2/EXT3 read-only backend | Tree view, bulk extraction, image information, MBR/GPT inspection, path-preserving or flattened output, and explicit conflict policy. |
+| Change image contents | FAT injection, recursive folders, deletion, rename, timestamps, DOS attributes, and volume labels | ISO, NTFS and EXT are deliberately exposed through read-only paths. |
 | Convert formats | RAW/IMG and fixed VHD natively | VHDX, VMDK, and QCOW2 use an explicitly configured `qemu-img` adapter. |
 | Compact FAT images | Rebuild-based defragmentation | Writes a new image, preserving the original image as the recovery point. |
-| Inspect boot sectors | 512-byte hex viewer/editor and sector import | Creates a full image backup before boot-sector replacement. |
-| Verify and automate | SHA-256, JSON batch recipes, audited logs | Unattended batch recipes deliberately reject raw-device writes. |
-| Build redistributable bundles | SHA-256-verified self-extracting `.pyz` archives | Can be packaged in a native launcher workflow. |
+| Inspect and repair structures | 512-byte hex viewer/editor, validated FAT boot properties, MBR backup/restore/neutral reset, and GPT CRC diagnostics | Full image or MBR backups are created before protected structural changes. |
+| Verify and automate | SHA-256, byte-for-byte compare, and versioned JSON batch recipes | Batch supports safe file-image operations and deliberately rejects raw-device writes. |
+| Annotate and resize | Non-invasive image comments and safe new-file RAW/FAT resize | Raw images refuse shrinking if non-zero tail bytes would be discarded. |
+| Build redistributable bundles | Authenticated multi-image `.dfb` containers and SHA-256-verified self-extracting `.pyz` archives | `.dfb` supports optional scrypt-derived AES-256-GCM encryption, compression, comments, and per-file verification. |
 | Read and write physical media | Streamed device imaging and restoration | Rejects system disks, mounted targets, and capacity mismatches; typed confirmation is required. |
 
 ## Safety first
@@ -82,6 +83,8 @@ diskforge
 diskforge-cli create-fat demo.img --size-mib 32 --fat 16
 diskforge-cli info demo.img
 diskforge-cli list demo.img
+diskforge-cli bundle demo.dfb demo.img --comment "lab media"
+diskforge-cli compare demo.img restored.img
 diskforge-cli --help
 ```
 
@@ -102,13 +105,15 @@ Build on each target operating system to create that platform’s native applica
 | ISO9660 / Joliet | Yes | Read and extract | Create from folder |
 | Fixed VHD | Yes | Convert payload | Yes |
 | VHDX / VMDK / QCOW2 | With adapter | Through conversion workflow | With adapter |
-| NTFS / EXT / DMG | Signature or partition hint | Not natively modified | Use a compatible external workflow |
+| NTFS / EXT2 / EXT3 | Signature or partition hint | Read/list/extract with the optional Sleuth Kit backend; never modified | Use a compatible external workflow for writes. |
+| DiskForge bundle (`.dfb`) | Header and authenticated manifest | Extract and verify; optional AES-256-GCM password protection | Create from one or more local images. |
+| DMG | Signature hint | Not natively modified | Use a compatible external workflow. |
 
-DiskForge exposes unsupported editing paths honestly instead of attempting unsafe writes. Configure `qemu-img` through **Tools → Preferences** when virtual-disk conversion is needed; the application never downloads or runs an external converter silently.
+DiskForge exposes unsupported editing paths honestly instead of attempting unsafe writes. Configure `qemu-img` through **Tools → Preferences** when virtual-disk conversion is needed. NTFS/EXT read-only browsing requires locally installed Sleuth Kit `fls` and `icat` executables; the application never downloads, mounts, or runs an external converter silently.
 
 ## Engineering quality
 
-The project includes automated coverage for FAT creation and editing, ISO creation and extraction, fixed VHD creation, checksums, MBR parsing, self-extractors, device-write safety, boot-sector backup, directory export, and rebuild-based FAT compaction. The GUI is also validated in an off-screen environment. Continuous integration runs tests on Windows, Linux, macOS Intel, and macOS Apple Silicon, then packages each native target.
+The project includes automated coverage for FAT creation and advanced metadata editing, ISO creation and extraction, fixed VHD creation, checksums, authenticated image bundles, byte comparison, safe resizing, GPT CRC diagnostics, MBR lifecycle protection, read-only EXT integration, self-extractors, device-write safety, boot-sector backup, directory export, and rebuild-based FAT compaction. The GUI is also validated in an off-screen environment. Continuous integration runs tests on Windows, Linux, macOS Intel, and macOS Apple Silicon, then packages each native target.
 
 ```bash
 QT_QPA_PLATFORM=offscreen pytest

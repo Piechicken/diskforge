@@ -49,6 +49,29 @@ class FileSystemType(str, Enum):
     UNKNOWN = "Unknown"
 
 
+class ExtractionLayout(str, Enum):
+    """How files selected from an image are mapped to a local directory."""
+
+    PRESERVE_PATHS = "preserve_paths"
+    FLATTEN = "flatten"
+    IGNORE_SUBDIRECTORIES = "ignore_subdirectories"
+
+
+class ConflictPolicy(str, Enum):
+    """Conflict behavior deliberately chosen by a caller before extraction."""
+
+    ERROR = "error"
+    OVERWRITE = "overwrite"
+    SKIP = "skip"
+    RENAME = "rename"
+
+
+@dataclass(frozen=True)
+class ExtractionPolicy:
+    layout: ExtractionLayout = ExtractionLayout.PRESERVE_PATHS
+    conflict: ConflictPolicy = ConflictPolicy.ERROR
+
+
 class DeviceKind(str, Enum):
     DISK = "disk"
     PARTITION = "partition"
@@ -67,6 +90,10 @@ class OperationKind(str, Enum):
     VERIFY = "verify"
     DEFRAGMENT = "defragment"
     EDIT_BOOT_SECTOR = "edit_boot_sector"
+    RESIZE = "resize"
+    COMPARE = "compare"
+    BUNDLE = "bundle"
+    UNBUNDLE = "unbundle"
 
 
 @dataclass(frozen=True)

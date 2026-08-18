@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "diskforge"
-version = "0.2.0"
+version = "0.3.0"
 description = "Multilingual cross-platform disk image studio built with Python and Qt"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,6 +25,7 @@ dependencies = [
   "PySide6>=6.6",
   "pyfatfs>=1.1.0",
   "pycdlib>=1.14.0",
+  "cryptography>=42.0",
   "psutil>=5.9",
   "jaraco.text>=4.3",
   "setuptools>=69,<81",

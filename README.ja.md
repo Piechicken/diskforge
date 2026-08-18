@@ -29,10 +29,10 @@
 
 | プラットフォーム | パッケージ | 起動方法 |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.2.0-windows-x64.zip` | 展開して `DiskForge.exe` を実行します。 |
-| Linux x64 | `DiskForge-v0.2.0-linux-x64.zip` | 展開して `./DiskForge` を実行します。 |
-| macOS Intel | `DiskForge-v0.2.0-macos-intel-x64.zip` | 展開し、`DiskForge.app` を Applications に移動します。 |
-| macOS Apple Silicon | `DiskForge-v0.2.0-macos-arm64.zip` | 展開し、`DiskForge.app` を Applications に移動します。 |
+| Windows x64 | `DiskForge-v0.3.0-windows-x64.zip` | 展開して `DiskForge.exe` を実行します。 |
+| Linux x64 | `DiskForge-v0.3.0-linux-x64.zip` | 展開して `./DiskForge` を実行します。 |
+| macOS Intel | `DiskForge-v0.3.0-macos-intel-x64.zip` | 展開し、`DiskForge.app` を Applications に移動します。 |
+| macOS Apple Silicon | `DiskForge-v0.3.0-macos-arm64.zip` | 展開し、`DiskForge.app` を Applications に移動します。 |
 
 ## 主な機能
 

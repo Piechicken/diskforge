@@ -10,6 +10,7 @@ from typing import Iterable
 
 import psutil
 
+from .compare import ComparisonResult, compare_streams
 from .models import DeviceInfo, DeviceKind, OperationKind, ProgressCallback
 from .storage import CancellationToken, DiskForgeError, SafetyError, stream_copy, validate_device_write, verify_equal
 
@@ -119,6 +120,19 @@ def read_device_to_image(device: DeviceInfo, destination: Path | str,
     stream_copy(device.identifier, destination, OperationKind.READ_DEVICE, limit=device.size,
                 progress=progress, token=token, overwrite=overwrite)
     return Path(destination)
+
+
+def compare_image_with_device(image: Path | str, device: DeviceInfo,
+                              progress: ProgressCallback | None = None,
+                              token: CancellationToken | None = None) -> ComparisonResult:
+    """Compare an image with a selected device without writing either endpoint."""
+    source = Path(image)
+    if not source.is_file():
+        raise FileNotFoundError(source)
+    if device.size <= 0:
+        raise DiskForgeError("The device size is not available. Refresh device discovery with appropriate permissions.")
+    return compare_streams(source, device.identifier, bytes_to_compare=source.stat().st_size,
+                           progress=progress, token=token)
 
 
 def write_image_to_device(image: Path | str, device: DeviceInfo, confirmation_phrase: str,
