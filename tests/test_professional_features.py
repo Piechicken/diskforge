@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -13,15 +14,16 @@ from diskforge.core.storage import SafetyError, validate_device_write
 
 
 def test_physical_write_requires_exact_phrase_and_safe_target() -> None:
+    device_path = r"\\.\PhysicalDrive99" if os.name == "nt" else "/dev/sdz"
     with pytest.raises(SafetyError, match="ERASE"):
-        validate_device_write("/dev/sdz", 1024, 2048, "no")
+        validate_device_write(device_path, 1024, 2048, "no")
     with pytest.raises(SafetyError, match="operating-system"):
-        validate_device_write("/dev/sdz", 1024, 2048, "ERASE", is_system_disk=True)
+        validate_device_write(device_path, 1024, 2048, "ERASE", is_system_disk=True)
     with pytest.raises(SafetyError, match="mounted"):
-        validate_device_write("/dev/sdz", 1024, 2048, "ERASE", mounted=True)
+        validate_device_write(device_path, 1024, 2048, "ERASE", mounted=True)
     with pytest.raises(SafetyError, match="larger"):
-        validate_device_write("/dev/sdz", 4096, 2048, "ERASE")
-    validate_device_write("/dev/sdz", 1024, 2048, "ERASE")
+        validate_device_write(device_path, 4096, 2048, "ERASE")
+    validate_device_write(device_path, 1024, 2048, "ERASE")
 
 
 def test_batch_rejects_unattended_raw_device_write(tmp_path: Path) -> None:
