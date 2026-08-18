@@ -22,7 +22,7 @@ jobs:
             os: ubuntu-latest
           - id: macos-intel-x64
             label: macOS Intel x64
-            os: macos-13
+            os: macos-26-intel
           - id: macos-arm64
             label: macOS Apple Silicon
             os: macos-latest
@@ -70,7 +70,7 @@ jobs:
             archive: DiskForge-v0.1.0-linux-x64.zip
           - id: macos-intel-x64
             label: macOS Intel x64
-            os: macos-13
+            os: macos-26-intel
             archive: DiskForge-v0.1.0-macos-intel-x64.zip
           - id: macos-arm64
             label: macOS Apple Silicon
