@@ -8,18 +8,29 @@ on:
 
 jobs:
   test:
-    name: Test on ${{ matrix.os }}
+    name: Test ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ['3.11', '3.12']
+        include:
+          - id: windows-x64
+            label: Windows x64
+            os: windows-latest
+          - id: linux-x64
+            label: Linux x64
+            os: ubuntu-latest
+          - id: macos-intel-x64
+            label: macOS Intel x64
+            os: macos-13
+          - id: macos-arm64
+            label: macOS Apple Silicon
+            os: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python }}
+          python-version: '3.12'
       - name: Install Linux Qt runtime dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libegl1 binutils
@@ -42,13 +53,29 @@ jobs:
           path: artifacts/main-window.png
 
   package:
-    name: Package ${{ matrix.os }}
+    name: Package ${{ matrix.label }}
     needs: test
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - id: windows-x64
+            label: Windows x64
+            os: windows-latest
+            archive: DiskForge-v0.1.0-windows-x64.zip
+          - id: linux-x64
+            label: Linux x64
+            os: ubuntu-latest
+            archive: DiskForge-v0.1.0-linux-x64.zip
+          - id: macos-intel-x64
+            label: macOS Intel x64
+            os: macos-13
+            archive: DiskForge-v0.1.0-macos-intel-x64.zip
+          - id: macos-arm64
+            label: macOS Apple Silicon
+            os: macos-latest
+            archive: DiskForge-v0.1.0-macos-arm64.zip
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -56,13 +83,33 @@ jobs:
           python-version: '3.12'
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y binutils libegl1
+        run: sudo apt-get update && sudo apt-get install -y binutils libegl1 zip
       - name: Install packaging dependencies
         run: python -m pip install --upgrade pip "setuptools>=69,<81" && python -m pip install -e ".[dev]"
       - name: Build native package
         run: python scripts/build.py
-      - name: Upload native package
+      - name: Package Windows application
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release
+          Compress-Archive -Path dist/DiskForge -DestinationPath release/${{ matrix.archive }} -Force
+      - name: Package Linux application
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p release
+          (cd dist && zip -r "../release/${{ matrix.archive }}" DiskForge)
+      - name: Package macOS application
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p release
+          ditto -c -k --sequesterRsrc --keepParent "dist/DiskForge.app" "release/${{ matrix.archive }}"
+      - name: Upload release package
         uses: actions/upload-artifact@v4
         with:
-          name: DiskForge-${{ matrix.os }}
-          path: dist/
+          name: DiskForge-${{ matrix.id }}
+          path: release/${{ matrix.archive }}
+          if-no-files-found: error
+          retention-days: 7

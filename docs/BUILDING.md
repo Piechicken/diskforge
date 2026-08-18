@@ -5,7 +5,8 @@ DiskForge 使用 Python、PySide6 和 PyInstaller。由于桌面可执行文件�
 | 目标平台 | 开发启动方式 | 打包结果 | 物理盘权限提示 |
 |---|---|---|---|
 | Windows 10/11 | `diskforge` | `dist/DiskForge/DiskForge.exe` | 读取或写入 `\\.\PhysicalDriveN` 通常需要管理员终端。 |
-| macOS | `diskforge` | `dist/DiskForge.app` | `diskutil` 列表可用；写入 `/dev/diskN` 前须解除挂载，并按系统权限要求运行。 |
+| macOS Intel (x64) | `diskforge` | `dist/DiskForge.app` | `diskutil` 列表可用；写入 `/dev/diskN` 前须解除挂载，并按系统权限要求运行。 |
+| macOS Apple Silicon (arm64) | `diskforge` | `dist/DiskForge.app` | `diskutil` 列表可用；写入 `/dev/diskN` 前须解除挂载，并按系统权限要求运行。 |
 | Linux | `diskforge` | `dist/DiskForge/DiskForge` | 需要能访问目标 `/dev/*` 的权限；不要对已挂载设备写入。 |
 
 ## 环境配置
@@ -32,7 +33,7 @@ python scripts/build.py
 
 ## GitHub Actions
 
-仓库的 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) 在 Ubuntu、Windows 与 macOS 上执行测试，并在每个平台生成独立构建工件。Linux 任务还运行离屏 GUI 冒烟测试并上传截图。CI 产物旨在供测试；正式发布前仍应在真实平台启动 GUI、打开 FAT/ISO 测试映像、检查原始设备权限和签名策略。
+仓库的 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) 在 Windows x64、Linux x64、macOS Intel 和 macOS Apple Silicon 上执行测试，并生成四个独立的原生发布压缩包。Linux 任务还运行离屏 GUI 冒烟测试并上传截图。CI 产物在对应平台上构建；正式发布前仍应在真实设备上启动 GUI、打开 FAT/ISO 测试映像、检查原始设备权限和签名策略。
 
 ## Windows 自解压包
 
