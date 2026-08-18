@@ -1,0 +1,902 @@
+"""DiskForge desktop interface built with Qt Widgets.
+
+The UI is intentionally workflow-first: the image directory is always visible,
+metadata is persistent, and destructive actions remain separated and clearly
+labeled.  All large work is performed through ``FunctionWorker``.
+"""
+from __future__ import annotations
+
+import os
+from datetime import datetime
+from pathlib import Path
+from typing import Callable, Sequence
+
+from PySide6.QtCore import QDateTime, QSettings, Qt, QThreadPool
+from PySide6.QtGui import QAction, QKeySequence, QTextDocument
+from PySide6.QtPrintSupport import QPrintDialog, QPrinter
+from PySide6.QtWidgets import (
+    QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
+    QFileDialog, QFormLayout, QFrame, QGroupBox, QHBoxLayout, QHeaderView, QLabel,
+    QLineEdit, QMainWindow, QMenu, QMessageBox, QPlainTextEdit, QProgressBar,
+    QPushButton, QSpinBox, QDateTimeEdit, QSplitter, QStatusBar, QTableWidget, QTableWidgetItem,
+    QTabWidget, QTextBrowser, QToolBar, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
+    QWidget,
+)
+
+from diskforge.core.batch import BatchRunner
+from diskforge.core.bootsector import backup_and_write_boot_sector, inspect_boot_sector, load_boot_sector_file, parse_hexdump, read_sector, sector_hexdump
+from diskforge.core.devices import list_devices, read_device_to_image, write_image_to_device
+from diskforge.core.filesystems import FatImageFilesystem, ImageFilesystem, IsoImageFilesystem, create_fat_image, create_iso_from_directory, defragment_fat_image
+from diskforge.core.formats import QemuImgConverter, convert_image, inspect_image
+from diskforge.core.models import DeviceInfo, FileSystemType, ImageEntry, ImageFormat, OperationKind, Progress, human_bytes
+from diskforge.core.partitions import list_partitions
+from diskforge.core.selfextract import create_self_extractor
+from diskforge.core.storage import DiskForgeError, sha256_file
+from diskforge.gui.workers import FunctionWorker
+
+
+IMAGE_FILTER = "Disk images (*.img *.ima *.bin *.dd *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
+
+
+class NewImageDialog(QDialog):
+    """Create native RAW/FAT or ISO image workflows without a wizard dependency."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("New image")
+        self.setMinimumWidth(400)
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        self.kind = QComboBox()
+        self.kind.addItem("FAT image (editable)", "fat")
+        self.kind.addItem("Raw/IMG image", "raw")
+        self.kind.addItem("ISO9660/Joliet from directory", "iso")
+        self.size = QSpinBox()
+        self.size.setRange(1, 1024 * 1024)
+        self.size.setValue(32)
+        self.size.setSuffix(" MiB")
+        self.fat = QComboBox()
+        self.fat.addItems(["FAT12", "FAT16", "FAT32"])
+        self.label = QLineEdit("DISKFORGE")
+        self.source = QLineEdit()
+        source_button = QPushButton("Browse…")
+        source_button.clicked.connect(self._choose_source)
+        source_row = QHBoxLayout()
+        source_row.addWidget(self.source)
+        source_row.addWidget(source_button)
+        form.addRow("Image type", self.kind)
+        form.addRow("Size", self.size)
+        form.addRow("FAT variant", self.fat)
+        form.addRow("Volume label", self.label)
+        form.addRow("ISO source folder", source_row)
+        layout.addLayout(form)
+        self.help = QLabel("FAT images can be browsed and modified immediately.")
+        self.help.setWordWrap(True)
+        layout.addWidget(self.help)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        self.kind.currentIndexChanged.connect(self._update_controls)
+        self._update_controls()
+
+    def _choose_source(self) -> None:
+        choice = QFileDialog.getExistingDirectory(self, "Choose source directory")
+        if choice:
+            self.source.setText(choice)
+
+    def _update_controls(self) -> None:
+        mode = self.kind.currentData()
+        self.size.setEnabled(mode != "iso")
+        self.fat.setEnabled(mode == "fat")
+        self.source.setEnabled(mode == "iso")
+        if mode == "iso":
+            self.help.setText("ISO files are authored from a local directory and are read-only after creation.")
+        elif mode == "raw":
+            self.help.setText("Raw images are sparse zero-filled files; format them externally or write sectors manually.")
+        else:
+            self.help.setText("FAT images are editable and support file injection, deletion and timestamp changes.")
+
+
+class ConvertDialog(QDialog):
+    def __init__(self, source: Path, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.source = source
+        self.setWindowTitle("Convert image")
+        form = QFormLayout(self)
+        self.format = QComboBox()
+        self.format.addItem("Raw binary (.img)", ImageFormat.IMG)
+        self.format.addItem("Fixed VHD (.vhd)", ImageFormat.VHD)
+        self.format.addItem("VHDX (.vhdx, requires qemu-img)", ImageFormat.VHDX)
+        self.format.addItem("VMware VMDK (.vmdk, requires qemu-img)", ImageFormat.VMDK)
+        self.format.addItem("QEMU QCOW2 (.qcow2, requires qemu-img)", ImageFormat.QCOW2)
+        self.destination = QLineEdit(str(source.with_suffix(".vhd")))
+        browse = QPushButton("Browse…")
+        browse.clicked.connect(self._choose_destination)
+        row = QHBoxLayout()
+        row.addWidget(self.destination)
+        row.addWidget(browse)
+        self.overwrite = QCheckBox("Allow overwrite")
+        form.addRow("Target format", self.format)
+        form.addRow("Destination", row)
+        form.addRow("", self.overwrite)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        form.addRow(buttons)
+        self.format.currentIndexChanged.connect(self._suggest_extension)
+
+    def _suggest_extension(self) -> None:
+        value: ImageFormat = self.format.currentData()
+        suffix = ".img" if value == ImageFormat.IMG else f".{value.value}"
+        self.destination.setText(str(self.source.with_suffix(suffix)))
+
+    def _choose_destination(self) -> None:
+        output, _ = QFileDialog.getSaveFileName(self, "Convert image", self.destination.text(), "All files (*)")
+        if output:
+            self.destination.setText(output)
+
+
+class BootSectorDialog(QDialog):
+    def __init__(self, image: Path, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.image = image
+        self.setWindowTitle(f"Boot sector — {image.name}")
+        self.resize(760, 620)
+        layout = QVBoxLayout(self)
+        self.details = QLabel()
+        self.details.setWordWrap(True)
+        layout.addWidget(self.details)
+        self.editor = QPlainTextEdit()
+        self.editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        layout.addWidget(self.editor, 1)
+        row = QHBoxLayout()
+        load = QPushButton("Load 512-byte file…")
+        load.clicked.connect(self._load_file)
+        reload_button = QPushButton("Reload")
+        reload_button.clicked.connect(self._reload)
+        save = QPushButton("Backup and apply")
+        save.clicked.connect(self._save)
+        row.addWidget(load)
+        row.addWidget(reload_button)
+        row.addStretch()
+        row.addWidget(save)
+        layout.addLayout(row)
+        self._reload()
+
+    def _reload(self) -> None:
+        data = read_sector(self.image, 0)
+        info = inspect_boot_sector(data)
+        self.details.setText(
+            f"OEM: <b>{info.oem_name or '—'}</b> · Filesystem: <b>{info.filesystem_label or 'unknown'}</b> · "
+            f"Label: <b>{info.volume_label or '—'}</b> · Signature: <b>{'valid' if info.signature_valid else 'missing'}</b>"
+        )
+        self.editor.setPlainText(sector_hexdump(data))
+
+    def _load_file(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, "Load boot sector", "", "Boot sector (*.bin *.img);;All files (*)")
+        if path:
+            self.editor.setPlainText(sector_hexdump(load_boot_sector_file(path)))
+
+    def _save(self) -> None:
+        try:
+            payload = parse_hexdump(self.editor.toPlainText())
+            answer = QMessageBox.warning(self, "Replace boot sector", "A full image backup of the current file will be created first. Continue?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel, QMessageBox.StandardButton.Cancel)
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+            backup = backup_and_write_boot_sector(self.image, payload)
+            QMessageBox.information(self, "Boot sector applied", f"Boot sector updated. Backup created:\n{backup}")
+            self.accept()
+        except Exception as exc:
+            QMessageBox.critical(self, "Unable to write boot sector", str(exc))
+
+
+class DeviceDialog(QDialog):
+    """Explicit device read/write confirmation dialog."""
+
+    def __init__(self, image: Path | None, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.image = image
+        self.devices: list[DeviceInfo] = []
+        self.setWindowTitle("Physical drive operations")
+        self.resize(700, 420)
+        layout = QVBoxLayout(self)
+        warning = QLabel("<b>Physical drive operations can destroy data.</b> System disks and mounted targets are rejected. Write operations require the exact confirmation phrase <b>ERASE</b>.")
+        warning.setWordWrap(True)
+        warning.setStyleSheet("color: #B54708;")
+        layout.addWidget(warning)
+        self.device_combo = QComboBox()
+        layout.addWidget(self.device_combo)
+        form = QFormLayout()
+        self.image_path = QLineEdit(str(image) if image else "")
+        choose = QPushButton("Browse…")
+        choose.clicked.connect(self._choose_image)
+        image_row = QHBoxLayout()
+        image_row.addWidget(self.image_path)
+        image_row.addWidget(choose)
+        self.phrase = QLineEdit()
+        self.phrase.setPlaceholderText("Required only to write a drive")
+        self.verify = QCheckBox("Verify sectors after write")
+        self.verify.setChecked(True)
+        form.addRow("Image", image_row)
+        form.addRow("Type ERASE to write", self.phrase)
+        form.addRow("", self.verify)
+        layout.addLayout(form)
+        actions = QHBoxLayout()
+        read = QPushButton("Read selected drive to image…")
+        read.clicked.connect(self._read)
+        write = QPushButton("Write image to selected drive")
+        write.setStyleSheet("font-weight: 700; color: #B42318;")
+        write.clicked.connect(self._write)
+        close = QPushButton("Close")
+        close.clicked.connect(self.reject)
+        actions.addWidget(read)
+        actions.addWidget(write)
+        actions.addStretch()
+        actions.addWidget(close)
+        layout.addLayout(actions)
+        self._refresh()
+
+    def _refresh(self) -> None:
+        self.devices = list_devices()
+        self.device_combo.clear()
+        for item in self.devices:
+            status = "SYSTEM" if item.system_disk else "mounted" if item.mounted else "safe candidate"
+            self.device_combo.addItem(f"{item.display_name} — {human_bytes(item.size)} — {status} ({item.identifier})", item)
+
+    def _choose_image(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, "Choose image", self.image_path.text(), IMAGE_FILTER)
+        if path:
+            self.image_path.setText(path)
+
+    def _selected(self) -> DeviceInfo | None:
+        return self.device_combo.currentData()
+
+    def _read(self) -> None:
+        device = self._selected()
+        if not device:
+            return
+        path, _ = QFileDialog.getSaveFileName(self, "Read drive to image", f"{device.display_name}.img", "Raw image (*.img);;All files (*)")
+        if path:
+            self.done(10)
+            self.setProperty("operation", ("read", device, Path(path)))
+
+    def _write(self) -> None:
+        device = self._selected()
+        path = Path(self.image_path.text()) if self.image_path.text() else None
+        if not device or not path or not path.is_file():
+            QMessageBox.warning(self, "Missing image", "Choose a valid image and target device.")
+            return
+        if self.phrase.text().strip().upper() != "ERASE":
+            QMessageBox.warning(self, "Confirmation required", "Type ERASE exactly before writing a physical device.")
+            return
+        self.done(11)
+        self.setProperty("operation", ("write", device, path, self.phrase.text(), self.verify.isChecked()))
+
+
+class MainWindow(QMainWindow):
+    def __init__(self) -> None:
+        super().__init__()
+        self.settings = QSettings("DiskForge", "DiskForge")
+        self.thread_pool = QThreadPool.globalInstance()
+        self.current_path: Path | None = None
+        self.current_info = None
+        self.current_fs: ImageFilesystem | None = None
+        self.current_directory = "/"
+        self.current_entries: list[ImageEntry] = []
+        self.current_worker: FunctionWorker | None = None
+        self.setWindowTitle("DiskForge — Disk Image Studio")
+        self.resize(1280, 790)
+        self._build_actions()
+        self._build_menu()
+        self._build_toolbar()
+        self._build_layout()
+        self._build_statusbar()
+        self._restore_state()
+        self._update_action_state()
+        self.log("DiskForge ready. Open an image or create a new FAT/ISO image.")
+
+    def _build_actions(self) -> None:
+        self.action_new = self._action("New image…", "Ctrl+N", self.new_image)
+        self.action_open = self._action("Open image…", "Ctrl+O", self.open_image)
+        self.action_close = self._action("Close image", "Ctrl+W", self.close_image)
+        self.action_extract = self._action("Extract selected…", "Ctrl+E", self.extract_selected)
+        self.action_inject = self._action("Inject files…", "Ctrl+I", self.inject_files)
+        self.action_delete = self._action("Delete selected", "Delete", self.delete_selected)
+        self.action_properties = self._action("Modify selected timestamp…", None, self.modify_timestamp)
+        self.action_up = self._action("Up", "Alt+Up", self.go_up)
+        self.action_convert = self._action("Convert image…", None, self.convert_image)
+        self.action_verify = self._action("Verify SHA-256", None, self.verify_image)
+        self.action_export = self._action("Export directory listing…", None, self.export_listing)
+        self.action_print = self._action("Print directory listing…", None, self.print_listing)
+        self.action_defragment = self._action("Defragment FAT image…", None, self.defragment_image)
+        self.action_boot = self._action("Edit boot sector…", None, self.edit_boot_sector)
+        self.action_devices = self._action("Read / write physical drive…", None, self.physical_drive)
+        self.action_batch = self._action("Run batch recipe…", None, self.run_batch)
+        self.action_sfx = self._action("Create self-extracting bundle…", None, self.create_sfx)
+        self.action_partitions = self._action("View partitions", None, self.show_partitions)
+        self.action_preferences = self._action("Preferences…", None, self.preferences)
+        self.action_about = self._action("About DiskForge", None, self.about)
+
+    def _action(self, text: str, shortcut: str | None, slot: Callable[[], None]) -> QAction:
+        action = QAction(text, self)
+        if shortcut:
+            action.setShortcut(QKeySequence(shortcut))
+        action.triggered.connect(slot)
+        return action
+
+    def _build_menu(self) -> None:
+        menu_file = self.menuBar().addMenu("&File")
+        menu_file.addActions([self.action_new, self.action_open, self.action_close])
+        menu_file.addSeparator()
+        menu_file.addAction("Exit", self.close)
+        menu_image = self.menuBar().addMenu("&Image")
+        menu_image.addActions([self.action_extract, self.action_inject, self.action_delete, self.action_properties])
+        menu_image.addSeparator()
+        menu_image.addActions([self.action_convert, self.action_verify, self.action_defragment, self.action_partitions, self.action_boot])
+        menu_image.addSeparator()
+        menu_image.addActions([self.action_export, self.action_print, self.action_sfx])
+        menu_tools = self.menuBar().addMenu("&Tools")
+        menu_tools.addActions([self.action_devices, self.action_batch, self.action_preferences])
+        menu_help = self.menuBar().addMenu("&Help")
+        menu_help.addAction(self.action_about)
+
+    def _build_toolbar(self) -> None:
+        toolbar = QToolBar("Main tools", self)
+        toolbar.setMovable(False)
+        toolbar.addActions([self.action_new, self.action_open, self.action_extract, self.action_inject, self.action_up])
+        toolbar.addSeparator()
+        toolbar.addActions([self.action_convert, self.action_verify])
+        self.addToolBar(toolbar)
+
+    def _build_layout(self) -> None:
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.tree = QTreeWidget()
+        self.tree.setHeaderLabels(["Image explorer"])
+        self.tree.itemSelectionChanged.connect(self._tree_selected)
+        self.tree.setMinimumWidth(245)
+        splitter.addWidget(self.tree)
+        right = QWidget()
+        right_layout = QVBoxLayout(right)
+        path_row = QHBoxLayout()
+        self.path_label = QLabel("No image open")
+        self.path_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        path_row.addWidget(QLabel("<b>Location</b>"))
+        path_row.addWidget(self.path_label, 1)
+        up_button = QPushButton("Up")
+        up_button.clicked.connect(self.go_up)
+        path_row.addWidget(up_button)
+        right_layout.addLayout(path_row)
+        self.table = QTableWidget(0, 5)
+        self.table.setHorizontalHeaderLabels(["Name", "Type", "Size", "Modified", "Path"])
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setSortingEnabled(True)
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        self.table.setColumnWidth(1, 100)
+        self.table.setColumnWidth(2, 100)
+        self.table.setColumnWidth(3, 160)
+        self.table.itemDoubleClicked.connect(self._table_open)
+        right_layout.addWidget(self.table, 1)
+        splitter.addWidget(right)
+        splitter.setStretchFactor(1, 1)
+        self.setCentralWidget(splitter)
+        dock_tabs = QTabWidget()
+        self.info_view = QTextBrowser()
+        self.info_view.setOpenExternalLinks(True)
+        self.log_view = QPlainTextEdit()
+        self.log_view.setReadOnly(True)
+        dock_tabs.addTab(self.info_view, "Image information")
+        dock_tabs.addTab(self.log_view, "Activity")
+        dock = QWidget()
+        dock_layout = QVBoxLayout(dock)
+        dock_layout.setContentsMargins(0, 0, 0, 0)
+        dock_layout.addWidget(dock_tabs)
+        splitter.addWidget(dock)
+        splitter.setSizes([245, 700, 335])
+
+    def _build_statusbar(self) -> None:
+        status = QStatusBar()
+        self.setStatusBar(status)
+        self.status_label = QLabel("Ready")
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+        self.progress.setMaximumWidth(230)
+        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.setEnabled(False)
+        self.cancel_button.clicked.connect(self.cancel_operation)
+        status.addWidget(self.status_label, 1)
+        status.addPermanentWidget(self.progress)
+        status.addPermanentWidget(self.cancel_button)
+
+    def _restore_state(self) -> None:
+        geometry = self.settings.value("geometry")
+        if geometry:
+            self.restoreGeometry(geometry)
+
+    def closeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
+        self.settings.setValue("geometry", self.saveGeometry())
+        self._close_fs()
+        super().closeEvent(event)
+
+    def _update_action_state(self) -> None:
+        open_image = self.current_path is not None
+        entries = bool(self._selected_paths())
+        fs_writable = isinstance(self.current_fs, FatImageFilesystem) and not getattr(self.current_fs, "read_only", False)
+        for action in [self.action_close, self.action_convert, self.action_verify, self.action_partitions, self.action_boot, self.action_sfx]:
+            action.setEnabled(open_image)
+        self.action_extract.setEnabled(open_image and entries and self.current_fs is not None)
+        self.action_inject.setEnabled(fs_writable)
+        self.action_delete.setEnabled(fs_writable and entries)
+        self.action_properties.setEnabled(fs_writable and entries)
+        self.action_export.setEnabled(open_image and self.current_fs is not None)
+        self.action_print.setEnabled(open_image and self.current_fs is not None)
+        self.action_defragment.setEnabled(fs_writable)
+        self.action_up.setEnabled(open_image and self.current_directory != "/")
+
+    def log(self, message: str) -> None:
+        stamp = datetime.now().strftime("%H:%M:%S")
+        self.log_view.appendPlainText(f"[{stamp}] {message}")
+
+    def _run_worker(self, title: str, function: Callable, *args, on_result: Callable | None = None, **kwargs) -> None:  # type: ignore[no-untyped-def]
+        if self.current_worker:
+            QMessageBox.information(self, "Operation in progress", "Wait for the current operation to finish or cancel it.")
+            return
+        worker = FunctionWorker(title, function, *args, **kwargs)
+        self.current_worker = worker
+        worker.signals.started.connect(lambda text: self._worker_started(text))
+        worker.signals.progress.connect(self._worker_progress)
+        worker.signals.result.connect(lambda value: on_result(value) if on_result else self._worker_result(value))
+        worker.signals.error.connect(self._worker_error)
+        worker.signals.finished.connect(self._worker_finished)
+        self.thread_pool.start(worker)
+
+    def _worker_started(self, title: str) -> None:
+        self.status_label.setText(title)
+        self.progress.setValue(0)
+        self.cancel_button.setEnabled(True)
+        self.log(title)
+
+    def _worker_progress(self, event: Progress) -> None:
+        self.progress.setValue(event.percent)
+        self.status_label.setText(f"{event.message} ({event.percent}%)")
+
+    def _worker_result(self, value: object) -> None:
+        self.log(f"Completed: {value}")
+
+    def _worker_error(self, message: str, details: str) -> None:
+        self.log(f"Failed: {message}")
+        QMessageBox.critical(self, "Operation failed", f"{message}\n\nSee Activity for details.")
+        self.log(details)
+
+    def _worker_finished(self) -> None:
+        self.progress.setValue(0)
+        self.status_label.setText("Ready")
+        self.cancel_button.setEnabled(False)
+        self.current_worker = None
+        self._update_action_state()
+
+    def cancel_operation(self) -> None:
+        if self.current_worker:
+            self.current_worker.cancel()
+            self.status_label.setText("Cancelling after the current block…")
+
+    def new_image(self) -> None:
+        dialog = NewImageDialog(self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        kind = dialog.kind.currentData()
+        if kind == "iso":
+            source = Path(dialog.source.text())
+            if not source.is_dir():
+                QMessageBox.warning(self, "Source directory required", "Choose a valid directory to create the ISO image.")
+                return
+            output, _ = QFileDialog.getSaveFileName(self, "Create ISO", str(source.with_suffix(".iso")), "ISO image (*.iso)")
+            if not output:
+                return
+            def create_iso(progress=None, token=None):
+                return create_iso_from_directory(source, Path(output), dialog.label.text())
+            self._run_worker("Creating ISO image", create_iso, on_result=lambda result: self._open_path(Path(result)))
+            return
+        suffix = ".img"
+        output, _ = QFileDialog.getSaveFileName(self, "Create image", f"untitled{suffix}", "Disk image (*.img)")
+        if not output:
+            return
+        target = Path(output)
+        size = dialog.size.value() * 1024 * 1024
+        if kind == "raw":
+            def create_raw(progress=None, token=None):
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with target.open("wb") as handle:
+                    handle.truncate(size)
+                return target
+            self._run_worker("Creating raw image", create_raw, on_result=lambda result: self._open_path(Path(result)))
+        else:
+            filesystem = FileSystemType(dialog.fat.currentText())
+            def create(progress=None, token=None):
+                return create_fat_image(target, size, filesystem, dialog.label.text())
+            self._run_worker("Formatting FAT image", create, on_result=lambda result: self._open_path(Path(result)))
+
+    def open_image(self) -> None:
+        start = str(self.settings.value("last_directory", ""))
+        path, _ = QFileDialog.getOpenFileName(self, "Open disk image", start, IMAGE_FILTER)
+        if path:
+            self._open_path(Path(path))
+
+    def _open_path(self, path: Path) -> None:
+        try:
+            self._close_fs()
+            self.current_path = path
+            self.current_info = inspect_image(path, QemuImgConverter(self.settings.value("qemu_img_path", "") or None))
+            self.current_directory = "/"
+            if self.current_info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
+                self.current_fs = FatImageFilesystem(path)
+            elif self.current_info.filesystem == FileSystemType.ISO9660 or self.current_info.image_format == ImageFormat.ISO:
+                self.current_fs = IsoImageFilesystem(path)
+            else:
+                self.current_fs = None
+            self.settings.setValue("last_directory", str(path.parent))
+            self._populate_tree()
+            self._populate_table("/")
+            self._show_info()
+            self.setWindowTitle(f"DiskForge — {path.name}")
+            self.log(f"Opened {path}")
+        except Exception as exc:
+            self.current_path = None
+            self.current_info = None
+            self._close_fs()
+            QMessageBox.critical(self, "Cannot open image", str(exc))
+        self._update_action_state()
+
+    def _close_fs(self) -> None:
+        if self.current_fs:
+            try:
+                self.current_fs.close()
+            except Exception:
+                pass
+        self.current_fs = None
+
+    def close_image(self) -> None:
+        self._close_fs()
+        self.current_path, self.current_info, self.current_entries = None, None, []
+        self.current_directory = "/"
+        self.tree.clear()
+        self.table.setRowCount(0)
+        self.info_view.clear()
+        self.path_label.setText("No image open")
+        self.setWindowTitle("DiskForge — Disk Image Studio")
+        self._update_action_state()
+
+    def _populate_tree(self) -> None:
+        self.tree.clear()
+        if not self.current_path:
+            return
+        root = QTreeWidgetItem([self.current_path.name])
+        root.setData(0, Qt.ItemDataRole.UserRole, "/")
+        self.tree.addTopLevelItem(root)
+        root.setExpanded(True)
+        if self.current_fs:
+            self._add_tree_children(root, "/", depth=0)
+        self.tree.setCurrentItem(root)
+
+    def _add_tree_children(self, parent: QTreeWidgetItem, path: str, depth: int) -> None:
+        if not self.current_fs or depth > 8:
+            return
+        try:
+            for entry in self.current_fs.list_entries(path):
+                if entry.is_dir:
+                    child = QTreeWidgetItem([entry.name])
+                    child.setData(0, Qt.ItemDataRole.UserRole, entry.path)
+                    parent.addChild(child)
+                    self._add_tree_children(child, entry.path, depth + 1)
+        except Exception as exc:
+            self.log(f"Unable to populate tree {path}: {exc}")
+
+    def _tree_selected(self) -> None:
+        item = self.tree.currentItem()
+        if item:
+            target = item.data(0, Qt.ItemDataRole.UserRole)
+            if target:
+                self._populate_table(str(target))
+
+    def _populate_table(self, path: str) -> None:
+        self.current_directory = path
+        self.path_label.setText(path)
+        self.table.setSortingEnabled(False)
+        self.table.setRowCount(0)
+        self.current_entries = []
+        if self.current_fs:
+            try:
+                self.current_entries = self.current_fs.list_entries(path)
+                self.table.setRowCount(len(self.current_entries))
+                for row, entry in enumerate(self.current_entries):
+                    name = QTableWidgetItem(entry.name)
+                    name.setData(Qt.ItemDataRole.UserRole, entry.path)
+                    name.setToolTip(entry.path)
+                    self.table.setItem(row, 0, name)
+                    self.table.setItem(row, 1, QTableWidgetItem("Folder" if entry.is_dir else "File"))
+                    self.table.setItem(row, 2, QTableWidgetItem("—" if entry.is_dir else human_bytes(entry.size)))
+                    self.table.setItem(row, 3, QTableWidgetItem(entry.modified.strftime("%Y-%m-%d %H:%M:%S") if entry.modified else ""))
+                    self.table.setItem(row, 4, QTableWidgetItem(entry.path))
+            except Exception as exc:
+                self.log(f"Unable to list {path}: {exc}")
+        elif self.current_path:
+            item = QTableWidgetItem("Filesystem browsing is not available for this format. Inspect metadata, partitions, convert to RAW, or install qemu-img for virtual-disk conversion.")
+            item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            self.table.setRowCount(1)
+            self.table.setSpan(0, 0, 1, 5)
+            self.table.setItem(0, 0, item)
+        self.table.setSortingEnabled(True)
+        self._update_action_state()
+
+    def _selected_paths(self) -> list[str]:
+        paths: list[str] = []
+        for index in self.table.selectionModel().selectedRows() if self.table.selectionModel() else []:
+            item = self.table.item(index.row(), 0)
+            if item and item.data(Qt.ItemDataRole.UserRole):
+                paths.append(str(item.data(Qt.ItemDataRole.UserRole)))
+        return paths
+
+    def _table_open(self, item: QTableWidgetItem) -> None:
+        path = item.data(Qt.ItemDataRole.UserRole)
+        matching = next((entry for entry in self.current_entries if entry.path == path), None)
+        if matching and matching.is_dir:
+            self._populate_table(matching.path)
+
+    def go_up(self) -> None:
+        if self.current_directory == "/":
+            return
+        parent = str(Path(self.current_directory).parent).replace("\\", "/")
+        self._populate_table("/" if parent in {".", ""} else parent)
+
+    def _show_info(self) -> None:
+        if not self.current_info:
+            self.info_view.clear()
+            return
+        info = self.current_info
+        rows = [
+            ("Path", str(info.path)), ("Format", info.image_format.value.upper()), ("Physical size", human_bytes(info.size)),
+            ("Virtual size", human_bytes(info.virtual_size) if info.virtual_size else "—"),
+            ("Filesystem", info.filesystem.value), ("Writable", "Yes" if info.writable else "No"),
+            ("Sector size", f"{info.sector_size} bytes"),
+        ]
+        notes = "".join(f"<li>{note}</li>" for note in info.notes) or "<li>No additional format notes.</li>"
+        table = "".join(f"<tr><th align='left'>{key}</th><td>{value}</td></tr>" for key, value in rows)
+        self.info_view.setHtml(f"<h3>{info.path.name}</h3><table>{table}</table><h4>Inspection notes</h4><ul>{notes}</ul><p><i>DiskForge does not mount images automatically. Physical device writes remain separately protected.</i></p>")
+
+    def extract_selected(self) -> None:
+        if not self.current_fs:
+            return
+        paths = self._selected_paths()
+        if not paths:
+            QMessageBox.information(self, "Select files", "Select one or more files or folders to extract.")
+            return
+        destination = QFileDialog.getExistingDirectory(self, "Extract to directory")
+        if not destination:
+            return
+        source = self.current_path
+        fs_type = self.current_info.filesystem if self.current_info else FileSystemType.UNKNOWN
+        def job(progress=None, token=None):
+            fs = FatImageFilesystem(source, read_only=True) if fs_type in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32} else IsoImageFilesystem(source)
+            try:
+                return fs.extract(paths, Path(destination), progress, token)
+            finally:
+                fs.close()
+        self._run_worker("Extracting selected items", job, on_result=lambda outputs: self.log(f"Extracted {len(outputs)} file(s) to {destination}"))
+
+    def inject_files(self) -> None:
+        if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
+            return
+        files, _ = QFileDialog.getOpenFileNames(self, "Inject files", str(self.settings.value("last_directory", "")), "All files (*)")
+        if not files:
+            return
+        source, destination = self.current_path, self.current_directory
+        def job(progress=None, token=None):
+            fs = FatImageFilesystem(source)
+            try:
+                return fs.inject([Path(value) for value in files], destination, progress, token)
+            finally:
+                fs.close()
+        self._run_worker("Injecting files", job, on_result=lambda values: self._after_fs_change(f"Injected {len(values)} item(s)"))
+
+    def delete_selected(self) -> None:
+        if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
+            return
+        paths = self._selected_paths()
+        if not paths:
+            return
+        answer = QMessageBox.warning(self, "Delete image entries", f"Delete {len(paths)} selected item(s) from the image? This changes the image file.", QMessageBox.StandardButton.Delete | QMessageBox.StandardButton.Cancel, QMessageBox.StandardButton.Cancel)
+        if answer != QMessageBox.StandardButton.Delete:
+            return
+        source = self.current_path
+        def job(progress=None, token=None):
+            fs = FatImageFilesystem(source)
+            try:
+                fs.delete(paths)
+                return len(paths)
+            finally:
+                fs.close()
+        self._run_worker("Deleting image entries", job, on_result=lambda count: self._after_fs_change(f"Deleted {count} item(s)"))
+
+    def modify_timestamp(self) -> None:
+        if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
+            return
+        paths = self._selected_paths()
+        if not paths:
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Modify file timestamps")
+        layout = QFormLayout(dialog)
+        picker = QDateTimeEdit(QDateTime.currentDateTime())
+        picker.setCalendarPopup(True)
+        layout.addRow(f"Apply to {len(paths)} selected item(s)", picker)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Apply | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addRow(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        timestamp = picker.dateTime().toPython()
+        source = self.current_path
+        def job(progress=None, token=None):
+            fs = FatImageFilesystem(source)
+            try:
+                for item_path in paths:
+                    if token:
+                        token.raise_if_cancelled()
+                    fs.set_modified(item_path, timestamp)
+                return len(paths)
+            finally:
+                fs.close()
+        self._run_worker("Updating image timestamps", job, on_result=lambda count: self._after_fs_change(f"Updated timestamp for {count} item(s)"))
+
+    def defragment_image(self) -> None:
+        if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
+            return
+        output, _ = QFileDialog.getSaveFileName(self, "Save defragmented FAT image", str(self.current_path.with_stem(self.current_path.stem + "-defragmented")), "Disk image (*.img)")
+        if not output:
+            return
+        answer = QMessageBox.question(self, "Rebuild FAT image", "DiskForge will create a new image and write the files in order for a compact FAT allocation. The original is unchanged. Continue?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel, QMessageBox.StandardButton.Cancel)
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        self._run_worker("Defragmenting FAT image", defragment_fat_image, self.current_path, Path(output), on_result=lambda result: self._open_path(Path(result)))
+
+    def print_listing(self) -> None:
+        if not self.current_fs or not self.current_path:
+            return
+        try:
+            if isinstance(self.current_fs, FatImageFilesystem):
+                entries = self.current_fs.all_entries()
+            else:
+                entries = list(self.current_fs._walk("/"))  # ISO facade exposes a read-only walker.
+            rows = "".join(f"<tr><td>{entry.path}</td><td>{'Directory' if entry.is_dir else 'File'}</td><td>{entry.size}</td></tr>" for entry in entries)
+            document = QTextDocument()
+            document.setHtml(f"<h2>DiskForge directory listing</h2><p>{self.current_path}</p><table border='1' cellspacing='0' cellpadding='4'><tr><th>Path</th><th>Type</th><th>Bytes</th></tr>{rows}</table>")
+            printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+            dialog = QPrintDialog(printer, self)
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                document.print_(printer)
+                self.log("Directory listing sent to printer")
+        except Exception as exc:
+            QMessageBox.critical(self, "Unable to print listing", str(exc))
+
+    def _after_fs_change(self, message: str) -> None:
+        self.log(message)
+        if self.current_path:
+            self._open_path(self.current_path)
+
+    def convert_image(self) -> None:
+        if not self.current_path:
+            return
+        dialog = ConvertDialog(self.current_path, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted or not dialog.destination.text().strip():
+            return
+        target = Path(dialog.destination.text())
+        qemu = QemuImgConverter(self.settings.value("qemu_img_path", "") or None)
+        self._run_worker("Converting image", convert_image, self.current_path, target, dialog.format.currentData(), qemu, on_result=lambda info: self._open_path(info.path), overwrite=dialog.overwrite.isChecked())
+
+    def verify_image(self) -> None:
+        if self.current_path:
+            self._run_worker("Calculating SHA-256", sha256_file, self.current_path, on_result=lambda digest: self._verified(digest))
+
+    def _verified(self, digest: str) -> None:
+        self.log(f"SHA-256: {digest}")
+        QMessageBox.information(self, "SHA-256 verified", digest)
+
+    def export_listing(self) -> None:
+        if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
+            QMessageBox.information(self, "Listing unavailable", "Directory export is currently supported for FAT images.")
+            return
+        output, selected = QFileDialog.getSaveFileName(self, "Export image listing", f"{self.current_path.stem}-listing.html", "HTML (*.html);;Text (*.txt)")
+        if not output:
+            return
+        html = output.lower().endswith((".html", ".htm"))
+        source = self.current_path
+        def job(progress=None, token=None):
+            fs = FatImageFilesystem(source, read_only=True)
+            try:
+                return fs.export_listing(Path(output), html)
+            finally:
+                fs.close()
+        self._run_worker("Exporting directory listing", job, on_result=lambda path: self.log(f"Exported listing: {path}"))
+
+    def edit_boot_sector(self) -> None:
+        if self.current_path:
+            BootSectorDialog(self.current_path, self).exec()
+            self._open_path(self.current_path)
+
+    def show_partitions(self) -> None:
+        if not self.current_path:
+            return
+        try:
+            parts = list_partitions(self.current_path)
+            if not parts:
+                QMessageBox.information(self, "Partitions", "No MBR or GPT partitions found. This may be a superfloppy image.")
+                return
+            text = "\n".join(f"{part.index}: LBA {part.start_lba}, {human_bytes(part.size)}, {part.filesystem.value}, {part.name or part.type_code}" for part in parts)
+            QMessageBox.information(self, "Partition table", text)
+        except Exception as exc:
+            QMessageBox.critical(self, "Unable to read partitions", str(exc))
+
+    def create_sfx(self) -> None:
+        if not self.current_path:
+            return
+        output, _ = QFileDialog.getSaveFileName(self, "Create self-extracting bundle", f"{self.current_path.stem}.pyz", "Python zipapp (*.pyz)")
+        if output:
+            source = self.current_path
+            def job(progress=None, token=None):
+                return create_self_extractor(source, Path(output))
+            self._run_worker("Creating self-extracting bundle", job, on_result=lambda path: self.log(f"Self-extractor created: {path}"))
+
+    def physical_drive(self) -> None:
+        dialog = DeviceDialog(self.current_path, self)
+        result = dialog.exec()
+        operation = dialog.property("operation")
+        if not operation:
+            return
+        if operation[0] == "read":
+            _, device, destination = operation
+            self._run_worker("Reading physical drive", read_device_to_image, device, destination, on_result=lambda path: self._open_path(Path(path)), overwrite=True)
+        else:
+            _, device, image, phrase, verify = operation
+            self._run_worker("Writing physical drive", write_image_to_device, image, device, phrase, on_result=lambda ok: QMessageBox.information(self, "Physical write complete", "The image was written and verified." if ok else "The image was written."), verify_after_write=verify)
+
+    def run_batch(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, "Run batch recipe", "", "DiskForge batch (*.json);;All files (*)")
+        if not path:
+            return
+        def job(progress=None, token=None):
+            return BatchRunner(QemuImgConverter(self.settings.value("qemu_img_path", "") or None)).run(path, self.log)
+        self._run_worker("Running batch recipe", job, on_result=lambda result: QMessageBox.information(self, "Batch complete", f"Succeeded: {result.succeeded}\nFailed: {result.failed}"))
+
+    def preferences(self) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Preferences")
+        layout = QFormLayout(dialog)
+        qemu_path = QLineEdit(str(self.settings.value("qemu_img_path", "")))
+        browse = QPushButton("Browse…")
+        def choose() -> None:
+            path, _ = QFileDialog.getOpenFileName(dialog, "Locate qemu-img executable")
+            if path:
+                qemu_path.setText(path)
+        browse.clicked.connect(choose)
+        row = QHBoxLayout()
+        row.addWidget(qemu_path)
+        row.addWidget(browse)
+        layout.addRow("Optional qemu-img executable", row)
+        details = QLabel("qemu-img enables VHDX, VMDK and QCOW2 inspection/conversion. DiskForge never downloads it automatically.")
+        details.setWordWrap(True)
+        layout.addRow(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addRow(buttons)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.settings.setValue("qemu_img_path", qemu_path.text().strip())
+            self.log("Preferences saved")
+
+    def about(self) -> None:
+        QMessageBox.about(self, "About DiskForge", "<h3>DiskForge</h3><p>Original cross-platform disk image studio built with Python and Qt.</p><p>Native workflows: raw/IMG, fixed VHD, FAT12/16/32, ISO9660/Joliet, MBR/GPT inspection, batch recipes, self-extracting bundles, and safeguarded physical-drive imaging.</p><p>Virtual machine formats VHDX, VMDK and QCOW2 are available when an explicitly configured qemu-img converter is installed.</p>")

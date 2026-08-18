@@ -1,0 +1,115 @@
+"""Partition-table inspection for raw and fixed-VHD image payloads."""
+from __future__ import annotations
+
+import binascii
+import struct
+from pathlib import Path
+from typing import Iterable
+
+from .models import DiskPartition, FileSystemType, SECTOR_SIZE
+from .storage import DiskForgeError, read_sector
+
+
+MBR_TYPES = {
+    0x01: ("FAT12", FileSystemType.FAT12),
+    0x04: ("FAT16 <32M", FileSystemType.FAT16),
+    0x06: ("FAT16", FileSystemType.FAT16),
+    0x0B: ("FAT32", FileSystemType.FAT32),
+    0x0C: ("FAT32 LBA", FileSystemType.FAT32),
+    0x07: ("NTFS/exFAT", FileSystemType.NTFS),
+    0x83: ("Linux", FileSystemType.EXT),
+    0x82: ("Linux swap", FileSystemType.UNKNOWN),
+    0xEE: ("GPT protective", FileSystemType.UNKNOWN),
+}
+
+
+def _filesystem_from_boot(path: Path, offset: int) -> FileSystemType:
+    with path.open("rb") as handle:
+        handle.seek(offset)
+        data = handle.read(2048)
+    if len(data) >= 90 and data[82:90].strip().upper().startswith(b"FAT32"):
+        return FileSystemType.FAT32
+    if len(data) >= 62 and data[54:62].strip().upper().startswith(b"FAT"):
+        return FileSystemType.FAT16
+    if len(data) >= 11 and data[3:11] == b"NTFS    ":
+        return FileSystemType.NTFS
+    if len(data) >= 1082 and data[1080:1082] == b"\x53\xef":
+        return FileSystemType.EXT
+    return FileSystemType.UNKNOWN
+
+
+def parse_mbr(path: Path | str) -> list[DiskPartition]:
+    """Parse the four primary MBR entries; extended partitions stay visible as containers."""
+    target = Path(path)
+    sector = read_sector(target, 0)
+    if sector[510:512] != b"\x55\xaa":
+        return []
+    partitions: list[DiskPartition] = []
+    for index in range(4):
+        entry = sector[446 + index * 16:462 + index * 16]
+        type_id = entry[4]
+        start_lba, sectors = struct.unpack_from("<II", entry, 8)
+        if type_id == 0 or sectors == 0:
+            continue
+        name, known_fs = MBR_TYPES.get(type_id, (f"Type 0x{type_id:02X}", FileSystemType.UNKNOWN))
+        detected_fs = _filesystem_from_boot(target, start_lba * SECTOR_SIZE)
+        partitions.append(DiskPartition(index + 1, start_lba, sectors, name,
+                                        filesystem=detected_fs if detected_fs != FileSystemType.UNKNOWN else known_fs))
+    return partitions
+
+
+def _decode_gpt_name(raw: bytes) -> str:
+    return raw.decode("utf-16-le", errors="replace").split("\0", 1)[0].strip()
+
+
+def parse_gpt(path: Path | str) -> list[DiskPartition]:
+    """Parse GPT entries after validating the GPT header signature and bounds."""
+    target = Path(path)
+    header = read_sector(target, 1)
+    if header[:8] != b"EFI PART":
+        return []
+    header_size = struct.unpack_from("<I", header, 12)[0]
+    if header_size < 92 or header_size > SECTOR_SIZE:
+        raise DiskForgeError("Invalid GPT header size.")
+    entry_lba = struct.unpack_from("<Q", header, 72)[0]
+    count = struct.unpack_from("<I", header, 80)[0]
+    entry_size = struct.unpack_from("<I", header, 84)[0]
+    if not 128 <= entry_size <= 4096 or count > 16384:
+        raise DiskForgeError("Invalid GPT entry array layout.")
+    byte_count = count * entry_size
+    with target.open("rb") as handle:
+        handle.seek(entry_lba * SECTOR_SIZE)
+        entries = handle.read(byte_count)
+    if len(entries) != byte_count:
+        raise DiskForgeError("GPT entry array is truncated.")
+    output: list[DiskPartition] = []
+    for index in range(count):
+        entry = entries[index * entry_size:(index + 1) * entry_size]
+        if entry[:16] == b"\0" * 16:
+            continue
+        first_lba, last_lba = struct.unpack_from("<QQ", entry, 32)
+        if last_lba < first_lba:
+            continue
+        name = _decode_gpt_name(entry[56:128])
+        fs = _filesystem_from_boot(target, first_lba * SECTOR_SIZE)
+        output.append(DiskPartition(index + 1, first_lba, last_lba - first_lba + 1,
+                                    binascii.hexlify(entry[:16]).decode(), name, fs))
+    return output
+
+
+def list_partitions(path: Path | str) -> list[DiskPartition]:
+    """Prefer GPT when present, otherwise return MBR primary partitions."""
+    gpt = parse_gpt(path)
+    return gpt if gpt else parse_mbr(path)
+
+
+def fat_partition_offset(path: Path | str) -> int:
+    """Return the first FAT partition offset, or zero for a superfloppy image."""
+    target = Path(path)
+    direct = _filesystem_from_boot(target, 0)
+    if direct in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
+        return 0
+    for partition in list_partitions(target):
+        if partition.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
+            return partition.offset
+    raise DiskForgeError("No FAT filesystem was found in this image.")
