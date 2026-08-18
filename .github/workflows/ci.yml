@@ -113,3 +113,38 @@ jobs:
           path: release/${{ matrix.archive }}
           if-no-files-found: error
           retention-days: 7
+
+  release:
+    name: Publish v0.3.0
+    needs: package
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download platform packages from this workflow
+        uses: actions/download-artifact@v4
+        with:
+          pattern: DiskForge-*
+          path: release
+          merge-multiple: true
+      - name: Generate release checksums
+        shell: bash
+        run: |
+          cd release
+          sha256sum DiskForge-v0.3.0-*.zip > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: v0.3.0
+        shell: bash
+        run: |
+          if gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$VERSION" release/DiskForge-v0.3.0-*.zip release/SHA256SUMS.txt --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$VERSION" --title "DiskForge $VERSION" --notes-file CHANGELOG.md --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$VERSION" release/DiskForge-v0.3.0-*.zip release/SHA256SUMS.txt \
+              --target "$GITHUB_SHA" --title "DiskForge $VERSION" --notes-file CHANGELOG.md --repo "$GITHUB_REPOSITORY"
+          fi
