@@ -30,14 +30,14 @@ The first public release provides four native desktop builds. Download the packa
 
 | Platform | Package | Launch |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.4.0-windows-x64.zip` | Extract, then run `DiskForge.exe`. |
-| Linux x64 | `DiskForge-v0.4.0-linux-x64.zip` | Extract, then run `./DiskForge`. |
-| macOS Intel | `DiskForge-v0.4.0-macos-intel-x64.zip` | Extract, then move `DiskForge.app` to Applications. |
-| macOS Apple Silicon | `DiskForge-v0.4.0-macos-arm64.zip` | Extract, then move `DiskForge.app` to Applications. |
+| Windows x64 | `DiskForge-v0.5.0-windows-x64.zip` | Extract, then run `DiskForge.exe`. |
+| Linux x64 | `DiskForge-v0.5.0-linux-x64.zip` | Extract, then run `./DiskForge`. |
+| macOS Intel | `DiskForge-v0.5.0-macos-intel-x64.zip` | Extract, then move `DiskForge.app` to Applications. |
+| macOS Apple Silicon | `DiskForge-v0.5.0-macos-arm64.zip` | Extract, then move `DiskForge.app` to Applications. |
 
 ## Interface languages
 
-DiskForge v0.4.0 localizes its desktop interface at runtime. Select **Tools → Language** to switch immediately between the six United Nations working languages—**Arabic, Chinese, English, French, Russian, and Spanish**—plus **Japanese**. The preference is retained for the next launch. Selecting Arabic switches the complete Qt layout to right-to-left while preserving technical values such as device paths, checksums, file extensions, and the physical-write confirmation phrase `ERASE`.
+DiskForge v0.5.0 localizes its desktop interface at runtime. Select **Tools → Language** to switch immediately between the six United Nations working languages—**Arabic, Chinese, English, French, Russian, and Spanish**—plus **Japanese**. The preference is retained for the next launch. Selecting Arabic switches the complete Qt layout to right-to-left while preserving technical values such as device paths, checksums, file extensions, and the physical-write confirmation phrase `ERASE`.
 
 Read [LOCALIZATION.md](docs/LOCALIZATION.md) for the language matrix, RTL behavior, safety boundaries, and translation-maintenance workflow.
 
@@ -52,15 +52,15 @@ DiskForge brings the most useful image-management workflows into one original, a
 | Workflow | Native capability | Notes |
 |---|---|---|
 | Create images | RAW/IMG, FAT12, FAT16, FAT32, DMF-layout FAT12, ISO9660/Joliet | Create editable FAT images, documented 80×2×21-sector DMF-layout image files, or author ISO media from a local directory. |
-| Browse and extract | FAT12/16/32, ISO9660/Joliet, and optional NTFS/EXT2/EXT3 read-only backend | Tree view, bulk extraction, image information, MBR/GPT inspection, path-preserving or flattened output, and explicit conflict policy. |
-| Change image contents | FAT injection, recursive folders, deletion, rename, timestamps, DOS attributes, and volume labels | ISO, NTFS and EXT are deliberately exposed through read-only paths. |
+| Browse and extract | FAT12/16/32, ISO9660/Joliet, and optional NTFS/EXT2/EXT3 read-only backend | Tree, sortable detail table, persistent icon grid, safe double-click preview, bulk extraction, image information, MBR/GPT inspection, path-preserving or flattened output, and explicit conflict policy. |
+| Change image contents | FAT injection, recursive folders, deletion, rename, timestamps, DOS attributes, and volume labels | Drag local files or folders into writable FAT images, including directly onto a displayed target folder. ISO, NTFS and EXT are deliberately exposed through read-only paths. |
 | Convert formats | RAW/IMG and fixed VHD natively | VHDX, VMDK, and QCOW2 use an explicitly configured `qemu-img` adapter. |
 | Compact FAT images | Rebuild-based defragmentation | Writes a new image, preserving the original image as the recovery point. |
 | Inspect and repair structures | 512-byte hex viewer/editor, validated FAT boot properties, neutral MBR wrapping for FAT superfloppy images, trailing-zero-sector copy trimming, MBR backup/restore/neutral reset, and GPT CRC diagnostics | Full image or MBR backups are created before protected structural changes; MBR wrapping and trimming always write a new file. |
-| Verify and automate | SHA-256, byte-for-byte compare, and versioned JSON batch recipes | Batch supports safe file-image operations, multi-source extraction with planned incrementing names, and deliberately rejects raw-device writes. |
+| Verify and automate | SHA-256, byte-for-byte compare, graphical batch extraction designer, and versioned JSON batch recipes | The designer previews safe incrementing output names; batch supports safe file-image operations and deliberately rejects raw-device writes. |
 | Annotate and resize | Non-invasive image comments and safe new-file RAW/FAT resize | Raw images refuse shrinking if non-zero tail bytes would be discarded. |
 | Build redistributable bundles | Authenticated multi-image `.dfb` containers and SHA-256-verified multi-image self-extracting `.pyz` archives | `.dfb` supports optional scrypt-derived AES-256-GCM encryption, compression, comments, and per-file verification. |
-| Read and write physical media | Streamed device imaging and restoration | Rejects system disks, mounted targets, and capacity mismatches; typed confirmation is required. |
+| Read and write physical media | Streamed device imaging and restoration | Rejects system disks, mounted targets, and capacity mismatches; typed confirmation is required. Detected optical media are read-only and export to ISO by default. |
 
 ## Safety first
 
@@ -117,7 +117,7 @@ DiskForge exposes unsupported editing paths honestly instead of attempting unsaf
 
 ## Engineering quality
 
-The project includes automated coverage for FAT creation and advanced metadata editing, ISO creation and extraction, fixed VHD creation, checksums, authenticated image bundles, byte comparison, safe resizing, GPT CRC diagnostics, MBR lifecycle protection, read-only EXT integration, self-extractors, device-write safety, boot-sector backup, directory export, and rebuild-based FAT compaction. The GUI is also validated in an off-screen environment. Continuous integration runs tests on Windows, Linux, macOS Intel, and macOS Apple Silicon, then packages each native target.
+The project includes automated coverage for FAT creation and advanced metadata editing, ISO creation and extraction, native drag-and-drop contracts, graphical batch design, persistent directory view modes, theme selection, optical-device classification, fixed VHD creation, checksums, authenticated image bundles, byte comparison, safe resizing, GPT CRC diagnostics, MBR lifecycle protection, read-only EXT integration, self-extractors, device-write safety, boot-sector backup, directory export, and rebuild-based FAT compaction. pytest uses strict configuration, strict marker checks, and warning-as-error behavior; the GUI is also validated in an off-screen environment. Continuous integration runs the same quality gate on Windows, Linux, macOS Intel, and macOS Apple Silicon, then packages each native target.
 
 ```bash
 QT_QPA_PLATFORM=offscreen pytest

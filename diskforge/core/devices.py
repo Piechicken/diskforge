@@ -44,7 +44,8 @@ def _linux_devices() -> list[DeviceInfo]:
     def visit(record: dict, parent_system: bool = False) -> None:
         path = record.get("path") or f"/dev/{record.get('name', '')}"
         mountpoints = tuple(item for item in record.get("mountpoints", []) if item)
-        kind = DeviceKind.REMOVABLE if bool(record.get("rm")) else (DeviceKind.PARTITION if record.get("type") == "part" else DeviceKind.DISK)
+        kind = (DeviceKind.OPTICAL if record.get("type") == "rom" else DeviceKind.REMOVABLE if bool(record.get("rm"))
+                else DeviceKind.PARTITION if record.get("type") == "part" else DeviceKind.DISK)
         system_disk = parent_system or any(mount in system_mounts for mount in mountpoints)
         if record.get("type") in {"disk", "part", "rom"}:
             result.append(DeviceInfo(path, record.get("model") or record.get("name") or path,

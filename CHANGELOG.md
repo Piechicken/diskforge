@@ -2,6 +2,25 @@
 
 All notable changes to DiskForge are documented in this file. The project uses semantic versioning for public releases.
 
+## v0.5.0 — Modern Workspace, Drag-and-Drop, and Strict Quality
+
+DiskForge v0.5.0 turns routine image work into a more direct desktop workflow. The release introduces native file-manager drag-and-drop while preserving the product’s safety model: only local file URLs are accepted, injection is enabled only for writable FAT images, and drag-out always extracts copies into an isolated temporary workspace.
+
+| Area | Additions in v0.5.0 |
+|---|---|
+| Native drag-and-drop | Drag local files or folders onto a writable FAT image to inject them. Drop on a displayed image folder to target that folder. Drag selected FAT, ISO, NTFS, or EXT image entries out to another local application after a temporary, copy-only extraction. |
+| Desktop workspace | New professional light and midnight themes; a branded workspace header; high-contrast focus, selection, progress, panel, tab, and menu states; persistent detailed-table and icon-grid directory views; sorting and per-view selection restoration. |
+| Everyday navigation | Persistent recent-image menu with dead-path cleanup; double-click safe preview through a temporary extracted copy and the system default application; execution-risk extensions require an explicit confirmation. |
+| Guided automation | A graphical batch extraction designer collects multiple image sources, previews validated incrementing output names, selects extraction and conflict policy, writes schema-v3 JSON, and can run the saved recipe immediately. |
+| Optical media | Linux `rom` devices are identified as read-only optical media. The device workflow defaults these sources to an `.iso` export path and blocks accidental writes. |
+| Localization | New primary desktop actions are catalogued in Simplified Chinese, English, Spanish, French, Russian, Arabic, and Japanese. |
+| Quality gate | pytest now uses strict configuration and marker checks, promotes warnings to errors, and runs in that mode in continuous integration. The known legacy namespace warning is isolated only around the third-party FAT adapter import; all DiskForge code and all other warning sources remain strict. |
+| CI maintenance | Official hosted-runner actions use current Node.js-24-compatible majors, removing obsolete action-runtime diagnostics while retaining direct internal artifact aggregation and four-platform release packaging. |
+
+### Validation
+
+The release candidate adds tests for local URL drop acceptance and rejection, target-directory resolution, drag-out requests, graphical batch recipe creation and validation, persistent directory view switching, light/dark theme selection, and Linux optical-device classification. The full suite runs cleanly with strict pytest warning handling, while both off-screen GUI smoke scripts run without platform-plugin diagnostic output.
+
 ## v0.4.0 — Media Compatibility and Boot Workflows
 
 DiskForge v0.4.0 extends the desktop application and command line with portable media-layout, boot-distribution, and multi-image automation workflows. Every transformation that changes image bytes creates a separately named output file; ISO El Torito inspection and boot-image export remain strictly read-only for the source ISO.

@@ -1,7 +1,12 @@
 """Offscreen smoke test used by local validation and CI."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
+
+# The offscreen QPA backend emits a platform-capability diagnostic that is not an
+# application warning. Configure only this test process before Qt is imported.
+os.environ.setdefault("QT_LOGGING_RULES", "*.warning=false")
 
 from PySide6.QtWidgets import QApplication
 

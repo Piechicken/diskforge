@@ -29,10 +29,14 @@
 
 | 平台 | 文件名 | 启动方式 |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.4.0-windows-x64.zip` | 解压后运行 `DiskForge.exe`。 |
-| Linux x64 | `DiskForge-v0.4.0-linux-x64.zip` | 解压后运行 `./DiskForge`。 |
-| macOS Intel | `DiskForge-v0.4.0-macos-intel-x64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
-| macOS Apple Silicon | `DiskForge-v0.4.0-macos-arm64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
+| Windows x64 | `DiskForge-v0.5.0-windows-x64.zip` | 解压后运行 `DiskForge.exe`。 |
+| Linux x64 | `DiskForge-v0.5.0-linux-x64.zip` | 解压后运行 `./DiskForge`。 |
+| macOS Intel | `DiskForge-v0.5.0-macos-intel-x64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
+| macOS Apple Silicon | `DiskForge-v0.5.0-macos-arm64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
+
+## v0.5.0 新增能力
+
+v0.5.0 引入了面向可编辑 FAT 映像的原生文件管理器拖放注入，以及将映像内条目临时提取为副本后拖出至其他应用的工作流。目录浏览新增可排序的详细视图、持久化图标网格、最近映像、安全双击预览与浅色/深色主题。图形批处理提取设计器会在写入 JSON v3 配方前校验递增输出名称；检测到的光学介质按只读 ISO 导出。项目采用 pytest 严格配置，任何警告都会作为错误阻断测试。
 
 ## 核心能力
 
@@ -41,14 +45,14 @@ DiskForge 将专业映像管理流程整合到统一界面。主窗口包含映�
 | 工作流 | 原生能力 | 说明 |
 |---|---|---|
 | 创建映像 | RAW/IMG、FAT12、FAT16、FAT32、DMF 布局 FAT12、ISO9660/Joliet | 创建可编辑 FAT 映像、采用 80×2×21 扇区已知几何布局的 DMF 映像文件，或从本地目录制作 ISO。 |
-| 浏览与提取 | FAT12/16/32、ISO9660/Joliet | 目录树、批量提取、映像信息和 MBR/GPT 检查。 |
-| 修改映像内容 | FAT 文件/目录注入、删除、时间属性编辑 | ISO 按只读介质处理，可由本地目录重新构建。 |
+| 浏览与提取 | FAT12/16/32、ISO9660/Joliet | 目录树、可排序详细表格、持久化图标网格、安全双击预览、批量提取、映像信息和 MBR/GPT 检查。 |
+| 修改映像内容 | FAT 文件/目录注入、删除、时间属性编辑 | 可将本地文件或目录直接拖入可编辑 FAT 映像，也可投放到当前显示的目标目录；ISO 按只读介质处理。 |
 | 格式转换 | 原生 RAW/IMG 与固定 VHD | VHDX、VMDK、QCOW2 通过显式配置的 `qemu-img` 适配器处理。 |
 | FAT 紧凑整理 | 基于重建的碎片整理 | 输出新映像，原映像保留作为恢复点。 |
 | 结构与启动检查 | 512 字节十六进制查看/编辑、中性 MBR FAT 封装、尾部零扇区裁剪、El Torito 引导目录 | MBR 封装与裁剪均输出新文件；ISO 启动映像仅以只读方式导出。 |
-| 校验与自动化 | SHA-256、JSON 批处理、可审计日志 | 支持以规划的递增名称进行多源提取；无人值守批处理会明确拒绝物理设备写入。 |
+| 校验与自动化 | SHA-256、图形设计器、JSON 批处理、可审计日志 | 图形设计器会预览安全的递增名称；支持多源提取，无人值守批处理会明确拒绝物理设备写入。 |
 | 再分发归档 | 经身份验证的 `.dfb` 容器和带 SHA-256 校验的多映像自解压 `.pyz` 归档 | `.dfb` 支持可选 AES-256-GCM 加密、压缩、注释及逐项校验。 |
-| 读写物理介质 | 流式读取与恢复 | 拒绝系统盘、已挂载目标和容量不匹配设备；必须输入确认短语。 |
+| 读写物理介质 | 流式读取与恢复 | 拒绝系统盘、已挂载目标和容量不匹配设备；必须输入确认短语。检测到的光学介质为只读，并默认导出为 ISO。 |
 
 ## 安全设计
 
@@ -97,7 +101,7 @@ DiskForge 会明确暴露不支持的编辑路径，不会进行未经验证的�
 
 ## 工程质量
 
-项目自动化覆盖 FAT 创建与修改、ISO 创建/提取、固定 VHD、校验和、MBR 解析、自解压归档、物理写入保护、启动扇区备份、目录导出和 FAT 重建式整理。GUI 同时接受离屏启动验证。持续集成会在 Windows、Linux、macOS Intel 和 macOS Apple Silicon 上运行测试，并打包每个原生目标。
+项目自动化覆盖 FAT 创建与修改、ISO 创建/提取、原生拖放契约、图形批处理设计、目录视图持久化、主题切换、光学介质识别、固定 VHD、校验和、MBR 解析、自解压归档、物理写入保护、启动扇区备份、目录导出和 FAT 重建式整理。pytest 启用严格配置、严格标记和警告即错误；GUI 同时接受离屏启动验证。持续集成会在 Windows、Linux、macOS Intel 和 macOS Apple Silicon 上运行同一质量门槛，并打包每个原生目标。
 
 ```bash
 QT_QPA_PLATFORM=offscreen pytest

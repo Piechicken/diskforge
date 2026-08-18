@@ -9,15 +9,27 @@ from __future__ import annotations
 import os
 import posixpath
 import tempfile
+import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Iterator, Sequence
 
 import pycdlib
-from pyfatfs.EightDotThree import EightDotThree
-from pyfatfs.FATDirectoryEntry import FATDirectoryEntry
-from pyfatfs.PyFat import PyFat
-from pyfatfs.PyFatFS import PyFatFS
+
+# pyfatfs currently imports PyFilesystem2, whose namespace-package bootstrap still
+# calls pkg_resources.  The three warnings below originate solely during that
+# third-party import, are tracked upstream, and do not indicate a DiskForge API
+# problem.  Keep the filter constrained to the import block so pytest -W error
+# remains strict for all project code and every other warning source.
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", message=r"pkg_resources is deprecated as an API.*",
+                            category=Warning, module=r"(fs|pkg_resources)(\..*)?$")
+    warnings.filterwarnings("ignore", message=r"Deprecated call to `pkg_resources\.declare_namespace.*",
+                            category=DeprecationWarning, module=r"(fs|pkg_resources)(\..*)?$")
+    from pyfatfs.EightDotThree import EightDotThree
+    from pyfatfs.FATDirectoryEntry import FATDirectoryEntry
+    from pyfatfs.PyFat import PyFat
+    from pyfatfs.PyFatFS import PyFatFS
 
 from .formats import inspect_image
 from .models import (ConflictPolicy, ExtractionLayout, ExtractionPolicy, FileSystemType,

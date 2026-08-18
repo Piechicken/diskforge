@@ -29,10 +29,14 @@ La primera versión pública incluye cuatro paquetes nativos de escritorio. Desc
 
 | Plataforma | Paquete | Inicio |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.4.0-windows-x64.zip` | Descomprima y ejecute `DiskForge.exe`. |
-| Linux x64 | `DiskForge-v0.4.0-linux-x64.zip` | Descomprima y ejecute `./DiskForge`. |
-| macOS Intel | `DiskForge-v0.4.0-macos-intel-x64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
-| macOS Apple Silicon | `DiskForge-v0.4.0-macos-arm64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
+| Windows x64 | `DiskForge-v0.5.0-windows-x64.zip` | Descomprima y ejecute `DiskForge.exe`. |
+| Linux x64 | `DiskForge-v0.5.0-linux-x64.zip` | Descomprima y ejecute `./DiskForge`. |
+| macOS Intel | `DiskForge-v0.5.0-macos-intel-x64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
+| macOS Apple Silicon | `DiskForge-v0.5.0-macos-arm64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
+
+## Novedades de v0.5.0
+
+La versión 0.5.0 añade inyección nativa por arrastrar y soltar para imágenes FAT editables, extracción temporal de copias al arrastrar archivos fuera de una imagen, vista detallada ordenable y cuadrícula de iconos persistente, archivos recientes, vista previa segura mediante la aplicación predeterminada y temas claro y nocturno. El diseñador gráfico de extracción por lotes valida nombres secuenciales antes de escribir recetas JSON v3; los medios ópticos detectados se exportan como ISO de solo lectura. Las pruebas usan una configuración estricta de pytest, con los avisos convertidos en errores.
 
 ## Qué puede hacer
 
@@ -41,14 +45,14 @@ DiskForge reúne los flujos de trabajo más prácticos para gestionar imágenes 
 | Flujo de trabajo | Capacidad nativa | Notas |
 |---|---|---|
 | Crear imágenes | RAW/IMG, FAT12, FAT16, FAT32, FAT12 con diseño DMF, ISO9660/Joliet | Cree imágenes FAT editables, archivos DMF con geometría documentada de 80×2×21 sectores o medios ISO desde un directorio local. |
-| Explorar y extraer | FAT12/16/32 e ISO9660/Joliet | Vista de árbol, extracción en lote, información de imagen e inspección MBR/GPT. |
-| Cambiar el contenido | Inyección FAT, carpetas recursivas, borrado y edición de fechas | Los ISO se tratan como medios de solo lectura y se reconstruyen desde una carpeta. |
+| Explorar y extraer | FAT12/16/32 e ISO9660/Joliet | Vista de árbol, tabla detallada ordenable, cuadrícula de iconos persistente, vista previa segura por doble clic, extracción en lote, información de imagen e inspección MBR/GPT. |
+| Cambiar el contenido | Inyección FAT, carpetas recursivas, borrado y edición de fechas | Arrastre archivos o carpetas locales a una imagen FAT editable, incluso directamente sobre una carpeta destino visible. Los ISO se tratan como medios de solo lectura. |
 | Convertir formatos | RAW/IMG y VHD fijo de forma nativa | VHDX, VMDK y QCOW2 utilizan un adaptador `qemu-img` configurado explícitamente. |
 | Compactar imágenes FAT | Desfragmentación mediante reconstrucción | Crea una imagen nueva y conserva la original como punto de recuperación. |
 | Inspeccionar estructuras y arranque | Visor/editor hexadecimal de 512 bytes, envoltura FAT en MBR neutral, recorte de sectores cero finales y catálogo El Torito | La envoltura y el recorte siempre crean un archivo nuevo; las imágenes de arranque ISO se exportan en modo de solo lectura. |
-| Verificar y automatizar | SHA-256, recetas JSON por lotes y registros auditables | Incluye extracción de múltiples fuentes con nombres incrementales planificados; las recetas no atendidas rechazan escrituras a dispositivos físicos. |
+| Verificar y automatizar | SHA-256, diseñador gráfico y recetas JSON por lotes | El diseñador previsualiza nombres incrementales seguros; incluye extracción de múltiples fuentes y las recetas no atendidas rechazan escrituras a dispositivos físicos. |
 | Crear paquetes redistribuibles | Contenedores `.dfb` autenticados y archivos autoextraíbles `.pyz` multiimagen verificados con SHA-256 | Los contenedores admiten cifrado AES-256-GCM opcional, compresión, comentarios y verificación por archivo. |
-| Leer y escribir medios físicos | Lectura y restauración en flujo | Rechaza discos del sistema, destinos montados y tamaños incompatibles; requiere confirmación escrita. |
+| Leer y escribir medios físicos | Lectura y restauración en flujo | Rechaza discos del sistema, destinos montados y tamaños incompatibles; requiere confirmación escrita. Los medios ópticos detectados son de solo lectura y se exportan a ISO por defecto. |
 
 ## Seguridad primero
 

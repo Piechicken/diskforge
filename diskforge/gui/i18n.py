@@ -137,6 +137,38 @@ CATALOG["ja"].update({
     "Creates an 80×2×21-sector FAT12 image file. Physical floppy formatting is not performed.": "80×2×21 セクターの FAT12 イメージファイルを作成します。物理フロッピーのフォーマットは行いません。",
 })
 
+# v0.5 desktop interaction, appearance and optical-read additions.
+CATALOG["zh_CN"].update({
+    "Preview selected file": "预览所选文件", "Open recent": "打开最近映像", "No recent images": "没有最近映像", "Clear recent images": "清除最近映像",
+    "Details view": "详细信息视图", "Icon view": "图标视图", "Design batch extraction…": "设计批量提取…", "Appearance": "外观", "Light": "浅色", "Midnight": "深色",
+    "Read optical media to ISO": "读取光学介质到 ISO", "Read-only optical media": "只读光学介质",
+})
+CATALOG["es"].update({
+    "Preview selected file": "Previsualizar archivo seleccionado", "Open recent": "Abrir recientes", "No recent images": "No hay imágenes recientes", "Clear recent images": "Borrar imágenes recientes",
+    "Details view": "Vista de detalles", "Icon view": "Vista de iconos", "Design batch extraction…": "Diseñar extracción por lotes…", "Appearance": "Apariencia", "Light": "Claro", "Midnight": "Medianoche",
+    "Read optical media to ISO": "Leer medio óptico a ISO", "Read-only optical media": "Medio óptico de solo lectura",
+})
+CATALOG["fr"].update({
+    "Preview selected file": "Prévisualiser le fichier sélectionné", "Open recent": "Ouvrir les éléments récents", "No recent images": "Aucune image récente", "Clear recent images": "Effacer les images récentes",
+    "Details view": "Vue détaillée", "Icon view": "Vue par icônes", "Design batch extraction…": "Concevoir une extraction par lot…", "Appearance": "Apparence", "Light": "Clair", "Midnight": "Minuit",
+    "Read optical media to ISO": "Lire le média optique vers ISO", "Read-only optical media": "Média optique en lecture seule",
+})
+CATALOG["ru"].update({
+    "Preview selected file": "Просмотреть выбранный файл", "Open recent": "Открыть недавние", "No recent images": "Нет недавних образов", "Clear recent images": "Очистить недавние образы",
+    "Details view": "Подробный вид", "Icon view": "Вид значков", "Design batch extraction…": "Создать пакетное извлечение…", "Appearance": "Оформление", "Light": "Светлое", "Midnight": "Полночь",
+    "Read optical media to ISO": "Считать оптический носитель в ISO", "Read-only optical media": "Оптический носитель только для чтения",
+})
+CATALOG["ar"].update({
+    "Preview selected file": "معاينة الملف المحدد", "Open recent": "فتح الأخيرة", "No recent images": "لا توجد صور حديثة", "Clear recent images": "مسح الصور الحديثة",
+    "Details view": "عرض التفاصيل", "Icon view": "عرض الأيقونات", "Design batch extraction…": "تصميم استخراج دفعي…", "Appearance": "المظهر", "Light": "فاتح", "Midnight": "ليلي",
+    "Read optical media to ISO": "قراءة الوسيط الضوئي إلى ISO", "Read-only optical media": "وسيط ضوئي للقراءة فقط",
+})
+CATALOG["ja"].update({
+    "Preview selected file": "選択ファイルをプレビュー", "Open recent": "最近使った項目を開く", "No recent images": "最近使ったイメージはありません", "Clear recent images": "最近使ったイメージを消去",
+    "Details view": "詳細表示", "Icon view": "アイコン表示", "Design batch extraction…": "バッチ抽出を設計…", "Appearance": "外観", "Light": "ライト", "Midnight": "ミッドナイト",
+    "Read optical media to ISO": "光学メディアを ISO に読み取る", "Read-only optical media": "読み取り専用の光学メディア",
+})
+
 
 def _catalog_keys() -> set[str]:
     return {key for translations in CATALOG.values() for key in translations}
