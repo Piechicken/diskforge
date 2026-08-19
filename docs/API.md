@@ -1,6 +1,6 @@
 # DiskForge Python API
 
-**当前开发分支** exposes **SDK API 1.1**, a typed file-image API through `diskforge.api`. The public facade is deliberately narrower than the desktop application: it supports inspection, checksums, comparison, FAT creation, conversion, validated partition inspection, managed filesystem sessions, extraction, FAT injection, safe ISO replacement, and controlled read-only mounting. It does **not** expose unattended physical-device writes, MBR changes, or device formatting.
+**DiskForge v0.9.0** exposes **SDK API 1.1**, a typed file-image API through `diskforge.api`. The public facade is deliberately narrower than the desktop application: it supports inspection, checksums, comparison, FAT creation, conversion, validated partition inspection, managed filesystem sessions, extraction, FAT injection, safe ISO replacement, and controlled read-only mounting. It does **not** expose unattended physical-device writes, MBR changes, or device formatting.
 
 > Physical devices are a foreground desktop workflow. Capacity, mount state, system-disk protection, and the exact `ERASE` confirmation remain outside the unattended API by design.
 

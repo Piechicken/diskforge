@@ -37,7 +37,7 @@ The first public release provides four native desktop builds. Download the packa
 
 ## Interface languages
 
-DiskForge v0.8.0 localizes the document workspace and the new FAT-template, safe boot-code import, editable fixed-VHD copy, optional-converter, DMG bridge, and read-only media-acquisition paths at runtime. Select **Tools → Language** to switch immediately between the six United Nations working languages—**Arabic, Chinese, English, French, Russian, and Spanish**—plus **Japanese**. The preference is retained for the next launch. Selecting Arabic switches the complete Qt layout to right-to-left while preserving technical values such as device paths, checksums, file extensions, and the physical-write confirmation phrase `ERASE`.
+DiskForge v0.9.0 localizes the document workspace and the FAT-template, safe boot-code import, editable fixed-VHD, partition-selection, safe ISO replacement, legacy ZIP-container, read-only mount, device MBR, removable-media, controller-floppy, and guarded UFI USB floppy paths at runtime. Select **Tools → Language** to switch immediately between the six United Nations working languages—**Arabic, Chinese, English, French, Russian, and Spanish**—plus **Japanese**. The preference is retained for the next launch. Selecting Arabic switches the complete Qt layout to right-to-left while preserving technical values such as device paths, checksums, file extensions, and the physical-write confirmation phrase `ERASE`. UFI UI coverage does not imply completed real-hardware formatting acceptance.
 
 Read [LOCALIZATION.md](docs/LOCALIZATION.md) for the language matrix, RTL behavior, safety boundaries, and translation-maintenance workflow.
 

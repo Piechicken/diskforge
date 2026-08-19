@@ -2,6 +2,30 @@
 
 All notable changes to DiskForge are documented in this file. The project uses semantic versioning for public releases.
 
+## v0.9.0 — Controlled Media Depth, Read-Only Reach, and Verifiable Delivery
+
+DiskForge v0.9.0 broadens the auditable image-management workspace while preserving the project’s core rule: a new capability is not presented as native, writable, cross-platform, or hardware-validated when its backend and evidence do not support that claim.
+
+| Area | Additions in v0.9.0 |
+|---|---|
+| ISO safe replacement | Replace one ordinary ISO9660/Joliet file only when the replacement has exactly the same logical length. DiskForge writes a separate copy, reopens it, validates the replaced payload hash, and confirms that the source ISO remains unchanged. UDF, Rock Ridge, multi-extent, directory, and size-changing paths are rejected. |
+| Explicit partition workflows | MBR/GPT partition inspection now yields stable, explicit indices. FAT partitions can be deliberately selected for browsing and editing; no first-partition inference is used. NTFS, EXT, HFS, and HFS+ retain read-only filesystem adapters with explicit byte offsets. |
+| Controlled device lifecycle | Safe device-MBR backup, restore, and neutralization use device snapshots, mounted/system-device refusal, backup preservation, confirmation phrases, readback verification, CLI JSON, and desktop entry points. Removable-media FAT formatting is separately guarded and reopens the completed filesystem for verification. |
+| Read-only filesystem and mounting paths | DiskForge adds controlled read-only native-system mount sessions for supported host backends, plus HFS/HFS+ Sleuth Kit listing and data-fork extraction. NTFS, EXT, HFS, and HFS+ remain read-only; no mutation, repair, resource-fork fidelity, or silent tool installation is claimed. |
+| Virtual and legacy containers | A configured qemu-img adapter exports verified dynamic VHD from an independent raw FAT work image. ZIP-compatible IMZ/WLZ single-payload legacy containers support safe creation and extraction; this is a transparent compatible subset, not a claim of complete historical proprietary-container support. |
+| UFI USB floppy safety | Linux adds a capability-gated UFI USB floppy path. It accepts only sysfs-associated removable generic-SCSI nodes, requires `ufiformat -i` discovery, demands an explicitly reported capacity and `FORMAT_FLOPPY`, always uses `-V`, and never uses `-F`. Controller `fdformat` remains separate. |
+| Native verified extraction | Every platform package now includes a separate `DiskForgeExtractor` executable. It verifies and extracts existing DiskForge `.pyz` bundles without requiring recipients to pre-install Python; it validates manifest paths, lengths, and SHA-256 values and does not append data to the desktop application binary. |
+| Batch, CLI, GUI, and localization | Batch schema v4 adds safe legacy-container and ISO-replacement operations. CLI and Qt workflows cover the new supported paths; all primary GUI strings are translated across Simplified Chinese, English, Spanish, French, Russian, Arabic, and Japanese. |
+| Real-sample acceptance | Optional, out-of-repository acceptance tests cover publicly available NTFS, EXT4, and journaled HFS+ samples when a licensed local fixture directory and Sleuth Kit are present. Standard CI skips these tests explicitly rather than downloading binary corpora. |
+
+### Validation
+
+The release candidate passes **185 strict pytest tests with 3 explicitly skipped optional real-fixture tests and zero warnings** in the ordinary test environment. With documented local fixtures available, the optional NTFS, EXT4, and HFS+ acceptance set passes **3/3**. GitHub Actions successfully ran the strict test and native packaging jobs on **Windows x64, Linux x64, macOS Intel, and macOS Apple Silicon**; all four generated platform packages include the independent verified extractor.
+
+### Explicit boundaries
+
+v0.9.0 does **not** claim NTFS/EXT/HFS/HFS+ writing or repair; UDF/Rock Ridge ISO replacement; complete compatibility with undocumented historical compressed containers; a bundled filesystem driver; or real-hardware UFI USB floppy validation. The UFI workflow is implemented and simulation-tested, but real low-level formatting/readback remains deferred because no disposable physical floppy media was supplied. Any future hardware result must be documented separately rather than retroactively inferred from CI.
+
 ## v0.8.0 — Verified Layouts, Safe Boot Import, and Controlled Media Workflows
 
 DiskForge v0.8.0 extends the usable image-editing core without converting optional adapters or unavailable hardware control into false native claims. The release makes reproducible FAT layout creation, boot-code import, and fixed-VHD FAT editing concrete, auditable workflows. It also adds explicit capability reporting and cancellation for external virtual-disk and DMG bridges, plus an independent read-only physical-media acquisition queue.
