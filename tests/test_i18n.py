@@ -68,3 +68,106 @@ def test_workspace_and_preview_labels_are_translated_in_every_non_english_locale
         translated = CATALOG[language.code]
         assert required <= set(translated)
         assert all(translated[source] != source for source in required)
+
+
+def test_template_layout_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "FAT image from template layout",
+        "FAT layout template",
+        "Reads a valid FAT BPB layout from a template image and creates a new editable image; the template is never modified.",
+        "Choose FAT layout template",
+        "FAT template required",
+        "Choose a valid FAT image template before creating a layout-based image.",
+        "Invalid FAT template",
+        "Creating FAT image from template layout",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_safe_boot_code_import_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Import boot code safely…",
+        "Import boot-sector file",
+        "Import boot code safely",
+        "The file must be a signed 512-byte boot sector. Only its executable boot-code area will be imported; the current FAT BPB is preserved and a complete image backup is created first. Continue?",
+        "Boot code imported",
+        "Boot code imported safely. Backup created:",
+        "Unable to import boot code",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_editable_fixed_vhd_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Create editable fixed VHD copy…",
+        "Create editable fixed VHD copy",
+        "Separate output required",
+        "Choose a different output file; the original fixed VHD is kept read-only.",
+        "Creating editable fixed VHD copy",
+        "Fixed VHD validation failed",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_dmg_controlled_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Convert DMG to raw image…",
+        "Convert DMG to raw image",
+        "DMG adapter unavailable",
+        "Converting DMG to raw image",
+        "Optional dmg2img executable",
+        "Locate dmg2img executable",
+        "dmg2img can convert a DMG into a new raw HFS+ image. DiskForge does not mount or write DMG files, and never downloads the adapter automatically.",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_read_only_media_queue_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Batch read physical media…",
+        "Batch read physical media",
+        "This workflow only reads selected removable or optical media into new image files. It never writes to a physical device. Each completed image receives a SHA-256 audit entry.",
+        "Choose acquisition output directory",
+        "Output directory",
+        "Continue after a failed read",
+        "Read queue requires selections",
+        "Select one or more removable or optical media and an existing output directory.",
+        "Reading physical media queue",
+        "Read-only acquisition report",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)

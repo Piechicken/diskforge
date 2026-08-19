@@ -568,3 +568,204 @@ CATALOG["ja"].update({
     "Editable text: save a copy or write back to a writable FAT image.": "編集可能なテキストです。コピーを保存するか、書き込み可能な FAT イメージに書き戻せます。",
 })
 TRANSLATABLE = _catalog_keys()
+
+# v0.8.0 template-derived FAT layout workflow.
+CATALOG["zh_CN"].update({
+    "FAT image from template layout": "从模板布局创建 FAT 映像", "FAT layout template": "FAT 布局模板",
+    "Reads a valid FAT BPB layout from a template image and creates a new editable image; the template is never modified.": "从模板映像读取有效的 FAT BPB 布局并创建新的可编辑映像；不会修改模板。",
+    "Choose FAT layout template": "选择 FAT 布局模板", "FAT template required": "需要 FAT 模板",
+    "Choose a valid FAT image template before creating a layout-based image.": "请先选择有效的 FAT 映像模板，再创建基于布局的映像。",
+    "Invalid FAT template": "无效的 FAT 模板", "Creating FAT image from template layout": "正在从模板布局创建 FAT 映像",
+})
+CATALOG["es"].update({
+    "FAT image from template layout": "Imagen FAT desde diseño de plantilla", "FAT layout template": "Plantilla de diseño FAT",
+    "Reads a valid FAT BPB layout from a template image and creates a new editable image; the template is never modified.": "Lee un diseño BPB FAT válido de una imagen de plantilla y crea una nueva imagen editable; la plantilla nunca se modifica.",
+    "Choose FAT layout template": "Elegir plantilla de diseño FAT", "FAT template required": "Se requiere una plantilla FAT",
+    "Choose a valid FAT image template before creating a layout-based image.": "Elija una plantilla de imagen FAT válida antes de crear una imagen basada en diseño.",
+    "Invalid FAT template": "Plantilla FAT no válida", "Creating FAT image from template layout": "Creando imagen FAT desde el diseño de plantilla",
+})
+CATALOG["fr"].update({
+    "FAT image from template layout": "Image FAT à partir d’une disposition modèle", "FAT layout template": "Modèle de disposition FAT",
+    "Reads a valid FAT BPB layout from a template image and creates a new editable image; the template is never modified.": "Lit une disposition BPB FAT valide dans une image modèle et crée une nouvelle image modifiable ; le modèle n’est jamais modifié.",
+    "Choose FAT layout template": "Choisir un modèle de disposition FAT", "FAT template required": "Un modèle FAT est requis",
+    "Choose a valid FAT image template before creating a layout-based image.": "Choisissez un modèle d’image FAT valide avant de créer une image fondée sur une disposition.",
+    "Invalid FAT template": "Modèle FAT non valide", "Creating FAT image from template layout": "Création d’une image FAT à partir de la disposition modèle",
+})
+CATALOG["ru"].update({
+    "FAT image from template layout": "FAT-образ по шаблону разметки", "FAT layout template": "Шаблон разметки FAT",
+    "Reads a valid FAT BPB layout from a template image and creates a new editable image; the template is never modified.": "Считывает корректную разметку FAT BPB из образа-шаблона и создаёт новый редактируемый образ; шаблон не изменяется.",
+    "Choose FAT layout template": "Выбрать шаблон разметки FAT", "FAT template required": "Требуется шаблон FAT",
+    "Choose a valid FAT image template before creating a layout-based image.": "Перед созданием образа по разметке выберите корректный шаблон FAT.",
+    "Invalid FAT template": "Некорректный шаблон FAT", "Creating FAT image from template layout": "Создание FAT-образа по шаблону разметки",
+})
+CATALOG["ar"].update({
+    "FAT image from template layout": "صورة FAT من تخطيط قالب", "FAT layout template": "قالب تخطيط FAT",
+    "Reads a valid FAT BPB layout from a template image and creates a new editable image; the template is never modified.": "يقرأ تخطيط FAT BPB صالحاً من صورة قالب وينشئ صورة جديدة قابلة للتحرير؛ ولا يعدل القالب أبداً.",
+    "Choose FAT layout template": "اختر قالب تخطيط FAT", "FAT template required": "يلزم قالب FAT",
+    "Choose a valid FAT image template before creating a layout-based image.": "اختر قالب صورة FAT صالحاً قبل إنشاء صورة تعتمد على التخطيط.",
+    "Invalid FAT template": "قالب FAT غير صالح", "Creating FAT image from template layout": "جارٍ إنشاء صورة FAT من تخطيط القالب",
+})
+CATALOG["ja"].update({
+    "FAT image from template layout": "テンプレートレイアウトから FAT イメージを作成", "FAT layout template": "FAT レイアウトテンプレート",
+    "Reads a valid FAT BPB layout from a template image and creates a new editable image; the template is never modified.": "テンプレートイメージから有効な FAT BPB レイアウトを読み取り、新しい編集可能なイメージを作成します。テンプレートは変更されません。",
+    "Choose FAT layout template": "FAT レイアウトテンプレートを選択", "FAT template required": "FAT テンプレートが必要です",
+    "Choose a valid FAT image template before creating a layout-based image.": "レイアウトベースのイメージを作成する前に、有効な FAT イメージテンプレートを選択してください。",
+    "Invalid FAT template": "無効な FAT テンプレート", "Creating FAT image from template layout": "テンプレートレイアウトから FAT イメージを作成中",
+})
+TRANSLATABLE = _catalog_keys()
+
+# v0.8.0 safe boot-code import workflow.
+CATALOG["zh_CN"].update({
+    "Import boot code safely…": "安全导入启动代码…", "Import boot-sector file": "导入启动扇区文件",
+    "Import boot code safely": "安全导入启动代码",
+    "The file must be a signed 512-byte boot sector. Only its executable boot-code area will be imported; the current FAT BPB is preserved and a complete image backup is created first. Continue?": "该文件必须是带有效签名的 512 字节启动扇区。只会导入其可执行启动代码区域；将保留当前 FAT BPB，并先创建完整映像备份。是否继续？",
+    "Boot code imported": "启动代码已导入", "Boot code imported safely. Backup created:": "启动代码已安全导入。已创建备份：", "Unable to import boot code": "无法导入启动代码",
+})
+CATALOG["es"].update({
+    "Import boot code safely…": "Importar código de arranque de forma segura…", "Import boot-sector file": "Importar archivo de sector de arranque",
+    "Import boot code safely": "Importar código de arranque de forma segura",
+    "The file must be a signed 512-byte boot sector. Only its executable boot-code area will be imported; the current FAT BPB is preserved and a complete image backup is created first. Continue?": "El archivo debe ser un sector de arranque firmado de 512 bytes. Solo se importará su área de código ejecutable; se conserva el BPB FAT actual y primero se crea una copia de seguridad completa de la imagen. ¿Continuar?",
+    "Boot code imported": "Código de arranque importado", "Boot code imported safely. Backup created:": "El código de arranque se importó de forma segura. Copia de seguridad creada:", "Unable to import boot code": "No se puede importar el código de arranque",
+})
+CATALOG["fr"].update({
+    "Import boot code safely…": "Importer le code d’amorçage en toute sécurité…", "Import boot-sector file": "Importer un fichier de secteur d’amorçage",
+    "Import boot code safely": "Importer le code d’amorçage en toute sécurité",
+    "The file must be a signed 512-byte boot sector. Only its executable boot-code area will be imported; the current FAT BPB is preserved and a complete image backup is created first. Continue?": "Le fichier doit être un secteur d’amorçage signé de 512 octets. Seule sa zone de code exécutable sera importée ; le BPB FAT actuel est conservé et une sauvegarde complète de l’image est créée auparavant. Continuer ?",
+    "Boot code imported": "Code d’amorçage importé", "Boot code imported safely. Backup created:": "Code d’amorçage importé en toute sécurité. Sauvegarde créée :", "Unable to import boot code": "Impossible d’importer le code d’amorçage",
+})
+CATALOG["ru"].update({
+    "Import boot code safely…": "Безопасно импортировать загрузочный код…", "Import boot-sector file": "Импортировать файл загрузочного сектора",
+    "Import boot code safely": "Безопасно импортировать загрузочный код",
+    "The file must be a signed 512-byte boot sector. Only its executable boot-code area will be imported; the current FAT BPB is preserved and a complete image backup is created first. Continue?": "Файл должен быть подписанным загрузочным сектором размером 512 байт. Импортируется только исполняемая область загрузочного кода; текущий FAT BPB сохраняется, а перед этим создаётся полная резервная копия образа. Продолжить?",
+    "Boot code imported": "Загрузочный код импортирован", "Boot code imported safely. Backup created:": "Загрузочный код безопасно импортирован. Создана резервная копия:", "Unable to import boot code": "Не удалось импортировать загрузочный код",
+})
+CATALOG["ar"].update({
+    "Import boot code safely…": "استيراد رمز الإقلاع بأمان…", "Import boot-sector file": "استيراد ملف قطاع الإقلاع",
+    "Import boot code safely": "استيراد رمز الإقلاع بأمان",
+    "The file must be a signed 512-byte boot sector. Only its executable boot-code area will be imported; the current FAT BPB is preserved and a complete image backup is created first. Continue?": "يجب أن يكون الملف قطاع إقلاع موقّعاً بحجم 512 بايت. لن يُستورد إلا جزء رمز الإقلاع التنفيذي؛ وسيُحفظ FAT BPB الحالي وتُنشأ نسخة احتياطية كاملة للصورة أولاً. هل تريد المتابعة؟",
+    "Boot code imported": "تم استيراد رمز الإقلاع", "Boot code imported safely. Backup created:": "تم استيراد رمز الإقلاع بأمان. أُنشئت نسخة احتياطية:", "Unable to import boot code": "تعذر استيراد رمز الإقلاع",
+})
+CATALOG["ja"].update({
+    "Import boot code safely…": "ブートコードを安全にインポート…", "Import boot-sector file": "ブートセクターファイルをインポート",
+    "Import boot code safely": "ブートコードを安全にインポート",
+    "The file must be a signed 512-byte boot sector. Only its executable boot-code area will be imported; the current FAT BPB is preserved and a complete image backup is created first. Continue?": "ファイルは署名が有効な 512 バイトのブートセクターである必要があります。実行可能なブートコード領域だけをインポートし、現在の FAT BPB を保持したうえで、先にイメージ全体のバックアップを作成します。続行しますか？",
+    "Boot code imported": "ブートコードをインポートしました", "Boot code imported safely. Backup created:": "ブートコードを安全にインポートしました。作成したバックアップ：", "Unable to import boot code": "ブートコードをインポートできません",
+})
+TRANSLATABLE = _catalog_keys()
+
+# v0.8.0 editable fixed-VHD FAT copy workflow.
+CATALOG["zh_CN"].update({
+    "Create editable fixed VHD copy…": "创建可编辑的固定 VHD 副本…", "Create editable fixed VHD copy": "创建可编辑的固定 VHD 副本",
+    "Separate output required": "需要单独的输出文件", "Choose a different output file; the original fixed VHD is kept read-only.": "请选择不同的输出文件；原始固定 VHD 将保持只读。",
+    "Creating editable fixed VHD copy": "正在创建可编辑的固定 VHD 副本", "Fixed VHD validation failed": "固定 VHD 验证失败",
+})
+CATALOG["es"].update({
+    "Create editable fixed VHD copy…": "Crear copia VHD fija editable…", "Create editable fixed VHD copy": "Crear copia VHD fija editable",
+    "Separate output required": "Se requiere una salida independiente", "Choose a different output file; the original fixed VHD is kept read-only.": "Elija un archivo de salida diferente; el VHD fijo original se mantiene de solo lectura.",
+    "Creating editable fixed VHD copy": "Creando copia VHD fija editable", "Fixed VHD validation failed": "Falló la validación del VHD fijo",
+})
+CATALOG["fr"].update({
+    "Create editable fixed VHD copy…": "Créer une copie VHD fixe modifiable…", "Create editable fixed VHD copy": "Créer une copie VHD fixe modifiable",
+    "Separate output required": "Une sortie distincte est requise", "Choose a different output file; the original fixed VHD is kept read-only.": "Choisissez un fichier de sortie différent ; le VHD fixe d’origine reste en lecture seule.",
+    "Creating editable fixed VHD copy": "Création d’une copie VHD fixe modifiable", "Fixed VHD validation failed": "Échec de la validation du VHD fixe",
+})
+CATALOG["ru"].update({
+    "Create editable fixed VHD copy…": "Создать редактируемую копию фиксированного VHD…", "Create editable fixed VHD copy": "Создать редактируемую копию фиксированного VHD",
+    "Separate output required": "Требуется отдельный выходной файл", "Choose a different output file; the original fixed VHD is kept read-only.": "Выберите другой выходной файл; исходный фиксированный VHD останется доступным только для чтения.",
+    "Creating editable fixed VHD copy": "Создание редактируемой копии фиксированного VHD", "Fixed VHD validation failed": "Не удалось проверить фиксированный VHD",
+})
+CATALOG["ar"].update({
+    "Create editable fixed VHD copy…": "إنشاء نسخة VHD ثابتة قابلة للتحرير…", "Create editable fixed VHD copy": "إنشاء نسخة VHD ثابتة قابلة للتحرير",
+    "Separate output required": "يلزم ملف إخراج منفصل", "Choose a different output file; the original fixed VHD is kept read-only.": "اختر ملف إخراج مختلفاً؛ إذ سيبقى VHD الثابت الأصلي للقراءة فقط.",
+    "Creating editable fixed VHD copy": "جارٍ إنشاء نسخة VHD ثابتة قابلة للتحرير", "Fixed VHD validation failed": "فشل التحقق من VHD الثابت",
+})
+CATALOG["ja"].update({
+    "Create editable fixed VHD copy…": "編集可能な固定 VHD コピーを作成…", "Create editable fixed VHD copy": "編集可能な固定 VHD コピーを作成",
+    "Separate output required": "別の出力ファイルが必要です", "Choose a different output file; the original fixed VHD is kept read-only.": "別の出力ファイルを選択してください。元の固定 VHD は読み取り専用のまま保持されます。",
+    "Creating editable fixed VHD copy": "編集可能な固定 VHD コピーを作成中", "Fixed VHD validation failed": "固定 VHD の検証に失敗しました",
+})
+TRANSLATABLE = _catalog_keys()
+
+# v0.8.0 controlled DMG conversion workflow.
+CATALOG["zh_CN"].update({
+    "Convert DMG to raw image…": "将 DMG 转换为原始映像…", "Convert DMG to raw image": "将 DMG 转换为原始映像",
+    "DMG adapter unavailable": "DMG 适配器不可用", "Converting DMG to raw image": "正在将 DMG 转换为原始映像",
+    "Optional dmg2img executable": "可选 dmg2img 可执行文件", "Locate dmg2img executable": "定位 dmg2img 可执行文件",
+    "dmg2img can convert a DMG into a new raw HFS+ image. DiskForge does not mount or write DMG files, and never downloads the adapter automatically.": "dmg2img 可将 DMG 转换为新的原始 HFS+ 映像。DiskForge 不挂载或写入 DMG 文件，也绝不会自动下载该适配器。",
+})
+CATALOG["es"].update({
+    "Convert DMG to raw image…": "Convertir DMG a imagen sin formato…", "Convert DMG to raw image": "Convertir DMG a imagen sin formato",
+    "DMG adapter unavailable": "Adaptador DMG no disponible", "Converting DMG to raw image": "Convirtiendo DMG a imagen sin formato",
+    "Optional dmg2img executable": "Ejecutable dmg2img opcional", "Locate dmg2img executable": "Localizar ejecutable dmg2img",
+    "dmg2img can convert a DMG into a new raw HFS+ image. DiskForge does not mount or write DMG files, and never downloads the adapter automatically.": "dmg2img puede convertir un DMG en una nueva imagen HFS+ sin formato. DiskForge no monta ni escribe archivos DMG y nunca descarga el adaptador automáticamente.",
+})
+CATALOG["fr"].update({
+    "Convert DMG to raw image…": "Convertir le DMG en image brute…", "Convert DMG to raw image": "Convertir le DMG en image brute",
+    "DMG adapter unavailable": "Adaptateur DMG indisponible", "Converting DMG to raw image": "Conversion du DMG en image brute",
+    "Optional dmg2img executable": "Exécutable dmg2img facultatif", "Locate dmg2img executable": "Localiser l’exécutable dmg2img",
+    "dmg2img can convert a DMG into a new raw HFS+ image. DiskForge does not mount or write DMG files, and never downloads the adapter automatically.": "dmg2img peut convertir un DMG en une nouvelle image HFS+ brute. DiskForge ne monte ni n’écrit de fichiers DMG et ne télécharge jamais l’adaptateur automatiquement.",
+})
+CATALOG["ru"].update({
+    "Convert DMG to raw image…": "Преобразовать DMG в необработанный образ…", "Convert DMG to raw image": "Преобразовать DMG в необработанный образ",
+    "DMG adapter unavailable": "Адаптер DMG недоступен", "Converting DMG to raw image": "Преобразование DMG в необработанный образ",
+    "Optional dmg2img executable": "Необязательный исполняемый файл dmg2img", "Locate dmg2img executable": "Указать исполняемый файл dmg2img",
+    "dmg2img can convert a DMG into a new raw HFS+ image. DiskForge does not mount or write DMG files, and never downloads the adapter automatically.": "dmg2img может преобразовать DMG в новый необработанный образ HFS+. DiskForge не монтирует и не записывает файлы DMG и никогда не загружает адаптер автоматически.",
+})
+CATALOG["ar"].update({
+    "Convert DMG to raw image…": "تحويل DMG إلى صورة خام…", "Convert DMG to raw image": "تحويل DMG إلى صورة خام",
+    "DMG adapter unavailable": "محول DMG غير متاح", "Converting DMG to raw image": "جارٍ تحويل DMG إلى صورة خام",
+    "Optional dmg2img executable": "ملف dmg2img التنفيذي الاختياري", "Locate dmg2img executable": "تحديد موقع ملف dmg2img التنفيذي",
+    "dmg2img can convert a DMG into a new raw HFS+ image. DiskForge does not mount or write DMG files, and never downloads the adapter automatically.": "يمكن لـ dmg2img تحويل DMG إلى صورة HFS+ خام جديدة. لا يقوم DiskForge بتركيب ملفات DMG أو الكتابة إليها ولا ينزّل المحول تلقائياً أبداً.",
+})
+CATALOG["ja"].update({
+    "Convert DMG to raw image…": "DMG を RAW イメージに変換…", "Convert DMG to raw image": "DMG を RAW イメージに変換",
+    "DMG adapter unavailable": "DMG アダプターを利用できません", "Converting DMG to raw image": "DMG を RAW イメージに変換中",
+    "Optional dmg2img executable": "任意の dmg2img 実行可能ファイル", "Locate dmg2img executable": "dmg2img 実行可能ファイルを指定",
+    "dmg2img can convert a DMG into a new raw HFS+ image. DiskForge does not mount or write DMG files, and never downloads the adapter automatically.": "dmg2img は DMG を新しい RAW HFS+ イメージに変換できます。DiskForge は DMG ファイルをマウントまたは書き込みせず、アダプターを自動ダウンロードすることもありません。",
+})
+TRANSLATABLE = _catalog_keys()
+
+# v0.8.0 read-only physical media acquisition queue.
+CATALOG["zh_CN"].update({
+    "Batch read physical media…": "批量读取物理介质…", "Batch read physical media": "批量读取物理介质",
+    "This workflow only reads selected removable or optical media into new image files. It never writes to a physical device. Each completed image receives a SHA-256 audit entry.": "此工作流只会将所选可移动或光学介质读取为新的映像文件。它绝不写入物理设备。每个完成的映像都会获得一条 SHA-256 审计记录。",
+    "Choose acquisition output directory": "选择采集输出目录", "Output directory": "输出目录", "Continue after a failed read": "读取失败后继续",
+    "Read queue requires selections": "读取队列需要选择内容", "Select one or more removable or optical media and an existing output directory.": "请选择一个或多个可移动或光学介质以及一个现有输出目录。",
+    "Reading physical media queue": "正在读取物理介质队列", "Read-only acquisition report": "只读采集报告", "Succeeded:": "成功：", "failed:": "失败：",
+})
+CATALOG["es"].update({
+    "Batch read physical media…": "Leer medios físicos por lotes…", "Batch read physical media": "Leer medios físicos por lotes",
+    "This workflow only reads selected removable or optical media into new image files. It never writes to a physical device. Each completed image receives a SHA-256 audit entry.": "Este flujo solo lee los medios extraíbles u ópticos seleccionados en nuevos archivos de imagen. Nunca escribe en un dispositivo físico. Cada imagen completada recibe una entrada de auditoría SHA-256.",
+    "Choose acquisition output directory": "Elegir directorio de salida de adquisición", "Output directory": "Directorio de salida", "Continue after a failed read": "Continuar tras una lectura fallida",
+    "Read queue requires selections": "La cola de lectura requiere selecciones", "Select one or more removable or optical media and an existing output directory.": "Seleccione uno o más medios extraíbles u ópticos y un directorio de salida existente.",
+    "Reading physical media queue": "Leyendo cola de medios físicos", "Read-only acquisition report": "Informe de adquisición de solo lectura", "Succeeded:": "Correctos:", "failed:": "fallidos:",
+})
+CATALOG["fr"].update({
+    "Batch read physical media…": "Lire des médias physiques par lot…", "Batch read physical media": "Lire des médias physiques par lot",
+    "This workflow only reads selected removable or optical media into new image files. It never writes to a physical device. Each completed image receives a SHA-256 audit entry.": "Ce flux lit uniquement les médias amovibles ou optiques sélectionnés dans de nouveaux fichiers image. Il n’écrit jamais sur un périphérique physique. Chaque image terminée reçoit une entrée d’audit SHA-256.",
+    "Choose acquisition output directory": "Choisir le dossier de sortie d’acquisition", "Output directory": "Dossier de sortie", "Continue after a failed read": "Continuer après une lecture échouée",
+    "Read queue requires selections": "La file de lecture requiert des sélections", "Select one or more removable or optical media and an existing output directory.": "Sélectionnez un ou plusieurs médias amovibles ou optiques ainsi qu’un dossier de sortie existant.",
+    "Reading physical media queue": "Lecture de la file de médias physiques", "Read-only acquisition report": "Rapport d’acquisition en lecture seule", "Succeeded:": "Réussis :", "failed:": "échoués :",
+})
+CATALOG["ru"].update({
+    "Batch read physical media…": "Пакетно считать физические носители…", "Batch read physical media": "Пакетно считать физические носители",
+    "This workflow only reads selected removable or optical media into new image files. It never writes to a physical device. Each completed image receives a SHA-256 audit entry.": "Этот процесс только считывает выбранные съёмные или оптические носители в новые файлы образов. Он никогда не записывает на физическое устройство. Для каждого завершённого образа создаётся запись аудита SHA-256.",
+    "Choose acquisition output directory": "Выбрать папку вывода для считывания", "Output directory": "Папка вывода", "Continue after a failed read": "Продолжать после ошибки чтения",
+    "Read queue requires selections": "Для очереди чтения требуется выбор", "Select one or more removable or optical media and an existing output directory.": "Выберите один или несколько съёмных либо оптических носителей и существующую папку вывода.",
+    "Reading physical media queue": "Чтение очереди физических носителей", "Read-only acquisition report": "Отчёт о считывании только для чтения", "Succeeded:": "Успешно:", "failed:": "ошибок:",
+})
+CATALOG["ar"].update({
+    "Batch read physical media…": "قراءة الوسائط الفعلية دفعةً واحدة…", "Batch read physical media": "قراءة الوسائط الفعلية دفعةً واحدة",
+    "This workflow only reads selected removable or optical media into new image files. It never writes to a physical device. Each completed image receives a SHA-256 audit entry.": "يقرأ هذا الإجراء الوسائط القابلة للإزالة أو الضوئية المحددة فقط إلى ملفات صور جديدة. ولا يكتب أبداً على جهاز فعلي. تحصل كل صورة مكتملة على سجل تدقيق SHA-256.",
+    "Choose acquisition output directory": "اختر مجلد إخراج الالتقاط", "Output directory": "مجلد الإخراج", "Continue after a failed read": "المتابعة بعد فشل القراءة",
+    "Read queue requires selections": "تتطلب قائمة القراءة تحديد عناصر", "Select one or more removable or optical media and an existing output directory.": "حدد وسيطاً واحداً أو أكثر قابلاً للإزالة أو ضوئياً ومجلد إخراج موجوداً.",
+    "Reading physical media queue": "جارٍ قراءة قائمة الوسائط الفعلية", "Read-only acquisition report": "تقرير الالتقاط للقراءة فقط", "Succeeded:": "نجح:", "failed:": "فشل:",
+})
+CATALOG["ja"].update({
+    "Batch read physical media…": "物理メディアをバッチ読み取り…", "Batch read physical media": "物理メディアをバッチ読み取り",
+    "This workflow only reads selected removable or optical media into new image files. It never writes to a physical device. Each completed image receives a SHA-256 audit entry.": "このワークフローは選択したリムーバブルまたは光学メディアを新しいイメージファイルへ読み取るだけです。物理デバイスへの書き込みは一切行いません。完了した各イメージには SHA-256 監査記録が付与されます。",
+    "Choose acquisition output directory": "取得出力ディレクトリを選択", "Output directory": "出力ディレクトリ", "Continue after a failed read": "読み取り失敗後も続行",
+    "Read queue requires selections": "読み取りキューには選択が必要です", "Select one or more removable or optical media and an existing output directory.": "1 つ以上のリムーバブルまたは光学メディアと、既存の出力ディレクトリを選択してください。",
+    "Reading physical media queue": "物理メディアキューを読み取り中", "Read-only acquisition report": "読み取り専用取得レポート", "Succeeded:": "成功:", "failed:": "失敗:",
+})
+TRANSLATABLE = _catalog_keys()

@@ -24,3 +24,20 @@ def test_cli_media_workflows_emit_json(tmp_path: Path, capsys) -> None:
     trimmed = tmp_path / "trimmed.img"
     assert main(["--json", "trim-zero-tail", str(raw), str(trimmed)]) == 0
     assert json.loads(capsys.readouterr().out)["bytes_removed"] == 512
+
+
+def test_cli_inspects_and_recreates_fat_layout(tmp_path: Path, capsys) -> None:
+    template = tmp_path / "template.dmf"
+    assert main(["--json", "create-dmf", str(template), "--label", "TEMPLATE"]) == 0
+    capsys.readouterr()
+
+    assert main(["--json", "fat-layout", str(template)]) == 0
+    layout = json.loads(capsys.readouterr().out)
+    assert layout["sectors_per_track"] == 21
+    assert layout["heads"] == 2
+
+    recreated = tmp_path / "recreated.img"
+    assert main(["--json", "create-fat-from-layout", str(template), str(recreated), "--label", "RECREATED"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["path"] == str(recreated)
+    assert payload["layout"] == layout

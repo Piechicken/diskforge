@@ -79,6 +79,27 @@ def load_boot_sector_file(path: Path | str) -> bytes:
     return data
 
 
+def import_boot_sector_file(image: Path | str, source_file: Path | str, sector: int = 0) -> tuple[BootSectorInfo, Path]:
+    """Import a boot-sector file without overwriting the target FAT BPB.
+
+    The source must be a complete, signed 512-byte sector.  Only its executable
+    area replaces the corresponding target area; the target jump, BPB, extended
+    BPB, volume identity and filesystem label remain intact.  A complete sibling
+    image backup is created before any write.
+    """
+    target = Path(image)
+    existing = read_sector(target, sector)
+    offset = _boot_code_offset(existing)
+    imported = load_boot_sector_file(source_file)
+    if imported[510:512] != b"\x55\xaa":
+        raise DiskForgeError("The imported boot-sector file has an invalid signature.")
+    result = bytearray(existing)
+    result[offset:510] = imported[offset:510]
+    result[510:512] = b"\x55\xaa"
+    backup = backup_and_write_boot_sector(target, bytes(result), sector)
+    return inspect_boot_sector(bytes(result)), backup
+
+
 def _ascii_field(value: str, width: int, description: str, *, allow_empty: bool = False) -> bytes:
     normalized = value.strip()
     if not normalized and not allow_empty:

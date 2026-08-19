@@ -1,0 +1,17 @@
+DiskForge v0.8.0 legacy media validation
+
+Sample 1
+Path: /home/ubuntu/upload/DISK1-SETUP.IMG
+Result: Opened successfully as IMG, 368,640 bytes, FAT12.
+Observed root content: PIF directory; CGA.DRV, COMM.DRV, EGAHIBW.DRV, EGAHIRES.DRV, EGALORES.DRV, EGAMONO.DRV and other historical installation files with timestamps from 1985.
+
+Sample 2
+Path: /home/ubuntu/upload/Mouse_Driver_&_Utilites_DOS_Win3.1_Win95_1998.IMA
+Result: Opened successfully as IMG, 1,474,560 bytes, FAT12.
+Observed root content: DOS, WIN31, WIN95 and WINNT directories; installation payload files including _INST32I.EX_, _ISDEL.EXE, _SETUP.DLL and _SETUP32.EXE with timestamps from 1997–1998.
+
+Method: `python3 -m diskforge.cli --json info` followed by `--json list` in an offline working tree. No operating-system default application was invoked and neither sample was modified.
+
+Preview-input validation
+Source: /README.TXT extracted from the mouse-driver IMA sample.
+Result: The file was extracted through DiskForge's FAT filesystem path and contains readable English installation documentation beginning with “Mouse User's Manual” and “FCC Statement on CLASS B”. This verifies a real legacy-text input for the built-in document workspace; the source image remained unmodified.

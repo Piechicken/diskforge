@@ -524,12 +524,15 @@ class IsoImageFilesystem(ImageFilesystem):
 
 def create_fat_image(path: Path | str, size_bytes: int, filesystem: FileSystemType,
                      label: str = "DISKFORGE", *, media_type: int = 0xF8,
-                     sectors_per_track: int = 0, heads: int = 0) -> Path:
+                     sectors_per_track: int = 0, heads: int = 0, sector_size: int = 512,
+                     fat_count: int = 2) -> Path:
     """Create a formatted FAT superfloppy image of a requested size.
 
     ``media_type`` and optional BIOS geometry are deliberately explicit because
     they are presentation/firmware metadata rather than an instruction to write
-    a physical device.  A zero geometry preserves the formatter default.
+    a physical device.  A zero geometry preserves the formatter default.  Sector
+    size and FAT count are constrained to values that the native formatter can
+    generate portably; callers importing a layout must validate it first.
     """
     fat_type = {
         FileSystemType.FAT12: PyFat.FAT_TYPE_FAT12,
@@ -548,9 +551,16 @@ def create_fat_image(path: Path | str, size_bytes: int, filesystem: FileSystemTy
     try:
         if not 0 <= media_type <= 0xFF:
             raise DiskForgeError("FAT media type must be a single unsigned byte.")
+        if sector_size not in {512, 1024, 2048, 4096}:
+            raise DiskForgeError("FAT sector size must be a supported power of two from 512 to 4096 bytes.")
+        if size_bytes < sector_size or size_bytes % sector_size:
+            raise DiskForgeError("FAT image size must be sector-aligned.")
+        if fat_count not in {1, 2}:
+            raise DiskForgeError("FAT images must contain one or two allocation tables.")
         if not 0 <= sectors_per_track <= 0xFFFF or not 0 <= heads <= 0xFFFF:
             raise DiskForgeError("FAT geometry values must fit in 16-bit BPB fields.")
-        pyfat.mkfs(str(target), fat_type=fat_type, size=size_bytes, label=label[:11], media_type=media_type)
+        pyfat.mkfs(str(target), fat_type=fat_type, size=size_bytes, label=label[:11], media_type=media_type,
+                   sector_size=sector_size, number_of_fats=fat_count)
         completed = True
     finally:
         if completed:

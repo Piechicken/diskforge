@@ -34,6 +34,35 @@ class VhdFooter:
     timestamp: datetime
 
 
+@dataclass(frozen=True)
+class EditableFixedVhdCopy:
+    """An independently created fixed-VHD copy approved for FAT file edits."""
+
+    source: Path
+    destination: Path
+    virtual_size: int
+
+
+@dataclass(frozen=True)
+class ConverterCapabilityReport:
+    """A transparent capability report for an explicitly configured converter."""
+
+    adapter: str
+    available: bool
+    executable: str | None
+    formats: tuple[str, ...]
+    reason: str
+
+    def as_mapping(self) -> dict[str, object]:
+        return {
+            "adapter": self.adapter,
+            "available": self.available,
+            "executable": self.executable,
+            "formats": list(self.formats),
+            "reason": self.reason,
+        }
+
+
 class Converter(Protocol):
     """A provider able to inspect and convert non-native virtual disk formats."""
 
@@ -55,15 +84,43 @@ class QemuImgConverter:
 
     @property
     def available(self) -> bool:
-        return bool(self.executable)
+        return bool(self.executable and (Path(self.executable).is_file() or shutil.which(self.executable)))
+
+    def capability_report(self) -> ConverterCapabilityReport:
+        """Describe optional virtual-disk support without invoking conversions."""
+        formats = (ImageFormat.VHDX.value, ImageFormat.VMDK.value, ImageFormat.QCOW2.value)
+        if not self.available:
+            location = self.executable or "qemu-img"
+            return ConverterCapabilityReport(
+                "qemu-img", False, self.executable, formats,
+                f"Optional qemu-img converter is not installed or not executable: {location}.",
+            )
+        return ConverterCapabilityReport(
+            "qemu-img", True, self.executable, formats,
+            "Configured optional converter is available. Conversion is executed only after an explicit user action.",
+        )
 
     def _run(self, args: list[str], token: CancellationToken | None = None) -> subprocess.CompletedProcess[str]:
-        if not self.executable:
+        if not self.available or not self.executable:
             raise DiskForgeError("qemu-img is not installed; this format requires the optional converter.")
-        if token and token.cancelled:
+        if token:
             token.raise_if_cancelled()
-        result = subprocess.run([self.executable, *args], check=False, text=True,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        command = [self.executable, *args]
+        process = subprocess.Popen(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        while True:
+            try:
+                stdout, stderr = process.communicate(timeout=0.1)
+                break
+            except subprocess.TimeoutExpired:
+                if token and token.cancelled:
+                    process.terminate()
+                    try:
+                        process.communicate(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.communicate()
+                    token.raise_if_cancelled()
+        result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
         if result.returncode:
             raise DiskForgeError(result.stderr.strip() or "qemu-img conversion failed.")
         return result
@@ -84,6 +141,75 @@ class QemuImgConverter:
         if not qemu_format:
             raise DiskForgeError(f"No converter mapping for {destination_format.value}.")
         self._run(["convert", "-p", "-O", qemu_format, str(source), str(destination)], token)
+
+
+class Dmg2ImgConverter:
+    """Optional DMG-to-raw bridge, used only after explicit user configuration.
+
+    The adapter deliberately supports conversion into a new output file only. It
+    does not mount a DMG, alter the source, or claim HFS browsing/writing support.
+    """
+
+    def __init__(self, executable: str | None = None) -> None:
+        self.executable = executable or shutil.which("dmg2img")
+
+    @property
+    def available(self) -> bool:
+        return bool(self.executable and (Path(self.executable).is_file() or shutil.which(self.executable)))
+
+    def capability_report(self) -> ConverterCapabilityReport:
+        formats = ("dmg-to-raw-hfsplus",)
+        if not self.available:
+            location = self.executable or "dmg2img"
+            return ConverterCapabilityReport(
+                "dmg2img", False, self.executable, formats,
+                f"Optional dmg2img adapter is not installed or not executable: {location}.",
+            )
+        return ConverterCapabilityReport(
+            "dmg2img", True, self.executable, formats,
+            "Configured optional adapter can convert a DMG into a new raw HFS+ image; no DMG write or mount operation is provided.",
+        )
+
+    def convert(self, source: Path | str, destination: Path | str, *, overwrite: bool = False,
+                token: CancellationToken | None = None) -> Path:
+        if not self.available or not self.executable:
+            raise DiskForgeError("dmg2img is not installed; DMG conversion requires the optional adapter.")
+        input_path, output_path = Path(source), Path(destination)
+        if not input_path.is_file():
+            raise FileNotFoundError(input_path)
+        if output_path.exists() and not overwrite:
+            raise FileExistsError(output_path)
+        if token:
+            token.raise_if_cancelled()
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = output_path.with_name(f".{output_path.name}.dmg2img.partial")
+        temporary.unlink(missing_ok=True)
+        process = subprocess.Popen([self.executable, "-i", str(input_path), "-o", str(temporary)],
+                                   text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            while True:
+                try:
+                    stdout, stderr = process.communicate(timeout=0.1)
+                    break
+                except subprocess.TimeoutExpired:
+                    if token and token.cancelled:
+                        process.terminate()
+                        try:
+                            process.communicate(timeout=2)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                            process.communicate()
+                        token.raise_if_cancelled()
+            if process.returncode:
+                raise DiskForgeError(stderr.strip() or "dmg2img conversion failed.")
+            if not temporary.is_file() or temporary.stat().st_size == 0:
+                raise DiskForgeError("dmg2img completed without creating a usable output image.")
+            if output_path.exists() and overwrite:
+                output_path.unlink()
+            os.replace(temporary, output_path)
+            return output_path
+        finally:
+            temporary.unlink(missing_ok=True)
 
 
 def _checksum(data: bytes) -> int:
@@ -173,6 +299,45 @@ def parse_vhd_footer(path: Path | str) -> VhdFooter | None:
         unique_id=uuid.UUID(bytes=bytes(footer[68:84])),
         timestamp=datetime.fromtimestamp(created, tz=timezone.utc),
     )
+
+
+def validate_fixed_vhd_fat(path: Path | str):
+    """Validate a fixed VHD and return the FAT layout of its data region.
+
+    The VHD footer is outside the virtual disk data.  This guard prevents callers
+    from treating a dynamic VHD or malformed footer as a writable flat image.
+    """
+    from .fat_layouts import FatImageLayout
+
+    target = Path(path)
+    footer = parse_vhd_footer(target)
+    if footer is None or footer.disk_type != 2:
+        raise DiskForgeError("Only fixed VHD files with a valid footer can be edited natively.")
+    if target.stat().st_size != footer.virtual_size + VHD_FOOTER_SIZE:
+        raise DiskForgeError("Fixed VHD size does not match its validated footer.")
+    with target.open("rb") as handle:
+        boot = handle.read(4096)
+    return FatImageLayout.from_boot_sector(boot, footer.virtual_size, require_geometry=False)
+
+
+def create_editable_fixed_vhd_copy(source: Path | str, destination: Path | str, *, overwrite: bool = False,
+                                   progress: ProgressCallback | None = None,
+                                   token: CancellationToken | None = None) -> EditableFixedVhdCopy:
+    """Create an independent fixed-VHD FAT copy for a subsequent editable session.
+
+    The source remains untouched.  The copy is validated before and after the
+    stream copy, so an accidental data/footer size change cannot be presented as
+    a usable editable VHD.
+    """
+    origin, output = Path(source), Path(destination)
+    if origin.resolve() == output.resolve():
+        raise DiskForgeError("Choose a different output file for an editable fixed-VHD copy.")
+    layout = validate_fixed_vhd_fat(origin)
+    stream_copy(origin, output, OperationKind.CONVERT, progress=progress, token=token, overwrite=overwrite)
+    copied = validate_fixed_vhd_fat(output)
+    if copied != layout:
+        raise DiskForgeError("The copied fixed VHD FAT layout did not validate consistently.")
+    return EditableFixedVhdCopy(origin, output, layout.size_bytes)
 
 
 def inspect_image(path: Path | str, converter: Converter | None = None) -> ImageInfo:

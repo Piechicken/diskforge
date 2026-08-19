@@ -8,17 +8,20 @@ from pathlib import Path
 from typing import Any
 
 from .core.batch import BatchRunner, write_example_batch
-from .core.bootsector import apply_boot_template, edit_fat_boot_properties, list_boot_templates
+from .core.bootsector import apply_boot_template, edit_fat_boot_properties, import_boot_sector_file, list_boot_templates
 from .core.bundle import create_bundle, extract_bundle, inspect_bundle
 from .core.compare import compare_streams
 from .core.deployment import prepare_fat_deployment
+from .core.device_queue import DeviceReadRequest, read_device_queue
 from .core.eltorito import export_boot_image, inspect_eltorito
+from .core.fat_layouts import FatImageLayout, create_fat_image_from_layout
 from .core.filesystems import FatImageFilesystem, IsoImageFilesystem, create_fat_image, create_iso_from_directory
-from .core.formats import QemuImgConverter, convert_image, inspect_image
+from .core.formats import Dmg2ImgConverter, QemuImgConverter, convert_image, create_editable_fixed_vhd_copy, inspect_image
 from .core.mbr import backup_mbr, reset_mbr_to_neutral, restore_mbr
 from .core.media import create_dmf_image, trim_zero_tail, wrap_fat_image_in_mbr
 from .core.metadata import load_image_metadata, save_image_comment
-from .core.models import ConflictPolicy, ExtractionLayout, ExtractionPolicy, FileSystemType, ImageFormat
+from .core.models import (ConflictPolicy, DeviceInfo, DeviceKind, ExtractionLayout, ExtractionPolicy,
+                          FileSystemType, ImageFormat)
 from .core.partitions import inspect_gpt, list_partitions
 from .core.readonly_fs import SleuthKitImageFilesystem
 from .core.resize import resize_image
@@ -38,6 +41,10 @@ def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="diskforge-cli", description="DiskForge image operations")
     root.add_argument("--json", action="store_true", help="Emit structured JSON where applicable")
     commands = root.add_subparsers(dest="command", required=True)
+
+    read_queue = commands.add_parser("read-device-queue", help="Run an auditable read-only device acquisition queue")
+    read_queue.add_argument("manifest", type=Path, help="JSON file containing a requests array")
+    read_queue.add_argument("--continue-on-error", action="store_true")
 
     info = commands.add_parser("info", help="Inspect image metadata")
     info.add_argument("image", type=Path)
@@ -87,6 +94,13 @@ def parser() -> argparse.ArgumentParser:
     dmf.add_argument("image", type=Path)
     dmf.add_argument("--label", default="DISKFORGE")
 
+    layout = commands.add_parser("fat-layout", help="Inspect a reproducible FAT BPB layout")
+    layout.add_argument("image", type=Path)
+    create_from_layout = commands.add_parser("create-fat-from-layout", help="Create a FAT image from a validated template layout")
+    create_from_layout.add_argument("template", type=Path)
+    create_from_layout.add_argument("image", type=Path)
+    create_from_layout.add_argument("--label", default="DISKFORGE")
+
     wrap_mbr = commands.add_parser("wrap-mbr", help="Wrap a FAT superfloppy image in a neutral single-partition MBR image")
     wrap_mbr.add_argument("source", type=Path)
     wrap_mbr.add_argument("destination", type=Path)
@@ -123,11 +137,19 @@ def parser() -> argparse.ArgumentParser:
     boot_export.add_argument("--index", type=int, default=0)
     boot_export.add_argument("--overwrite", action="store_true")
 
+    converter_status = commands.add_parser("converter-status", help="Show optional virtual-disk converter capability")
+    dmg_status = commands.add_parser("dmg-adapter-status", help="Show optional read-only DMG conversion adapter capability")
+
     convert = commands.add_parser("convert", help="Convert an image")
     convert.add_argument("source", type=Path)
     convert.add_argument("destination", type=Path)
     convert.add_argument("--format", choices=[item.value for item in ImageFormat if item not in {ImageFormat.UNKNOWN, ImageFormat.DMG}], required=True)
     convert.add_argument("--overwrite", action="store_true")
+
+    editable_vhd = commands.add_parser("create-editable-vhd-copy", help="Create an independently editable fixed-VHD FAT copy")
+    editable_vhd.add_argument("source", type=Path)
+    editable_vhd.add_argument("destination", type=Path)
+    editable_vhd.add_argument("--overwrite", action="store_true")
 
     resize = commands.add_parser("resize", help="Safely resize RAW or FAT image into a new file")
     resize.add_argument("source", type=Path)
@@ -152,6 +174,11 @@ def parser() -> argparse.ArgumentParser:
     boot.add_argument("--oem-name")
     boot.add_argument("--volume-label")
     boot.add_argument("--serial-number", type=lambda value: int(value, 0))
+
+    import_boot = commands.add_parser("import-boot-sector", help="Safely import boot code while preserving a FAT BPB")
+    import_boot.add_argument("image", type=Path)
+    import_boot.add_argument("source", type=Path)
+    import_boot.add_argument("--confirm", required=True, help="Must be IMPORT_BOOT_SECTOR")
 
     boot_templates = commands.add_parser("boot-templates", help="List original DiskForge FAT boot templates")
     boot_templates.add_argument("--verbose", action="store_true")
@@ -244,7 +271,26 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     progress = None if args.json else _progress
     try:
-        if args.command == "info":
+        if args.command == "read-device-queue":
+            payload = json.loads(args.manifest.read_text(encoding="utf-8"))
+            records = payload.get("requests") if isinstance(payload, dict) else None
+            if not isinstance(records, list):
+                raise DiskForgeError("Read-queue manifest must contain a requests array.")
+            requests: list[DeviceReadRequest] = []
+            for record in records:
+                if not isinstance(record, dict):
+                    raise DiskForgeError("Each read-queue request must be an object.")
+                device = DeviceInfo(
+                    str(record["identifier"]), str(record.get("display_name") or record["identifier"]),
+                    int(record["size"]), DeviceKind(str(record.get("kind", DeviceKind.DISK.value))),
+                    removable=bool(record.get("removable", False)), mounted=bool(record.get("mounted", False)),
+                    mountpoints=tuple(str(value) for value in record.get("mountpoints", [])),
+                    model=str(record.get("model", "")), system_disk=bool(record.get("system_disk", False)),
+                )
+                requests.append(DeviceReadRequest(device, Path(str(record["destination"])), bool(record.get("overwrite", False))))
+            report = read_device_queue(requests, continue_on_error=args.continue_on_error, progress=progress)
+            _emit(args, report.as_mapping())
+        elif args.command == "info":
             info = inspect_image(args.image, QemuImgConverter())
             metadata = load_image_metadata(args.image)
             _emit(args, {
@@ -317,6 +363,13 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "create-dmf":
             created = create_dmf_image(args.image, args.label)
             _emit(args, {"path": str(created), "layout": "80x2x21", "bytes": created.stat().st_size}, str(created))
+        elif args.command == "fat-layout":
+            layout = FatImageLayout.from_image(args.image)
+            _emit(args, layout.as_mapping())
+        elif args.command == "create-fat-from-layout":
+            layout = FatImageLayout.from_image(args.template)
+            created = create_fat_image_from_layout(args.image, layout, label=args.label)
+            _emit(args, {"path": str(created), "layout": layout.as_mapping()}, str(created))
         elif args.command == "wrap-mbr":
             result = wrap_fat_image_in_mbr(args.source, args.destination, bootable=args.bootable, overwrite=args.overwrite, progress=progress)
             print() if not args.json else None
@@ -357,11 +410,21 @@ def main(argv: list[str] | None = None) -> int:
             output = export_boot_image(args.image, args.output, index=args.index, overwrite=args.overwrite, progress=progress)
             print() if not args.json else None
             _emit(args, {"path": str(output), "index": args.index, "bytes": output.stat().st_size}, str(output))
+        elif args.command == "converter-status":
+            _emit(args, QemuImgConverter().capability_report().as_mapping())
+        elif args.command == "dmg-adapter-status":
+            _emit(args, Dmg2ImgConverter().capability_report().as_mapping())
         elif args.command == "convert":
             result = convert_image(args.source, args.destination, ImageFormat(args.format), QemuImgConverter(),
                                    progress, overwrite=args.overwrite)
             print() if not args.json else None
             _emit(args, {"path": str(result.path), "format": result.image_format.value}, str(result.path))
+        elif args.command == "create-editable-vhd-copy":
+            result = create_editable_fixed_vhd_copy(args.source, args.destination, overwrite=args.overwrite,
+                                                    progress=progress)
+            print() if not args.json else None
+            _emit(args, {"source": str(result.source), "destination": str(result.destination),
+                         "virtual_bytes": result.virtual_size}, str(result.destination))
         elif args.command == "resize":
             result = resize_image(args.source, args.destination, args.size_bytes, progress=progress,
                                   overwrite=args.overwrite)
@@ -394,6 +457,12 @@ def main(argv: list[str] | None = None) -> int:
                                                      volume_label=args.volume_label,
                                                      serial_number=args.serial_number)
             _emit(args, {"backup": str(backup), "oem": info.oem_name, "label": info.volume_label}, str(backup))
+        elif args.command == "import-boot-sector":
+            if args.confirm != "IMPORT_BOOT_SECTOR":
+                raise DiskForgeError("Boot-sector import requires the exact confirmation phrase IMPORT_BOOT_SECTOR.")
+            info, backup = import_boot_sector_file(args.image, args.source)
+            _emit(args, {"backup": str(backup), "oem": info.oem_name, "label": info.volume_label,
+                         "filesystem": info.filesystem_label}, str(backup))
         elif args.command == "boot-templates":
             templates = list_boot_templates()
             payload = [{"id": item.identifier, "name": item.name, "description": item.description,

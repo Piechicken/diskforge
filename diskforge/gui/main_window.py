@@ -20,7 +20,7 @@ from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFontComboBox,
     QFileDialog, QFormLayout, QFrame, QGroupBox, QHBoxLayout, QHeaderView, QLabel,
-    QLineEdit, QInputDialog, QListWidgetItem, QMainWindow, QMenu, QMessageBox, QPlainTextEdit, QProgressBar,
+    QLineEdit, QInputDialog, QListWidget, QListWidgetItem, QMainWindow, QMenu, QMessageBox, QPlainTextEdit, QProgressBar,
     QPushButton, QSpinBox, QDateTimeEdit, QSplitter, QStackedWidget, QStatusBar, QStyle, QTableWidget, QTableWidgetItem,
     QTabWidget, QTextBrowser, QToolBar, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
     QWidget,
@@ -29,15 +29,18 @@ from PySide6.QtWidgets import (
 from diskforge.core.batch import BatchRunner
 from diskforge.core.browse_session import BrowsableImageSession, materialize_browsable_image
 from diskforge.core.bootsector import (apply_boot_template, backup_and_write_boot_sector,
-                                       edit_fat_boot_properties, inspect_boot_sector, list_boot_templates,
+                                       edit_fat_boot_properties, import_boot_sector_file, inspect_boot_sector, list_boot_templates,
                                        load_boot_sector_file, parse_hexdump, read_sector, sector_hexdump)
 from diskforge.core.bundle import create_bundle
 from diskforge.core.compare import compare_streams
+from diskforge.core.device_queue import DeviceReadRequest, read_device_queue
 from diskforge.core.devices import list_devices, read_device_to_image, write_image_to_device
 from diskforge.core.deployment import prepare_fat_deployment
 from diskforge.core.eltorito import export_boot_image, inspect_eltorito
+from diskforge.core.fat_layouts import FatImageLayout, create_fat_image_from_layout
 from diskforge.core.filesystems import FatImageFilesystem, ImageFilesystem, IsoImageFilesystem, create_fat_image, create_iso_from_directory, defragment_fat_image
-from diskforge.core.formats import QemuImgConverter, convert_image, inspect_image
+from diskforge.core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_image, create_editable_fixed_vhd_copy,
+                                     inspect_image, validate_fixed_vhd_fat)
 from diskforge.core.media import create_dmf_image, trim_zero_tail, wrap_fat_image_in_mbr
 from diskforge.core.metadata import load_image_metadata, save_image_comment
 from diskforge.core.models import (ConflictPolicy, DeviceInfo, ExtractionLayout, ExtractionPolicy,
@@ -72,6 +75,7 @@ class NewImageDialog(QDialog):
         form = QFormLayout()
         self.kind = QComboBox()
         self.kind.addItem("FAT image (editable)", "fat")
+        self.kind.addItem("FAT image from template layout", "fat_layout")
         self.kind.addItem("Raw/IMG image", "raw")
         self.kind.addItem("DMF 1.68 MB FAT12 image", "dmf")
         self.kind.addItem("ISO9660/Joliet from directory", "iso")
@@ -83,16 +87,17 @@ class NewImageDialog(QDialog):
         self.fat.addItems(["FAT12", "FAT16", "FAT32"])
         self.label = QLineEdit("DISKFORGE")
         self.source = QLineEdit()
-        source_button = QPushButton("Browse…")
-        source_button.clicked.connect(self._choose_source)
+        self.source_button = QPushButton("Browse…")
+        self.source_button.clicked.connect(self._choose_source)
         source_row = QHBoxLayout()
         source_row.addWidget(self.source)
-        source_row.addWidget(source_button)
+        source_row.addWidget(self.source_button)
         form.addRow("Image type", self.kind)
         form.addRow("Size", self.size)
         form.addRow("FAT variant", self.fat)
         form.addRow("Volume label", self.label)
-        form.addRow("ISO source folder", source_row)
+        self.source_label = QLabel("ISO source folder")
+        form.addRow(self.source_label, source_row)
         self.boot_image = QLineEdit()
         boot_button = QPushButton("Browse…")
         boot_button.clicked.connect(self._choose_boot_image)
@@ -118,8 +123,24 @@ class NewImageDialog(QDialog):
         self.kind.currentIndexChanged.connect(self._update_controls)
         self._update_controls()
 
+    @staticmethod
+    def _set_translatable_label(label: QLabel, source: str) -> None:
+        """Render a dynamic label using the source-string translation contract."""
+        try:
+            translated = language_manager().text(source)
+        except RuntimeError:
+            translated = source
+        label.setProperty("df_source_text", source)
+        label.setProperty("df_source_text_rendered", translated)
+        label.setText(translated)
+
     def _choose_source(self) -> None:
-        choice = QFileDialog.getExistingDirectory(self, "Choose source directory")
+        if self.kind.currentData() == "fat_layout":
+            choice, _ = QFileDialog.getOpenFileName(
+                self, "Choose FAT layout template", "", "FAT images (*.img *.ima *.dmf *.bin);;All files (*)",
+            )
+        else:
+            choice = QFileDialog.getExistingDirectory(self, "Choose source directory")
         if choice:
             self.source.setText(choice)
 
@@ -131,20 +152,25 @@ class NewImageDialog(QDialog):
     def _update_controls(self) -> None:
         mode = self.kind.currentData()
         is_iso = mode == "iso"
-        self.size.setEnabled(mode not in {"iso", "dmf"})
+        is_layout = mode == "fat_layout"
+        self.size.setEnabled(mode not in {"iso", "dmf", "fat_layout"})
         self.fat.setEnabled(mode == "fat")
-        self.source.setEnabled(is_iso)
+        self.source.setEnabled(is_iso or is_layout)
+        self.source_button.setEnabled(is_iso or is_layout)
+        self._set_translatable_label(self.source_label, "FAT layout template" if is_layout else "ISO source folder")
         self.boot_image.setEnabled(is_iso)
         self.boot_media.setEnabled(is_iso)
         self.boot_info_table.setEnabled(is_iso)
         if mode == "iso":
-            self.help.setText("ISO files are authored from a local directory and are read-only after creation.")
+            self._set_translatable_label(self.help, "ISO files are authored from a local directory and are read-only after creation.")
         elif mode == "raw":
-            self.help.setText("Raw images are sparse zero-filled files; format them externally or write sectors manually.")
+            self._set_translatable_label(self.help, "Raw images are sparse zero-filled files; format them externally or write sectors manually.")
         elif mode == "dmf":
-            self.help.setText("Creates an 80×2×21-sector FAT12 image file. Physical floppy formatting is not performed.")
+            self._set_translatable_label(self.help, "Creates an 80×2×21-sector FAT12 image file. Physical floppy formatting is not performed.")
+        elif mode == "fat_layout":
+            self._set_translatable_label(self.help, "Reads a valid FAT BPB layout from a template image and creates a new editable image; the template is never modified.")
         else:
-            self.help.setText("FAT images are editable and support file injection, deletion and timestamp changes.")
+            self._set_translatable_label(self.help, "FAT images are editable and support file injection, deletion and timestamp changes.")
 
 
 class ConvertDialog(QDialog):
@@ -202,6 +228,8 @@ class BootSectorDialog(QDialog):
         row = QHBoxLayout()
         load = QPushButton("Load 512-byte file…")
         load.clicked.connect(self._load_file)
+        import_code = QPushButton("Import boot code safely…")
+        import_code.clicked.connect(self._import_boot_code)
         reload_button = QPushButton("Reload")
         reload_button.clicked.connect(self._reload)
         save = QPushButton("Backup and apply")
@@ -212,6 +240,7 @@ class BootSectorDialog(QDialog):
         apply_template = QPushButton("Apply original template…")
         apply_template.clicked.connect(self._apply_template)
         row.addWidget(load)
+        row.addWidget(import_code)
         row.addWidget(reload_button)
         row.addWidget(self.template)
         row.addWidget(apply_template)
@@ -233,6 +262,24 @@ class BootSectorDialog(QDialog):
         path, _ = QFileDialog.getOpenFileName(self, "Load boot sector", "", "Boot sector (*.bin *.img);;All files (*)")
         if path:
             self.editor.setPlainText(sector_hexdump(load_boot_sector_file(path)))
+
+    def _import_boot_code(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, "Import boot-sector file", "", "Boot sector (*.bin *.img);;All files (*)")
+        if not path:
+            return
+        answer = QMessageBox.warning(
+            self, "Import boot code safely",
+            "The file must be a signed 512-byte boot sector. Only its executable boot-code area will be imported; the current FAT BPB is preserved and a complete image backup is created first. Continue?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel, QMessageBox.StandardButton.Cancel,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            _, backup = import_boot_sector_file(self.image, Path(path))
+            QMessageBox.information(self, "Boot code imported", f"Boot code imported safely. Backup created:\n{backup}")
+            self._reload()
+        except Exception as exc:
+            QMessageBox.critical(self, "Unable to import boot code", str(exc))
 
     def _apply_template(self) -> None:
         template = self.template.currentData()
@@ -364,6 +411,7 @@ class MainWindow(QMainWindow):
         self.current_info = None
         self.current_fs: ImageFilesystem | None = None
         self.current_browse_session: BrowsableImageSession | None = None
+        self._editable_fixed_vhd = False
         self.current_directory = "/"
         self.current_entries: list[ImageEntry] = []
         self._directory_page_size = 250
@@ -404,6 +452,8 @@ class MainWindow(QMainWindow):
         self.action_prepare_deployment = self._action("Prepare FAT deployment image…", None, self.prepare_current_fat_deployment)
         self.action_trim_zero_tail = self._action("Trim trailing zero sectors…", None, self.trim_current_zero_tail)
         self.action_iso_boot = self._action("Inspect / export ISO boot image…", None, self.inspect_iso_boot)
+        self.action_editable_vhd = self._action("Create editable fixed VHD copy…", None, self.create_editable_vhd_copy)
+        self.action_convert_dmg = self._action("Convert DMG to raw image…", None, self.convert_dmg_image)
         self.action_up = self._action("Up", "Alt+Up", self.go_up)
         self.action_convert = self._action("Convert image…", None, self.convert_image)
         self.action_verify = self._action("Verify SHA-256", None, self.verify_image)
@@ -412,6 +462,7 @@ class MainWindow(QMainWindow):
         self.action_defragment = self._action("Defragment FAT image…", None, self.defragment_image)
         self.action_boot = self._action("Edit boot sector…", None, self.edit_boot_sector)
         self.action_devices = self._action("Read / write physical drive…", None, self.physical_drive)
+        self.action_device_read_queue = self._action("Batch read physical media…", None, self.batch_read_physical_media)
         self.action_batch = self._action("Run batch recipe…", None, self.run_batch)
         self.action_batch_designer = self._action("Design batch workflow…", None, self.design_batch)
         self.action_batch_edit = self._action("Edit batch recipe…", None, self.edit_batch)
@@ -448,13 +499,15 @@ class MainWindow(QMainWindow):
                                self.action_rename, self.action_attributes, self.action_label, self.action_comment])
         menu_image.addSeparator()
         menu_image.addActions([self.action_convert, self.action_resize, self.action_trim_zero_tail, self.action_compare, self.action_verify,
-                               self.action_defragment, self.action_partitions, self.action_boot, self.action_wrap_mbr, self.action_prepare_deployment, self.action_iso_boot])
+                               self.action_defragment, self.action_partitions, self.action_boot, self.action_wrap_mbr, self.action_prepare_deployment,
+                               self.action_iso_boot, self.action_editable_vhd, self.action_convert_dmg])
+
         menu_image.addSeparator()
         menu_image.addActions([self.action_export, self.action_print, self.action_bundle, self.action_sfx])
         menu_view = self.menuBar().addMenu("&View")
         menu_view.addActions([self.action_view_details, self.action_view_icons])
         menu_tools = self.menuBar().addMenu("&Tools")
-        menu_tools.addActions([self.action_devices, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
+        menu_tools.addActions([self.action_devices, self.action_device_read_queue, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
         menu_language = menu_tools.addMenu("&Language")
         self.language_actions: list[QAction] = []
         try:
@@ -664,6 +717,11 @@ class MainWindow(QMainWindow):
         self.action_wrap_mbr.setEnabled(fat_source)
         self.action_prepare_deployment.setEnabled(fat_source)
         self.action_iso_boot.setEnabled(open_image and self.current_info is not None and (self.current_info.image_format == ImageFormat.ISO or self.current_info.filesystem == FileSystemType.ISO9660))
+        fixed_fat_vhd = fat_source and self.current_info is not None and self.current_info.image_format == ImageFormat.VHD and any(
+            note.startswith("Fixed VHD footer validated") for note in self.current_info.notes
+        )
+        self.action_editable_vhd.setEnabled(fixed_fat_vhd)
+        self.action_convert_dmg.setEnabled(open_image and self.current_info is not None and self.current_info.image_format == ImageFormat.DMG)
         self.action_extract.setEnabled(open_image and entries and self.current_fs is not None)
         self.action_preview.setEnabled(open_image and self.current_fs is not None and selected_file is not None and len(self._selected_paths()) == 1)
         self.action_inject.setEnabled(fs_writable)
@@ -807,6 +865,20 @@ class MainWindow(QMainWindow):
             def create_dmf(progress=None, token=None):
                 return create_dmf_image(target, dialog.label.text())
             self._run_worker("Creating DMF layout image", create_dmf, on_result=lambda result: self._open_path(Path(result)))
+        elif kind == "fat_layout":
+            template = Path(dialog.source.text().strip())
+            if not template.is_file():
+                QMessageBox.warning(self, "FAT template required", "Choose a valid FAT image template before creating a layout-based image.")
+                return
+            try:
+                layout = FatImageLayout.from_image(template)
+            except (DiskForgeError, OSError) as exc:
+                QMessageBox.warning(self, "Invalid FAT template", str(exc))
+                return
+            def create_from_layout(progress=None, token=None):
+                return create_fat_image_from_layout(target, layout, label=dialog.label.text())
+            self._run_worker("Creating FAT image from template layout", create_from_layout,
+                             on_result=lambda result: self._open_path(Path(result)))
         elif kind == "raw":
             def create_raw(progress=None, token=None):
                 target.parent.mkdir(parents=True, exist_ok=True)
@@ -826,14 +898,58 @@ class MainWindow(QMainWindow):
         if path:
             self._open_path(Path(path))
 
-    def _open_path(self, path: Path) -> None:
+    def create_editable_vhd_copy(self) -> None:
+        """Create a separately stored fixed-VHD FAT copy before enabling edits."""
+        if not self.current_path or not self.action_editable_vhd.isEnabled():
+            return
+        source = self.current_path
+        default = source.with_name(f"{source.stem}-editable.vhd")
+        output, _ = QFileDialog.getSaveFileName(self, "Create editable fixed VHD copy", str(default), "Fixed VHD (*.vhd)")
+        if not output:
+            return
+        destination = Path(output)
+        if destination == source:
+            QMessageBox.warning(self, "Separate output required", "Choose a different output file; the original fixed VHD is kept read-only.")
+            return
+        def create_copy(progress=None, token=None):
+            return create_editable_fixed_vhd_copy(source, destination, progress=progress, token=token)
+        self._run_worker(
+            "Creating editable fixed VHD copy", create_copy,
+            on_result=lambda result: self._open_path(Path(result.destination), editable_fixed_vhd=True),
+        )
+
+    def convert_dmg_image(self) -> None:
+        """Convert a DMG through an explicitly configured read-only adapter."""
+        if not self.current_path or not self.current_info or self.current_info.image_format != ImageFormat.DMG:
+            return
+        converter = Dmg2ImgConverter(self.settings.value("dmg2img_path", "") or None)
+        report = converter.capability_report()
+        if not report.available:
+            QMessageBox.warning(self, "DMG adapter unavailable", report.reason)
+            return
+        source = self.current_path
+        output, _ = QFileDialog.getSaveFileName(self, "Convert DMG to raw image", str(source.with_suffix(".img")), "Raw image (*.img *.raw)")
+        if not output:
+            return
+        destination = Path(output)
+        def convert_dmg(progress=None, token=None):
+            return converter.convert(source, destination, token=token)
+        self._run_worker("Converting DMG to raw image", convert_dmg, on_result=lambda result: self._open_path(Path(result)))
+
+    def _open_path(self, path: Path, *, editable_fixed_vhd: bool = False) -> None:
         try:
             self._close_fs()
+            self._editable_fixed_vhd = False
             self.current_path = path
             converter = QemuImgConverter(self.settings.value("qemu_img_path", "") or None)
             self.current_info = inspect_image(path, converter)
             browse_path, browse_info = path, self.current_info
-            if self.current_info.image_format in {ImageFormat.VHD, ImageFormat.VHDX, ImageFormat.VMDK, ImageFormat.QCOW2}:
+            direct_editable_vhd = editable_fixed_vhd and self.current_info.image_format == ImageFormat.VHD
+            if direct_editable_vhd:
+                validate_fixed_vhd_fat(path)
+                self._editable_fixed_vhd = True
+                self.log(f"Opened validated editable fixed-VHD copy for {path.name}")
+            elif self.current_info.image_format in {ImageFormat.VHD, ImageFormat.VHDX, ImageFormat.VMDK, ImageFormat.QCOW2}:
                 self.current_browse_session = materialize_browsable_image(path, converter=converter)
                 browse_path = self.current_browse_session.image
                 browse_info = inspect_image(browse_path)
@@ -1628,7 +1744,15 @@ class MainWindow(QMainWindow):
     def _after_fs_change(self, message: str) -> None:
         self.log(message)
         if self.current_path:
-            self._open_path(self.current_path)
+            editable_fixed_vhd = self._editable_fixed_vhd
+            if editable_fixed_vhd:
+                try:
+                    validate_fixed_vhd_fat(self.current_path)
+                except Exception as exc:
+                    self._editable_fixed_vhd = False
+                    QMessageBox.critical(self, "Fixed VHD validation failed", str(exc))
+                    return
+            self._open_path(self.current_path, editable_fixed_vhd=editable_fixed_vhd)
 
     def convert_image(self) -> None:
         if not self.current_path:
@@ -1672,6 +1796,64 @@ class MainWindow(QMainWindow):
                 target.write_text("\n".join(lines) + "\n", encoding="utf-8")
             return target
         self._run_worker("Exporting directory listing", job, on_result=lambda path: self.log(f"Exported listing: {path}"))
+
+    def batch_read_physical_media(self) -> None:
+        """Queue selected removable/optical devices for read-only acquisition."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Batch read physical media")
+        dialog.resize(650, 430)
+        layout = QVBoxLayout(dialog)
+        notice = QLabel("This workflow only reads selected removable or optical media into new image files. It never writes to a physical device. Each completed image receives a SHA-256 audit entry.")
+        notice.setWordWrap(True)
+        layout.addWidget(notice)
+        choices = QListWidget()
+        choices.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+        for device in list_devices():
+            if device.size <= 0 or not (device.removable or device.kind == DeviceKind.OPTICAL):
+                continue
+            item = QListWidgetItem(f"{device.display_name} · {human_bytes(device.size)} · {device.identifier}")
+            item.setData(Qt.ItemDataRole.UserRole, device)
+            choices.addItem(item)
+        layout.addWidget(choices, 1)
+        output = QLineEdit(str(self.settings.value("last_directory", "")))
+        browse = QPushButton("Browse…")
+        def choose_output() -> None:
+            directory = QFileDialog.getExistingDirectory(dialog, "Choose acquisition output directory", output.text())
+            if directory:
+                output.setText(directory)
+        browse.clicked.connect(choose_output)
+        output_row = QHBoxLayout()
+        output_row.addWidget(output)
+        output_row.addWidget(browse)
+        layout.addWidget(QLabel("Output directory"))
+        layout.addLayout(output_row)
+        continue_on_error = QCheckBox("Continue after a failed read")
+        layout.addWidget(continue_on_error)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        directory = Path(output.text().strip())
+        selected = [choices.item(index).data(Qt.ItemDataRole.UserRole) for index in range(choices.count()) if choices.item(index).isSelected()]
+        if not selected or not directory.is_dir():
+            QMessageBox.warning(self, "Read queue requires selections", "Select one or more removable or optical media and an existing output directory.")
+            return
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        requests: list[DeviceReadRequest] = []
+        for index, device in enumerate(selected, start=1):
+            safe_name = "".join(character if character.isalnum() else "-" for character in device.display_name).strip("-") or "media"
+            requests.append(DeviceReadRequest(device, directory / f"{timestamp}-{index:02d}-{safe_name}.img"))
+        def read_queue(progress=None, token=None):
+            return read_device_queue(requests, continue_on_error=continue_on_error.isChecked(), progress=progress, token=token)
+        def show_report(report) -> None:  # type: ignore[no-untyped-def]
+            summary = "\n".join(
+                f"{'OK' if item.error is None else 'FAILED'}  {item.device}  →  {item.destination}\n"
+                f"{item.sha256 or item.error or ''}" for item in report.items
+            )
+            QMessageBox.information(self, "Read-only acquisition report", f"Succeeded: {report.succeeded}; failed: {report.failed}\n\n{summary}")
+        self._run_worker("Reading physical media queue", read_queue, on_result=show_report)
 
     def edit_boot_sector(self) -> None:
         if self.current_path:
@@ -1827,12 +2009,27 @@ class MainWindow(QMainWindow):
         details = QLabel("qemu-img enables VHDX, VMDK and QCOW2 inspection/conversion. DiskForge never downloads it automatically.")
         details.setWordWrap(True)
         layout.addRow(details)
+        dmg_path = QLineEdit(str(self.settings.value("dmg2img_path", "")))
+        dmg_browse = QPushButton("Browse…")
+        def choose_dmg() -> None:
+            path, _ = QFileDialog.getOpenFileName(dialog, "Locate dmg2img executable")
+            if path:
+                dmg_path.setText(path)
+        dmg_browse.clicked.connect(choose_dmg)
+        dmg_row = QHBoxLayout()
+        dmg_row.addWidget(dmg_path)
+        dmg_row.addWidget(dmg_browse)
+        layout.addRow("Optional dmg2img executable", dmg_row)
+        dmg_details = QLabel("dmg2img can convert a DMG into a new raw HFS+ image. DiskForge does not mount or write DMG files, and never downloads the adapter automatically.")
+        dmg_details.setWordWrap(True)
+        layout.addRow(dmg_details)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(dialog.accept)
         buttons.rejected.connect(dialog.reject)
         layout.addRow(buttons)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.settings.setValue("qemu_img_path", qemu_path.text().strip())
+            self.settings.setValue("dmg2img_path", dmg_path.text().strip())
             self.settings.setValue("appearance", appearance.currentData())
             self.settings.setValue("interface_font_family", font_family.currentFont().family())
             self.settings.setValue("interface_font_size", font_size.value())

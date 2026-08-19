@@ -29,16 +29,16 @@ La primera versión pública incluye cuatro paquetes nativos de escritorio. Desc
 
 | Plataforma | Paquete | Inicio |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.7.5-windows-x64.zip` | Descomprima y ejecute `DiskForge.exe`. |
-| Linux x64 | `DiskForge-v0.7.5-linux-x64.zip` | Descomprima y ejecute `./DiskForge`. |
-| macOS Intel | `DiskForge-v0.7.5-macos-intel-x64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
-| macOS Apple Silicon | `DiskForge-v0.7.5-macos-arm64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
+| Windows x64 | `DiskForge-v0.8.0-windows-x64.zip` | Descomprima y ejecute `DiskForge.exe`. |
+| Linux x64 | `DiskForge-v0.8.0-linux-x64.zip` | Descomprima y ejecute `./DiskForge`. |
+| macOS Intel | `DiskForge-v0.8.0-macos-intel-x64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
+| macOS Apple Silicon | `DiskForge-v0.8.0-macos-arm64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
 
-## Novedades de v0.7.5
+## Novedades de v0.8.0
 
-La versión 0.7.5 convierte la vista previa de archivos en un espacio documental realmente utilizable: el texto se presenta con una codificación legible y permite buscar y guardar una copia; únicamente las entradas de imágenes FAT escribibles pueden editarse y guardarse de vuelta en la imagen. Los contenedores Office y OpenDocument proporcionan texto seguro cuando está disponible; los ejecutables y datos binarios nunca se ejecutan, y las largas zonas de ceros se pliegan en lugar de llenar la pantalla de puntos. Las sesiones FAT, ISO y VHD fijo permanecen en sus adaptadores nativos; solo los sistemas de archivos NTFS/EXT reales usan la vía opcional de Sleuth Kit de solo lectura, por lo que las imágenes IMG/IMA antiguas dejan de rechazarse erróneamente. Los directorios grandes se presentan de forma paginada y con ordenación almacenada, mientras que la exportación e impresión recorren por completo FAT, ISO, NTFS y EXT.
+La versión 0.8.0 conserva el espacio documental editable y añade creación de imágenes FAT a partir de una plantilla BPB validada, importación segura de código de arranque de 512 bytes que conserva el BPB de destino y crea una copia de seguridad completa, y copias VHD fijas independientes que pueden reabrirse como sesiones FAT editables tras validar sus datos virtuales y su pie. La VHD original permanece sin modificar; las VHD dinámicas no se abren para escritura nativa.
 
-El diseñador gráfico ahora crea, reabre, edita y ejecuta recetas de conversión, validación, comparación, cambio de tamaño, inyección, extracción y contenedores, con revisión por elemento después de la ejecución; las operaciones sobre dispositivos físicos siguen prohibidas en recetas desatendidas. Un nuevo icono fuente transparente se derivó en PNG de ejecución, ICO de Windows e ICNS de macOS. Todos los controles del espacio documental, estados por lotes, indicaciones del sistema de archivos y el diálogo Acerca de están completos en los seis idiomas de trabajo de las Naciones Unidas y japonés. El flujo de publicación acepta solo etiquetas `v*`, exige coincidencia exacta con los metadatos del proyecto y falla si la Release ya existe: ningún recurso versionado puede sobrescribirse.
+Los adaptadores externos se declaran de forma transparente: `qemu-img` es opcional para VHDX, VMDK y QCOW2, con informe de capacidad y cancelación; `dmg2img` opcional solo convierte un DMG en una nueva salida HFS+ sin formato. DiskForge no monta ni escribe DMG. La nueva cola de adquisición lee únicamente medios extraíbles u ópticos seleccionados, crea archivos nuevos y registra SHA-256; no contiene una opción de escritura de dispositivos. Todas estas rutas nuevas están traducidas a los seis idiomas de trabajo de las Naciones Unidas y japonés. El flujo de publicación acepta solo etiquetas `v*`, exige coincidencia exacta con los metadatos y falla si la Release ya existe: ningún recurso versionado puede sobrescribirse.
 
 ## Qué puede hacer
 

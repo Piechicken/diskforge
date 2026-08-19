@@ -29,16 +29,16 @@
 
 | 平台 | 文件名 | 启动方式 |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.7.5-windows-x64.zip` | 解压后运行 `DiskForge.exe`。 |
-| Linux x64 | `DiskForge-v0.7.5-linux-x64.zip` | 解压后运行 `./DiskForge`。 |
-| macOS Intel | `DiskForge-v0.7.5-macos-intel-x64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
-| macOS Apple Silicon | `DiskForge-v0.7.5-macos-arm64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
+| Windows x64 | `DiskForge-v0.8.0-windows-x64.zip` | 解压后运行 `DiskForge.exe`。 |
+| Linux x64 | `DiskForge-v0.8.0-linux-x64.zip` | 解压后运行 `./DiskForge`。 |
+| macOS Intel | `DiskForge-v0.8.0-macos-intel-x64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
+| macOS Apple Silicon | `DiskForge-v0.8.0-macos-arm64.zip` | 解压后将 `DiskForge.app` 移至“应用程序”。 |
 
-## v0.7.5 文档式工作区与不可覆盖发布
+## v0.8.0 文档式工作区与不可覆盖发布
 
-v0.7.5 将映像内文件预览收敛为真正可用的文档式工作区：文本按编码以可读排版呈现，支持查找、另存副本；仅当文件位于可写 FAT 映像中时，才可明确编辑并保存回映像。Office 与 OpenDocument 容器会提取可安全显示的文本；可执行文件和二进制数据始终不执行，长零字节区域会折叠而不再显示满屏点号。FAT、ISO 与固定 VHD 浏览会保持在各自的原生适配器中，只有实际 NTFS/EXT 才会进入可选的 Sleuth Kit 只读路径，因此旧式 IMG/IMA 不再被错误拒绝。大目录改为确定性分页浏览与排序缓存，目录导出和打印会完整遍历 FAT、ISO、NTFS 与 EXT。
+v0.8.0 在保留可编辑文档式工作区的基础上，新增了从经过验证的 BPB 模板创建 FAT 映像、仅导入启动代码且保留目标 FAT BPB 并先做完整备份的 512 字节启动扇区文件安全导入，以及在验证虚拟数据区和页脚后可作为可写 FAT 会话重新打开的独立固定 VHD 副本。原始 VHD 不会被修改；动态 VHD 不进入原生写入路径。
 
-图形批处理设计器现在可新建、重新打开、编辑并运行转换、校验、比较、缩放、注入、提取和容器操作配方，运行后可逐项审阅结果；无人值守配方仍明确拒绝物理设备操作。新增的透明源图标已重新派生为运行时 PNG、Windows ICO 和 macOS ICNS，打包应用会从 PyInstaller 资源目录解析图标。所有文档工作区、批处理状态、文件系统提示和关于对话框均已补齐联合国六种工作语言及日语。发布工作流只接受 `v*` 标签，强制校验标签与项目版本相同，若 Release 已存在则直接失败，绝不覆盖任何版本资产。
+外部适配器均明确标示：`qemu-img` 是用于 VHDX、VMDK 和 QCOW2 的可选适配器，提供能力报告和可取消进程；可选的 `dmg2img` 只能将 DMG 转换为新的原始 HFS+ 输出，DiskForge 不会挂载或写入 DMG。新的采集队列只读取所选可移动或光学介质、创建独立文件并记录 SHA-256 审计，完全不包含设备写入选项。上述新增路径与既有文档工作区均已覆盖联合国六种工作语言和日语。发布工作流只接受 `v*` 标签，强制校验标签与项目版本相同；若 Release 已存在则直接失败，绝不覆盖任何版本资产。
 
 ## 核心能力
 

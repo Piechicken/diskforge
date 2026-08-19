@@ -2,6 +2,28 @@
 
 All notable changes to DiskForge are documented in this file. The project uses semantic versioning for public releases.
 
+## v0.8.0 — Verified Layouts, Safe Boot Import, and Controlled Media Workflows
+
+DiskForge v0.8.0 extends the usable image-editing core without converting optional adapters or unavailable hardware control into false native claims. The release makes reproducible FAT layout creation, boot-code import, and fixed-VHD FAT editing concrete, auditable workflows. It also adds explicit capability reporting and cancellation for external virtual-disk and DMG bridges, plus an independent read-only physical-media acquisition queue.
+
+| Area | Additions in v0.8.0 |
+|---|---|
+| Reproducible FAT layouts | A validated FAT BPB layout can be imported from a complete image template, inspected through CLI JSON, and used by the desktop to create a new editable FAT image. Unsupported sector sizes, FAT counts, geometry, media descriptors, and size mismatches are rejected before creation. |
+| Safe boot-sector import | Signed 512-byte sector files can be imported through a dedicated safe path. DiskForge preserves the target FAT jump/BPB/extended-BPB data, replaces only executable boot-code bytes, and creates a complete sibling image backup before any write. The CLI requires the exact `IMPORT_BOOT_SECTOR` confirmation phrase. |
+| Editable fixed VHD copies | A fixed VHD containing FAT can now be copied to a separately named editable VHD. The virtual data region and footer are validated before and after copying, and the editable copy is reopened as a writable FAT session. Original VHD files remain read-only; dynamic VHD remains outside this native write path. |
+| Optional converter contracts | The qemu-img path now provides an explicit capability report for VHDX, VMDK, and QCOW2, detects an unavailable executable, and terminates a configured conversion process when a task is cancelled. These remain optional external adapters rather than native format implementations. |
+| Controlled DMG bridge | A separately configured `dmg2img` adapter can create a new raw HFS+ output from a DMG. DiskForge does not mount, edit, or write DMG files; unavailable adapters are reported clearly and no third-party tool is downloaded automatically. |
+| Read-only device acquisition queue | A new desktop and CLI queue only reads selected removable or optical media to independently named image files. Each successful item receives a SHA-256 audit entry. It has no write-device option; the pre-existing guarded foreground write workflow remains separate. |
+| Seven-language coverage | The FAT layout, boot import, fixed-VHD, converter, DMG, and media-acquisition user paths have complete Simplified Chinese, English, Spanish, French, Russian, Arabic, and Japanese catalog entries guarded against English fallback. |
+
+### Validation
+
+The release candidate passes **130 tests** under strict pytest configuration with all Python warnings treated as errors. It includes core, CLI, GUI-discovery, failure, cancellation, backup, and localization regressions for the new workflows. Both user-provided historical FAT12 floppy samples were opened and enumerated again; the mouse-driver image’s `README.TXT` was extracted as readable text without invoking a system default application. The packaged Linux application was rebuilt, verified to contain the runtime icon, launched offscreen without application diagnostics, and checked for missing new-core-module imports.
+
+### Explicit boundaries
+
+v0.8.0 does **not** claim native NTFS/EXT writing, dynamic-VHD writing, generic HFS/HFS+ browsing, arbitrary DMG editing, controller-level physical floppy formatting, or real-hardware validation where no such device was available. Optional adapters are visible only when a user configures them; their availability and scope are reported rather than inferred.
+
 ## v0.7.5 — Document Workspace, Scalable Browsing, and Immutable Releases
 
 DiskForge v0.7.5 completes the transition from a file-inspection dialog to a coherent image-document workspace. The release makes the supported FAT workflow genuinely editable, keeps ISO/NTFS/EXT paths correctly read-only, gives large directories bounded and repeatable navigation, and locks versioned release assets against accidental replacement.

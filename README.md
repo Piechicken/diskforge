@@ -30,14 +30,14 @@ The first public release provides four native desktop builds. Download the packa
 
 | Platform | Package | Launch |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.7.5-windows-x64.zip` | Extract, then run `DiskForge.exe`. |
-| Linux x64 | `DiskForge-v0.7.5-linux-x64.zip` | Extract, then run `./DiskForge`. |
-| macOS Intel | `DiskForge-v0.7.5-macos-intel-x64.zip` | Extract, then move `DiskForge.app` to Applications. |
-| macOS Apple Silicon | `DiskForge-v0.7.5-macos-arm64.zip` | Extract, then move `DiskForge.app` to Applications. |
+| Windows x64 | `DiskForge-v0.8.0-windows-x64.zip` | Extract, then run `DiskForge.exe`. |
+| Linux x64 | `DiskForge-v0.8.0-linux-x64.zip` | Extract, then run `./DiskForge`. |
+| macOS Intel | `DiskForge-v0.8.0-macos-intel-x64.zip` | Extract, then move `DiskForge.app` to Applications. |
+| macOS Apple Silicon | `DiskForge-v0.8.0-macos-arm64.zip` | Extract, then move `DiskForge.app` to Applications. |
 
 ## Interface languages
 
-DiskForge v0.7.5 localizes the complete image-document workspace at runtime, including editable text preview, find, save-copy, FAT save-back, paged image browsing, batch-recipe editing, filesystem guidance, and dynamic About content. Select **Tools → Language** to switch immediately between the six United Nations working languages—**Arabic, Chinese, English, French, Russian, and Spanish**—plus **Japanese**. The preference is retained for the next launch. Selecting Arabic switches the complete Qt layout to right-to-left while preserving technical values such as device paths, checksums, file extensions, and the physical-write confirmation phrase `ERASE`.
+DiskForge v0.8.0 localizes the document workspace and the new FAT-template, safe boot-code import, editable fixed-VHD copy, optional-converter, DMG bridge, and read-only media-acquisition paths at runtime. Select **Tools → Language** to switch immediately between the six United Nations working languages—**Arabic, Chinese, English, French, Russian, and Spanish**—plus **Japanese**. The preference is retained for the next launch. Selecting Arabic switches the complete Qt layout to right-to-left while preserving technical values such as device paths, checksums, file extensions, and the physical-write confirmation phrase `ERASE`.
 
 Read [LOCALIZATION.md](docs/LOCALIZATION.md) for the language matrix, RTL behavior, safety boundaries, and translation-maintenance workflow.
 
@@ -51,10 +51,10 @@ DiskForge brings the most useful image-management workflows into one original, a
 
 | Workflow | Native capability | Notes |
 |---|---|---|
-| Create images | RAW/IMG, FAT12, FAT16, FAT32, DMF-layout FAT12, ISO9660/Joliet | Create editable FAT images, documented 80×2×21-sector DMF-layout image files, ordinary ISO media, or El Torito ISO media from a local directory and an optional local boot image. |
-| Browse and extract | FAT12/16/32—including validated unlabeled legacy DOS floppy media—ISO9660/Joliet, fixed VHD data views, and optional NTFS/EXT2/EXT3 read-only backend | Deterministic paged trees and sortable tables avoid unbounded directory rendering. Double-click opens a non-executing document workspace for text, images, common archives, legacy setup packages, executables, and binary data. Text documents can be found, saved as a copy, and—only for writable FAT entries—edited and saved back. Extraction, image information, MBR/GPT inspection, path-preserving or flattened output, and explicit conflict policy remain available. Fixed VHD opens through a temporary read-only RAW data view that excludes its footer. |
+| Create images | RAW/IMG, FAT12, FAT16, FAT32, DMF-layout FAT12, FAT templates, ISO9660/Joliet | Create editable FAT images from standard presets or a validated FAT BPB template, documented 80×2×21-sector DMF-layout image files, ordinary ISO media, or El Torito ISO media from a local directory and an optional local boot image. |
+| Browse and extract | FAT12/16/32—including validated unlabeled legacy DOS floppy media—ISO9660/Joliet, fixed VHD data views, and optional NTFS/EXT2/EXT3 read-only backend | Deterministic paged trees and sortable tables avoid unbounded directory rendering. Double-click opens a non-executing document workspace for text, images, common archives, legacy setup packages, executables, and binary data. Text documents can be found, saved as a copy, and—only for writable FAT entries—edited and saved back. Fixed VHD normally opens through a temporary read-only RAW data view; a validated independent fixed-VHD copy may be reopened as a writable FAT session. |
 | Change image contents | FAT injection, recursive folders, deletion, rename, timestamps, DOS attributes, and volume labels | Drag local files or folders into writable FAT images, including directly onto a displayed target folder. ISO, NTFS and EXT are deliberately exposed through read-only paths. |
-| Convert formats | RAW/IMG and fixed VHD natively | VHDX, VMDK, and QCOW2 use an explicitly configured `qemu-img` adapter. |
+| Convert formats | RAW/IMG and fixed VHD natively | VHDX, VMDK, and QCOW2 use an explicitly configured `qemu-img` adapter with visible capability reporting and cancellation. A separately configured `dmg2img` adapter can only create a new raw output from DMG; DiskForge does not mount or write DMG files. |
 | Compact FAT images | Rebuild-based defragmentation | Writes a new image, preserving the original image as the recovery point. |
 | Inspect and repair structures | 512-byte hex viewer/editor, validated FAT boot properties, original neutral/message templates, neutral MBR wrapping and deployment planning for FAT superfloppy images, trailing-zero-sector copy trimming, MBR backup/restore/neutral reset, and GPT CRC diagnostics | Full image or MBR backups are created before protected structural changes. Templates preserve BPB fields and use no imported boot program; wrapping, deployment preparation, and trimming always write a new file. |
 | Verify and automate | SHA-256, byte-for-byte compare, graphical batch recipe studio, preflight plans, per-item result review, and versioned JSON recipes | The designer creates, reopens, and edits safe conversion, validation, comparison, resize, injection, extraction, and container recipes. Every recipe can be reviewed through `--dry-run` before execution and deliberately rejects raw-device writes. Comparisons can optionally report only full trailing zero sectors as ignored. |
