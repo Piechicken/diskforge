@@ -14,6 +14,8 @@ from .storage import DiskForgeError
 
 CommandRunner = Callable[[list[str]], tuple[int, str, str]]
 _STANDARD_LINUX_FLOPPY = re.compile(r"^/dev/fd[01](?:[dDhH]\d+)?$")
+_UFI_SG_DEVICE = re.compile(r"^/dev/sg\d+$")
+_UFI_CAPACITY = re.compile(r"(?<!\d)(\d{3,10})(?:\s*(?:bytes?|B))?(?!\d)", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -34,11 +36,20 @@ class FloppyFormatResult:
     verified: bool
 
 
-class FloppyControllerFormatter:
-    """Use `fdformat` only for standard Linux controller floppy nodes.
+@dataclass(frozen=True)
+class UfiFloppyDiscovery:
+    identifier: str
+    supported_capacities: tuple[int, ...]
+    raw_report: str
 
-    This service intentionally does not treat USB removable disks as controller
-    floppies and never passes the `--no-verify` option.
+
+class FloppyControllerFormatter:
+    """Run verified Linux floppy format backends behind strict device gates.
+
+    ``fdformat`` accepts only standard controller nodes.  ``ufiformat`` accepts
+    only an explicit generic-SCSI ``/dev/sgN`` node after the tool has reported
+    it as a UFI device and the caller has deliberately selected a supported
+    capacity.  Neither backend is exposed through unattended batch or SDK APIs.
     """
 
     def __init__(self, *, platform_name: str | None = None,
@@ -64,18 +75,58 @@ class FloppyControllerFormatter:
         return FloppyFormatCapability("Linux", executable, True,
                                       "fdformat is available for standard Linux controller floppy devices; USB drives are excluded.")
 
+    def usb_capability_report(self) -> FloppyFormatCapability:
+        if self.platform_name != "Linux":
+            return FloppyFormatCapability(self.platform_name, None, False,
+                                          "No verified UFI USB floppy format backend is available on this platform.")
+        executable = self._which("ufiformat")
+        if not executable:
+            return FloppyFormatCapability("Linux", None, False,
+                                          "ufiformat is unavailable; UFI USB floppy formatting cannot be performed.")
+        return FloppyFormatCapability("Linux", executable, True,
+                                      "ufiformat is available only for detected UFI USB floppy generic-SCSI devices.")
+
+    @staticmethod
+    def _safe_removable(device: DeviceInfo) -> None:
+        if not device.removable or device.mounted or device.system_disk:
+            raise DiskForgeError("Floppy formatting requires an unmounted, non-system removable device.")
+
     def format(self, device: DeviceInfo, confirmation_phrase: str) -> FloppyFormatResult:
         report = self.capability_report()
         if not report.available:
             raise DiskForgeError(f"Controller-level floppy formatting is unavailable: {report.reason}")
         if confirmation_phrase != "FORMAT_FLOPPY":
             raise DiskForgeError("Controller-level floppy formatting requires the exact confirmation phrase FORMAT_FLOPPY.")
-        if not device.removable or device.mounted or device.system_disk:
-            raise DiskForgeError("Controller-level floppy formatting requires an unmounted, non-system removable device.")
+        self._safe_removable(device)
         if not _STANDARD_LINUX_FLOPPY.fullmatch(device.identifier):
             raise DiskForgeError("Only standard Linux controller floppy nodes such as /dev/fd0 are accepted; USB drives are excluded.")
-        command = ["fdformat", device.identifier]
-        code, stdout, stderr = self._runner(command)
+        code, stdout, stderr = self._runner(["fdformat", device.identifier])
         if code != 0:
             raise DiskForgeError((stderr or stdout).strip() or "fdformat failed.")
         return FloppyFormatResult(device.identifier, "fdformat", verified=True)
+
+    def discover_usb(self, device: DeviceInfo) -> UfiFloppyDiscovery:
+        report = self.usb_capability_report()
+        if not report.available:
+            raise DiskForgeError(f"UFI USB floppy formatting is unavailable: {report.reason}")
+        self._safe_removable(device)
+        if not _UFI_SG_DEVICE.fullmatch(device.identifier):
+            raise DiskForgeError("UFI USB formatting requires an explicitly discovered generic-SCSI node such as /dev/sg0; block devices are rejected.")
+        code, stdout, stderr = self._runner(["ufiformat", "-i", device.identifier])
+        if code != 0:
+            raise DiskForgeError((stderr or stdout).strip() or "ufiformat discovery failed.")
+        capacities = tuple(sorted({int(value) for value in _UFI_CAPACITY.findall(stdout)}))
+        if not capacities:
+            raise DiskForgeError("ufiformat did not report a supported UFI floppy capacity; the device is rejected.")
+        return UfiFloppyDiscovery(device.identifier, capacities, stdout)
+
+    def format_usb(self, device: DeviceInfo, capacity: int, confirmation_phrase: str) -> FloppyFormatResult:
+        if confirmation_phrase != "FORMAT_FLOPPY":
+            raise DiskForgeError("UFI USB floppy formatting requires the exact confirmation phrase FORMAT_FLOPPY.")
+        discovery = self.discover_usb(device)
+        if capacity not in discovery.supported_capacities:
+            raise DiskForgeError("The selected capacity was not reported by ufiformat for this UFI floppy device.")
+        code, stdout, stderr = self._runner(["ufiformat", "-f", str(capacity), "-V", device.identifier])
+        if code != 0:
+            raise DiskForgeError((stderr or stdout).strip() or "ufiformat failed.")
+        return FloppyFormatResult(device.identifier, "ufiformat", verified=True)
