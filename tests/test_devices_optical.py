@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from types import SimpleNamespace
 
 from diskforge.core.devices import _linux_devices, _macos_devices, _windows_devices
@@ -61,16 +60,8 @@ def test_linux_removable_generic_scsi_node_is_exposed_only_when_sysfs_maps_it(mo
     }
     sysfs_root = tmp_path / "sys" / "class" / "scsi_generic"
     (sysfs_root / "sg4" / "device" / "block" / "sdb").mkdir(parents=True)
-    original_glob = Path.glob
-
-    def glob(path, pattern):  # type: ignore[no-untyped-def]
-        if str(path) == "/sys/class/scsi_generic" and pattern == "sg*":
-            return [sysfs_root / "sg4"]
-        return original_glob(path, pattern)
-
     monkeypatch.setattr("diskforge.core.devices.subprocess.run", lambda *args, **kwargs: SimpleNamespace(stdout=json.dumps(payload)))
-    monkeypatch.setattr("diskforge.core.devices.Path.glob", glob)
-    devices = _linux_devices()
+    devices = _linux_devices(sysfs_root)
     assert [(item.identifier, item.removable, item.kind) for item in devices] == [
         ("/dev/sdb", True, DeviceKind.REMOVABLE),
         ("/dev/sg4", True, DeviceKind.REMOVABLE),

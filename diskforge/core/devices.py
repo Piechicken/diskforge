@@ -199,7 +199,7 @@ def list_devices() -> list[DeviceInfo]:
     return _linux_devices()
 
 
-def _linux_devices() -> list[DeviceInfo]:
+def _linux_devices(sysfs_root: Path | None = None) -> list[DeviceInfo]:
     result: list[DeviceInfo] = []
     try:
         command = ["lsblk", "--json", "--bytes", "--output", "NAME,PATH,SIZE,TYPE,RM,MOUNTPOINTS,MODEL"]
@@ -232,7 +232,8 @@ def _linux_devices() -> list[DeviceInfo]:
     # removable block device already discovered above; the formatter must still
     # run `ufiformat -i` and reject any device that does not prove to be UFI.
     by_identifier = {item.identifier: item for item in result}
-    for generic in Path("/sys/class/scsi_generic").glob("sg*"):
+    generic_root = sysfs_root or Path("/sys/class/scsi_generic")
+    for generic in generic_root.glob("sg*"):
         block_nodes = list((generic / "device" / "block").glob("*"))
         for block_node in block_nodes:
             parent = by_identifier.get(f"/dev/{block_node.name}")
