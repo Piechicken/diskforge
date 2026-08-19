@@ -30,8 +30,8 @@ class SleuthKitImageFilesystem(ImageFilesystem):
     def __init__(self, image_path: Path | str, filesystem: FileSystemType, *, offset: int = 0,
                  fls_executable: str | None = None, icat_executable: str | None = None) -> None:
         self.path = Path(image_path)
-        if filesystem not in {FileSystemType.NTFS, FileSystemType.EXT}:
-            raise DiskForgeError("Sleuth Kit browsing is available only for NTFS and EXT filesystems.")
+        if filesystem not in {FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS, FileSystemType.HFS_PLUS}:
+            raise DiskForgeError("Sleuth Kit browsing is available only for NTFS, EXT, HFS and HFS+ filesystems.")
         if not self.path.is_file():
             raise FileNotFoundError(self.path)
         if offset < 0 or offset % 512:
@@ -47,7 +47,12 @@ class SleuthKitImageFilesystem(ImageFilesystem):
 
     @property
     def _fs_name(self) -> str:
-        return "ntfs" if self.filesystem == FileSystemType.NTFS else "ext"
+        return {
+            FileSystemType.NTFS: "ntfs",
+            FileSystemType.EXT: "ext",
+            FileSystemType.HFS: "hfsl",
+            FileSystemType.HFS_PLUS: "hfs",
+        }[self.filesystem]
 
     @property
     def _base_args(self) -> list[str]:

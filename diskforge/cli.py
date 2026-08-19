@@ -13,12 +13,17 @@ from .core.bundle import create_bundle, extract_bundle, inspect_bundle
 from .core.compare import compare_streams
 from .core.deployment import prepare_fat_deployment
 from .core.device_queue import DeviceReadRequest, read_device_queue
+from .core.devices import (backup_device_mbr, compare_image_with_device, format_removable_fat,
+                           neutralize_device_mbr, restore_device_mbr)
 from .core.eltorito import export_boot_image, inspect_eltorito
 from .core.fat_layouts import FatImageLayout, create_fat_image_from_layout
-from .core.filesystems import FatImageFilesystem, IsoImageFilesystem, create_fat_image, create_iso_from_directory
-from .core.formats import Dmg2ImgConverter, QemuImgConverter, convert_image, create_editable_fixed_vhd_copy, inspect_image
+from .core.filesystems import (FatImageFilesystem, IsoImageFilesystem, create_fat_image,
+                               create_iso_from_directory, defragment_fat_image, replace_iso_file_safely)
+from .core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_image, create_dynamic_vhd_from_raw,
+                           create_editable_fixed_vhd_copy, inspect_image)
 from .core.mbr import backup_mbr, reset_mbr_to_neutral, restore_mbr
 from .core.media import create_dmf_image, trim_zero_tail, wrap_fat_image_in_mbr
+from .core.mounts import ImageMountManager, ImageMountSession
 from .core.metadata import load_image_metadata, save_image_comment
 from .core.models import (ConflictPolicy, DeviceInfo, DeviceKind, ExtractionLayout, ExtractionPolicy,
                           FileSystemType, ImageFormat)
@@ -52,6 +57,7 @@ def parser() -> argparse.ArgumentParser:
     listing = commands.add_parser("list", help="List FAT, ISO, NTFS or EXT image files")
     listing.add_argument("image", type=Path)
     listing.add_argument("--path", default="/")
+    listing.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
 
     extract = commands.add_parser("extract", help="Extract files from a supported image filesystem")
     extract.add_argument("image", type=Path)
@@ -59,26 +65,31 @@ def parser() -> argparse.ArgumentParser:
     extract.add_argument("paths", nargs="+", help="Image paths to extract")
     extract.add_argument("--layout", choices=[item.value for item in ExtractionLayout], default=ExtractionLayout.PRESERVE_PATHS.value)
     extract.add_argument("--on-conflict", choices=[item.value for item in ConflictPolicy], default=ConflictPolicy.ERROR.value)
+    extract.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
 
     inject = commands.add_parser("inject", help="Inject host files or directories into a writable FAT image")
     inject.add_argument("image", type=Path)
     inject.add_argument("sources", type=Path, nargs="+")
     inject.add_argument("--target-directory", default="/")
+    inject.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
 
     rename = commands.add_parser("rename", help="Rename one FAT image entry")
     rename.add_argument("image", type=Path)
     rename.add_argument("path")
     rename.add_argument("new_name")
+    rename.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
 
     attributes = commands.add_parser("set-attributes", help="Set standard DOS attributes on one FAT entry")
     attributes.add_argument("image", type=Path)
     attributes.add_argument("path")
     for name in ("read-only", "hidden", "system", "archive"):
         attributes.add_argument(f"--{name}", action=argparse.BooleanOptionalAction, default=None)
+    attributes.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
 
     label = commands.add_parser("set-label", help="Set a FAT volume label")
     label.add_argument("image", type=Path)
     label.add_argument("label")
+    label.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
 
     comment = commands.add_parser("comment", help="Read or write non-invasive image comment metadata")
     comment.add_argument("image", type=Path)
@@ -129,6 +140,13 @@ def parser() -> argparse.ArgumentParser:
     iso.add_argument("--boot-info-table", action="store_true", help="Write a boot info table into the ISO copy of the boot image")
     iso.add_argument("--boot-load-segment", type=lambda value: int(value, 0), default=0)
 
+    replace_iso = commands.add_parser("replace-iso-file", help="Safely replace one equal-size ISO9660 file into a new ISO")
+    replace_iso.add_argument("source", type=Path)
+    replace_iso.add_argument("iso_path", help="Existing ISO9660 path, for example /PAYLOAD.TXT")
+    replace_iso.add_argument("replacement", type=Path)
+    replace_iso.add_argument("destination", type=Path)
+    replace_iso.add_argument("--overwrite", action="store_true")
+
     boot_info = commands.add_parser("iso-boot-info", help="Inspect an ISO El Torito boot catalog without modifying the ISO")
     boot_info.add_argument("image", type=Path)
     boot_export = commands.add_parser("export-boot-image", help="Export one ISO El Torito boot image")
@@ -139,6 +157,13 @@ def parser() -> argparse.ArgumentParser:
 
     converter_status = commands.add_parser("converter-status", help="Show optional virtual-disk converter capability")
     dmg_status = commands.add_parser("dmg-adapter-status", help="Show optional read-only DMG conversion adapter capability")
+    mount_status = commands.add_parser("mount-status", help="Show controlled read-only image mount capability")
+    mount_image = commands.add_parser("mount-image", help="Mount an image read-only and write a mount-session JSON file")
+    mount_image.add_argument("image", type=Path)
+    mount_image.add_argument("session", type=Path)
+    mount_image.add_argument("--overwrite", action="store_true")
+    unmount_image = commands.add_parser("unmount-image", help="Unmount a read-only image session recorded by mount-image")
+    unmount_image.add_argument("session", type=Path)
 
     convert = commands.add_parser("convert", help="Convert an image")
     convert.add_argument("source", type=Path)
@@ -151,6 +176,12 @@ def parser() -> argparse.ArgumentParser:
     editable_vhd.add_argument("destination", type=Path)
     editable_vhd.add_argument("--overwrite", action="store_true")
 
+    dynamic_vhd = commands.add_parser("create-dynamic-vhd", help="Export a FAT raw work image as a verified dynamic VHD using configured qemu-img")
+    dynamic_vhd.add_argument("source", type=Path)
+    dynamic_vhd.add_argument("destination", type=Path)
+    dynamic_vhd.add_argument("--qemu-img", dest="qemu_img")
+    dynamic_vhd.add_argument("--overwrite", action="store_true")
+
     resize = commands.add_parser("resize", help="Safely resize RAW or FAT image into a new file")
     resize.add_argument("source", type=Path)
     resize.add_argument("destination", type=Path)
@@ -162,6 +193,16 @@ def parser() -> argparse.ArgumentParser:
     compare.add_argument("destination", type=Path)
     compare.add_argument("--bytes-to-compare", type=int)
     compare.add_argument("--ignore-trailing-zero-sectors", action="store_true", help="Report-only: ignore full trailing zero sectors when no byte limit is set")
+
+    export_listing = commands.add_parser("export-listing", help="Export a FAT directory listing as text or HTML")
+    export_listing.add_argument("image", type=Path)
+    export_listing.add_argument("output", type=Path)
+    export_listing.add_argument("--html", action="store_true")
+    export_listing.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
+
+    defragment = commands.add_parser("defragment-fat", help="Rebuild a FAT superfloppy into a new defragmented image")
+    defragment.add_argument("source", type=Path)
+    defragment.add_argument("destination", type=Path)
 
     checksum = commands.add_parser("sha256", help="Calculate an image checksum")
     checksum.add_argument("image", type=Path)
@@ -198,6 +239,27 @@ def parser() -> argparse.ArgumentParser:
     mbr_reset.add_argument("image", type=Path)
     mbr_reset.add_argument("--confirm", required=True)
 
+    device_mbr_backup = commands.add_parser("device-mbr-backup", help="Back up the MBR of one safe device snapshot")
+    device_mbr_backup.add_argument("manifest", type=Path, help="JSON device snapshot object")
+    device_mbr_backup.add_argument("output", type=Path)
+    device_mbr_restore = commands.add_parser("device-mbr-restore", help="Restore device MBR after fresh backup and readback verification")
+    device_mbr_restore.add_argument("manifest", type=Path)
+    device_mbr_restore.add_argument("backup", type=Path)
+    device_mbr_restore.add_argument("pre_restore_backup", type=Path)
+    device_mbr_restore.add_argument("--confirm", required=True)
+    device_mbr_neutralize = commands.add_parser("device-mbr-neutralize", help="Clear device MBR bootstrap code while preserving its partition table")
+    device_mbr_neutralize.add_argument("manifest", type=Path)
+    device_mbr_neutralize.add_argument("backup", type=Path)
+    device_mbr_neutralize.add_argument("--confirm", required=True)
+    compare_device = commands.add_parser("compare-device", help="Read-only compare an image against one device snapshot")
+    compare_device.add_argument("image", type=Path)
+    compare_device.add_argument("manifest", type=Path)
+    format_removable = commands.add_parser("format-removable-fat", help="Format a removable device as a fresh verified FAT volume")
+    format_removable.add_argument("manifest", type=Path)
+    format_removable.add_argument("--fat", choices=["12", "16", "32"], default="16")
+    format_removable.add_argument("--label", default="DISKFORGE")
+    format_removable.add_argument("--confirm", required=True, help="Must be FORMAT")
+
     bundle = commands.add_parser("bundle", help="Create a DiskForge multi-image bundle")
     bundle.add_argument("output", type=Path)
     bundle.add_argument("images", type=Path, nargs="+")
@@ -228,15 +290,31 @@ def parser() -> argparse.ArgumentParser:
     return root
 
 
-def _filesystem(image: Path, *, writable: bool = False):
+def _device_from_manifest(path: Path) -> DeviceInfo:
+    """Load an explicit device snapshot so destructive CLI commands never infer a target."""
+    record = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(record, dict):
+        raise DiskForgeError("Device manifest must be a JSON object.")
+    return DeviceInfo(
+        str(record["identifier"]), str(record.get("display_name") or record["identifier"]),
+        int(record["size"]), DeviceKind(str(record.get("kind", DeviceKind.DISK.value))),
+        removable=bool(record.get("removable", False)), mounted=bool(record.get("mounted", False)),
+        mountpoints=tuple(str(value) for value in record.get("mountpoints", [])),
+        model=str(record.get("model", "")), system_disk=bool(record.get("system_disk", False)),
+    )
+
+
+def _filesystem(image: Path, *, writable: bool = False, partition_index: int | None = None):
     info = inspect_image(image, QemuImgConverter())
+    if partition_index is not None:
+        return FatImageFilesystem(image, read_only=not writable, partition_index=partition_index)
     if info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
         return FatImageFilesystem(image, read_only=not writable)
     if info.filesystem == FileSystemType.ISO9660 or info.image_format == ImageFormat.ISO:
         return IsoImageFilesystem(image)
-    if info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT}:
+    if info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS, FileSystemType.HFS_PLUS}:
         return SleuthKitImageFilesystem(image, info.filesystem)
-    raise SystemExit("Image filesystem is not browsable. Supported: FAT, ISO, NTFS and EXT with optional backend.")
+    raise SystemExit("Image filesystem is not browsable. Supported: FAT, ISO, NTFS, EXT, HFS and HFS+ with optional backend.")
 
 
 def _entry_json(entry) -> dict[str, Any]:
@@ -299,7 +377,7 @@ def main(argv: list[str] | None = None) -> int:
                 "writable": info.writable, "notes": list(info.notes), "comment": metadata.comment,
             })
         elif args.command == "list":
-            fs = _filesystem(args.image)
+            fs = _filesystem(args.image, partition_index=args.partition)
             try:
                 entries = fs.list_entries(args.path)
                 _emit(args, [_entry_json(entry) for entry in entries], "\n".join(
@@ -308,7 +386,7 @@ def main(argv: list[str] | None = None) -> int:
             finally:
                 fs.close()
         elif args.command == "extract":
-            fs = _filesystem(args.image)
+            fs = _filesystem(args.image, partition_index=args.partition)
             try:
                 outputs = fs.extract(args.paths, args.destination, progress, policy=_policy(args))
                 print() if outputs and not args.json else None
@@ -316,7 +394,7 @@ def main(argv: list[str] | None = None) -> int:
             finally:
                 fs.close()
         elif args.command == "inject":
-            fs = _filesystem(args.image, writable=True)
+            fs = _filesystem(args.image, writable=True, partition_index=args.partition)
             try:
                 if not isinstance(fs, FatImageFilesystem):
                     raise SystemExit("Only FAT images are writable.")
@@ -326,7 +404,7 @@ def main(argv: list[str] | None = None) -> int:
             finally:
                 fs.close()
         elif args.command == "rename":
-            fs = _filesystem(args.image, writable=True)
+            fs = _filesystem(args.image, writable=True, partition_index=args.partition)
             try:
                 if not isinstance(fs, FatImageFilesystem):
                     raise SystemExit("Only FAT images support rename.")
@@ -335,7 +413,7 @@ def main(argv: list[str] | None = None) -> int:
             finally:
                 fs.close()
         elif args.command == "set-attributes":
-            fs = _filesystem(args.image, writable=True)
+            fs = _filesystem(args.image, writable=True, partition_index=args.partition)
             try:
                 if not isinstance(fs, FatImageFilesystem):
                     raise SystemExit("Only FAT images support DOS attributes.")
@@ -345,7 +423,7 @@ def main(argv: list[str] | None = None) -> int:
             finally:
                 fs.close()
         elif args.command == "set-label":
-            fs = _filesystem(args.image, writable=True)
+            fs = _filesystem(args.image, writable=True, partition_index=args.partition)
             try:
                 if not isinstance(fs, FatImageFilesystem):
                     raise SystemExit("Only FAT images have a writable volume label.")
@@ -397,6 +475,13 @@ def main(argv: list[str] | None = None) -> int:
             _emit(args, {"path": str(created), "boot_image": str(args.boot_image) if args.boot_image else None,
                          "boot_platform": args.boot_platform if args.boot_image else None,
                          "boot_media": args.boot_media if args.boot_image else None}, str(created))
+        elif args.command == "replace-iso-file":
+            result = replace_iso_file_safely(args.source, args.iso_path, args.replacement, args.destination,
+                                             overwrite=args.overwrite)
+            _emit(args, {"source": str(result.source), "destination": str(result.destination),
+                         "iso_path": result.iso_path, "bytes_replaced": result.bytes_replaced,
+                         "source_sha256": result.source_sha256, "output_sha256": result.output_sha256},
+                  str(result.destination))
         elif args.command == "iso-boot-info":
             catalog = inspect_eltorito(args.image)
             payload = {"catalog_lba": catalog.catalog_lba, "images": [
@@ -414,6 +499,30 @@ def main(argv: list[str] | None = None) -> int:
             _emit(args, QemuImgConverter().capability_report().as_mapping())
         elif args.command == "dmg-adapter-status":
             _emit(args, Dmg2ImgConverter().capability_report().as_mapping())
+        elif args.command == "mount-status":
+            _emit(args, ImageMountManager().capability_report().as_mapping())
+        elif args.command == "mount-image":
+            if args.session.exists() and not args.overwrite:
+                raise FileExistsError(args.session)
+            session = ImageMountManager().mount(args.image)
+            args.session.parent.mkdir(parents=True, exist_ok=True)
+            args.session.write_text(json.dumps({
+                "image": str(session.image), "platform": session.platform, "device": session.device,
+                "mount_point": str(session.mount_point) if session.mount_point else None, "read_only": session.read_only,
+            }, indent=2), encoding="utf-8")
+            _emit(args, {"session": str(args.session), "mount_point": str(session.mount_point) if session.mount_point else None,
+                         "device": session.device, "read_only": True}, str(args.session))
+        elif args.command == "unmount-image":
+            record = json.loads(args.session.read_text(encoding="utf-8"))
+            if not isinstance(record, dict):
+                raise DiskForgeError("Mount session file must contain a JSON object.")
+            session = ImageMountSession(Path(str(record["image"])), str(record["platform"]),
+                                        str(record["device"]) if record.get("device") else None,
+                                        Path(str(record["mount_point"])) if record.get("mount_point") else None,
+                                        bool(record.get("read_only", False)))
+            ImageMountManager().unmount(session)
+            args.session.unlink(missing_ok=True)
+            _emit(args, {"unmounted": str(session.image), "session_removed": str(args.session)})
         elif args.command == "convert":
             result = convert_image(args.source, args.destination, ImageFormat(args.format), QemuImgConverter(),
                                    progress, overwrite=args.overwrite)
@@ -425,6 +534,12 @@ def main(argv: list[str] | None = None) -> int:
             print() if not args.json else None
             _emit(args, {"source": str(result.source), "destination": str(result.destination),
                          "virtual_bytes": result.virtual_size}, str(result.destination))
+        elif args.command == "create-dynamic-vhd":
+            result = create_dynamic_vhd_from_raw(args.source, args.destination, QemuImgConverter(args.qemu_img),
+                                                 overwrite=args.overwrite)
+            print() if not args.json else None
+            _emit(args, {"source": str(result.source), "destination": str(result.destination),
+                         "virtual_bytes": result.virtual_size, "disk_type": "dynamic"}, str(result.destination))
         elif args.command == "resize":
             result = resize_image(args.source, args.destination, args.size_bytes, progress=progress,
                                   overwrite=args.overwrite)
@@ -438,6 +553,19 @@ def main(argv: list[str] | None = None) -> int:
             print() if not args.json else None
             _emit(args, result.__dict__, f"{result.reason}; first difference: {result.first_difference}")
             return 0 if result.equal else 1
+        elif args.command == "export-listing":
+            filesystem = _filesystem(args.image, partition_index=args.partition)
+            try:
+                if not isinstance(filesystem, FatImageFilesystem):
+                    raise DiskForgeError("Directory listing export is currently available for FAT images only.")
+                output = filesystem.export_listing(args.output, html=args.html)
+                _emit(args, {"path": str(output), "format": "html" if args.html else "text"}, str(output))
+            finally:
+                filesystem.close()
+        elif args.command == "defragment-fat":
+            output = defragment_fat_image(args.source, args.destination, progress=progress)
+            print() if not args.json else None
+            _emit(args, {"source": str(args.source), "destination": str(output)}, str(output))
         elif args.command == "sha256":
             digest = sha256_file(args.image, progress=progress)
             print() if not args.json else None
@@ -484,6 +612,25 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "mbr-reset":
             backup = reset_mbr_to_neutral(args.image, args.confirm)
             _emit(args, {"backup": str(backup.backup)}, str(backup.backup))
+        elif args.command == "device-mbr-backup":
+            audit = backup_device_mbr(_device_from_manifest(args.manifest), args.output)
+            _emit(args, audit.__dict__, str(audit.backup))
+        elif args.command == "device-mbr-restore":
+            audit = restore_device_mbr(_device_from_manifest(args.manifest), args.backup,
+                                       args.pre_restore_backup, args.confirm)
+            _emit(args, audit.__dict__, str(audit.backup))
+        elif args.command == "device-mbr-neutralize":
+            audit = neutralize_device_mbr(_device_from_manifest(args.manifest), args.backup, args.confirm)
+            _emit(args, audit.__dict__, str(audit.backup))
+        elif args.command == "compare-device":
+            result = compare_image_with_device(args.image, _device_from_manifest(args.manifest), progress=progress)
+            print() if not args.json else None
+            _emit(args, result.__dict__, f"{result.reason}; first difference: {result.first_difference}")
+            return 0 if result.equal else 1
+        elif args.command == "format-removable-fat":
+            result = format_removable_fat(_device_from_manifest(args.manifest), FileSystemType(f"FAT{args.fat}"),
+                                          args.label, args.confirm)
+            _emit(args, result.__dict__)
         elif args.command == "bundle":
             info = create_bundle(args.images, args.output, password=_password_from_stdin(args.password_stdin),
                                  comment=args.comment, description=args.description,

@@ -1,18 +1,187 @@
 """Cross-platform block-device discovery and guarded image read/write workflows."""
 from __future__ import annotations
 
+import hashlib
 import os
 import platform
 import re
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
 import psutil
 
 from .compare import ComparisonResult, compare_streams
-from .models import DeviceInfo, DeviceKind, OperationKind, ProgressCallback
-from .storage import CancellationToken, DiskForgeError, SafetyError, stream_copy, validate_device_write, verify_equal
+from .models import DeviceInfo, DeviceKind, FileSystemType, OperationKind, ProgressCallback
+from .storage import (CancellationToken, DiskForgeError, SafetyError, read_sector, stream_copy,
+                      temporary_directory, validate_device_write, verify_equal, write_sector)
+
+
+@dataclass(frozen=True)
+class DeviceMbrInspection:
+    """A non-mutating MBR snapshot bound to one discovered device identity."""
+
+    device_identifier: str
+    device_size: int
+    sha256: str
+    has_signature: bool
+
+
+@dataclass(frozen=True)
+class DeviceMbrAudit:
+    """Auditable result of a guarded physical-device MBR mutation."""
+
+    device_identifier: str
+    backup: Path
+    operation: str
+    before_sha256: str
+    after_sha256: str
+    verified: bool
+
+
+def _require_safe_mbr_device(device: DeviceInfo, confirmation: str | None = None) -> None:
+    if device.kind not in {DeviceKind.DISK, DeviceKind.REMOVABLE}:
+        raise SafetyError("MBR changes require a whole removable or physical disk, not a partition or optical medium.")
+    if device.size < 512:
+        raise SafetyError("The device is too small to contain an MBR sector.")
+    if device.system_disk:
+        raise SafetyError("Refusing to alter the operating-system disk MBR.")
+    if device.mounted:
+        raise SafetyError("Refusing to alter the MBR of a mounted device. Unmount it first.")
+    if confirmation is not None and confirmation != "ERASE":
+        raise SafetyError("Type ERASE exactly to authorize this destructive MBR operation.")
+
+
+def _mbr_digest(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def inspect_device_mbr(device: DeviceInfo) -> DeviceMbrInspection:
+    """Read one device MBR without mutation and return a stable audit snapshot."""
+    if device.size < 512:
+        raise DiskForgeError("The device is too small to contain an MBR sector.")
+    data = read_sector(device.identifier, 0)
+    return DeviceMbrInspection(device.identifier, device.size, _mbr_digest(data), data[510:512] == b"\x55\xaa")
+
+
+def backup_device_mbr(device: DeviceInfo, destination: Path | str) -> DeviceMbrAudit:
+    """Back up one valid device MBR without changing the device."""
+    _require_safe_mbr_device(device)
+    before = read_sector(device.identifier, 0)
+    if before[510:512] != b"\x55\xaa":
+        raise DiskForgeError("MBR signature 0x55AA is missing.")
+    target = Path(destination)
+    if target.exists():
+        raise FileExistsError(target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(target.name + ".partial")
+    try:
+        with temporary.open("wb") as handle:
+            handle.write(before)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, target)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+    digest = _mbr_digest(before)
+    return DeviceMbrAudit(device.identifier, target, "backup", digest, digest, True)
+
+
+def _validated_mbr_backup(path: Path | str) -> bytes:
+    data = Path(path).read_bytes()
+    if len(data) != 512 or data[510:512] != b"\x55\xaa":
+        raise DiskForgeError("MBR backup must be exactly 512 bytes with signature 0x55AA.")
+    return data
+
+
+def _mutate_device_mbr(device: DeviceInfo, backup_destination: Path | str, confirmation: str,
+                       operation: str, replacement: bytes) -> DeviceMbrAudit:
+    _require_safe_mbr_device(device, confirmation)
+    before = read_sector(device.identifier, 0)
+    if before[510:512] != b"\x55\xaa":
+        raise DiskForgeError("MBR signature 0x55AA is missing.")
+    if len(replacement) != 512 or replacement[510:512] != b"\x55\xaa":
+        raise DiskForgeError("Replacement MBR must be exactly 512 bytes with signature 0x55AA.")
+    backup = backup_device_mbr(device, backup_destination)
+    write_sector(device.identifier, 0, replacement)
+    after = read_sector(device.identifier, 0)
+    verified = after == replacement
+    if not verified:
+        raise DiskForgeError("MBR readback verification failed; the backup was preserved.")
+    return DeviceMbrAudit(device.identifier, backup.backup, operation, backup.before_sha256,
+                          _mbr_digest(after), verified)
+
+
+def restore_device_mbr(device: DeviceInfo, backup: Path | str, backup_destination: Path | str,
+                       confirmation: str) -> DeviceMbrAudit:
+    """Restore a validated MBR backup only after a fresh device backup and readback."""
+    return _mutate_device_mbr(device, backup_destination, confirmation, "restore", _validated_mbr_backup(backup))
+
+
+def neutralize_device_mbr(device: DeviceInfo, backup_destination: Path | str,
+                          confirmation: str) -> DeviceMbrAudit:
+    """Clear only bootstrap bytes while preserving the selected device partition table."""
+    _require_safe_mbr_device(device, confirmation)
+    current = read_sector(device.identifier, 0)
+    if current[510:512] != b"\x55\xaa":
+        raise DiskForgeError("MBR signature 0x55AA is missing.")
+    neutral = bytearray(512)
+    neutral[446:] = current[446:]
+    return _mutate_device_mbr(device, backup_destination, confirmation, "neutralize", bytes(neutral))
+
+
+@dataclass(frozen=True)
+class RemovableFormatResult:
+    """Verified result of formatting an explicitly selected removable device."""
+
+    device_identifier: str
+    filesystem: FileSystemType
+    label: str
+    bytes_formatted: int
+    verified: bool
+
+
+def format_removable_fat(device: DeviceInfo, filesystem: FileSystemType, label: str,
+                         confirmation: str) -> RemovableFormatResult:
+    """Reformat a selected removable block device as a fresh FAT volume.
+
+    This is deliberately a volume-level format created from a fresh, verified
+    FAT image.  It is not a controller-level floppy track formatter and does
+    not claim to reproduce proprietary low-level sector layouts.
+    """
+    if device.kind != DeviceKind.REMOVABLE or not device.removable:
+        raise SafetyError("Formatting is available only for an explicitly selected removable device.")
+    if device.system_disk:
+        raise SafetyError("Refusing to format the operating-system disk.")
+    if device.mounted:
+        raise SafetyError("Refusing to format a mounted device. Unmount it first.")
+    if confirmation != "FORMAT":
+        raise SafetyError("Type FORMAT exactly to authorize this destructive operation.")
+    if device.size <= 0 or device.size % 512:
+        raise DiskForgeError("The removable device must report a positive 512-byte-aligned capacity.")
+    if filesystem not in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
+        raise DiskForgeError("Only FAT12, FAT16 and FAT32 removable formats are supported.")
+
+    # Build a complete filesystem off-device first.  This prevents a formatter
+    # failure from leaving a partially initialized physical medium.
+    from .filesystems import FatImageFilesystem, create_fat_image
+
+    with temporary_directory("diskforge-format-") as stage:
+        prepared = stage / "formatted.img"
+        create_fat_image(prepared, device.size, filesystem, label)
+        stream_copy(prepared, device.identifier, OperationKind.FORMAT_DEVICE,
+                    limit=device.size, overwrite=True)
+
+    filesystem_view = FatImageFilesystem(device.identifier, read_only=True)
+    try:
+        verified = filesystem_view.volume_label() == label.strip().upper()
+    finally:
+        filesystem_view.close()
+    if not verified:
+        raise DiskForgeError("Formatted device did not reopen with the requested FAT volume label.")
+    return RemovableFormatResult(device.identifier, filesystem, label.strip().upper(), device.size, True)
 
 
 def list_devices() -> list[DeviceInfo]:

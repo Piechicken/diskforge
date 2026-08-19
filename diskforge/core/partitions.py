@@ -20,6 +20,7 @@ MBR_TYPES = {
     0x0C: ("FAT32 LBA", FileSystemType.FAT32),
     0x07: ("NTFS/exFAT", FileSystemType.NTFS),
     0x83: ("Linux", FileSystemType.EXT),
+    0xAF: ("Apple HFS", FileSystemType.HFS),
     0x82: ("Linux swap", FileSystemType.UNKNOWN),
     0xEE: ("GPT protective", FileSystemType.UNKNOWN),
 }
@@ -185,10 +186,33 @@ def list_partitions(path: Path | str) -> list[DiskPartition]:
     return gpt if gpt else parse_mbr(path)
 
 
-def fat_partition_offset(path: Path | str) -> int:
-    """Return the first FAT partition offset, or zero for a superfloppy image."""
+def select_partition(path: Path | str, index: int) -> DiskPartition:
+    """Return one validated MBR/GPT partition by its stable one-based table index."""
+    if index <= 0:
+        raise DiskForgeError("Partition index must be a positive table index.")
+    for partition in list_partitions(path):
+        if partition.index == index:
+            return partition
+    raise DiskForgeError(f"Partition {index} does not exist in this image.")
+
+
+def fat_partition_offset(path: Path | str, *, partition_index: int | None = None) -> int:
+    """Return a FAT volume offset, optionally from an explicitly selected partition.
+
+    A superfloppy has no partition index and continues to resolve to offset zero
+    for backwards compatibility.  Partitioned images may opt into explicit
+    selection so multi-volume media is never silently opened at the wrong FAT
+    volume.
+    """
     target = Path(path)
     direct = _filesystem_from_boot(target, 0)
+    if partition_index is not None:
+        if direct in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
+            raise DiskForgeError("A superfloppy image has no selectable partition index.")
+        partition = select_partition(target, partition_index)
+        if partition.filesystem not in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
+            raise DiskForgeError(f"Partition {partition_index} is not a FAT filesystem.")
+        return partition.offset
     if direct in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
         return 0
     for partition in list_partitions(target):

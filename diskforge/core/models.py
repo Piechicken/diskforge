@@ -49,6 +49,8 @@ class FileSystemType(str, Enum):
     ISO9660 = "ISO9660"
     NTFS = "NTFS"
     EXT = "EXT"
+    HFS = "HFS"
+    HFS_PLUS = "HFS+"
     UNKNOWN = "Unknown"
 
 
@@ -90,6 +92,7 @@ class OperationKind(str, Enum):
     CONVERT = "convert"
     READ_DEVICE = "read_device"
     WRITE_DEVICE = "write_device"
+    FORMAT_DEVICE = "format_device"
     VERIFY = "verify"
     DEFRAGMENT = "defragment"
     EDIT_BOOT_SECTOR = "edit_boot_sector"

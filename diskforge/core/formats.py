@@ -44,6 +44,15 @@ class EditableFixedVhdCopy:
 
 
 @dataclass(frozen=True)
+class DynamicVhdExport:
+    """A validated dynamic VHD produced from an independently editable raw FAT image."""
+
+    source: Path
+    destination: Path
+    virtual_size: int
+
+
+@dataclass(frozen=True)
 class ConverterCapabilityReport:
     """A transparent capability report for an explicitly configured converter."""
 
@@ -131,6 +140,12 @@ class QemuImgConverter:
             return json.loads(result.stdout)
         except json.JSONDecodeError as exc:
             raise DiskForgeError("qemu-img returned invalid inspection data.") from exc
+
+    def create_dynamic_vhd(self, source: Path, destination: Path,
+                           token: CancellationToken | None = None) -> None:
+        """Convert a raw image to a dynamic VHD using QEMU's documented VPC options."""
+        self._run(["convert", "-p", "-O", "vpc", "-o", "subformat=dynamic,block_state_zero=on",
+                   str(source), str(destination)], token)
 
     def convert(self, source: Path, destination: Path, destination_format: ImageFormat,
                 progress: ProgressCallback | None = None,
@@ -340,6 +355,45 @@ def create_editable_fixed_vhd_copy(source: Path | str, destination: Path | str, 
     return EditableFixedVhdCopy(origin, output, layout.size_bytes)
 
 
+def create_dynamic_vhd_from_raw(source: Path | str, destination: Path | str, converter: QemuImgConverter,
+                                *, overwrite: bool = False,
+                                token: CancellationToken | None = None) -> DynamicVhdExport:
+    """Export a FAT raw work image as a separately validated dynamic VHD.
+
+    Dynamic VHD allocation tables cannot be edited as flat sectors.  This service
+    therefore accepts a user-editable raw FAT work image and delegates only the
+    final container construction to an explicitly configured qemu-img adapter.
+    """
+    from .fat_layouts import FatImageLayout
+
+    origin, output = Path(source), Path(destination)
+    if origin.resolve() == output.resolve():
+        raise DiskForgeError("Choose a different output file for a dynamic VHD export.")
+    if output.exists() and not overwrite:
+        raise FileExistsError(output)
+    with origin.open("rb") as handle:
+        boot = handle.read(4096)
+    layout = FatImageLayout.from_boot_sector(boot, origin.stat().st_size, require_geometry=False)
+    if not converter.available:
+        raise DiskForgeError("Dynamic VHD export requires an explicitly configured qemu-img converter.")
+    temporary = output.with_name(f".{output.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        converter.create_dynamic_vhd(origin, temporary, token)
+        footer = parse_vhd_footer(temporary)
+        if footer is None or footer.disk_type != 3:
+            raise DiskForgeError("qemu-img did not produce a validated dynamic VHD footer.")
+        if footer.virtual_size != layout.size_bytes:
+            raise DiskForgeError("Dynamic VHD virtual size does not match the verified FAT work image.")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        if output.exists() and overwrite:
+            output.unlink()
+        os.replace(temporary, output)
+        return DynamicVhdExport(origin, output, footer.virtual_size)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
 def inspect_image(path: Path | str, converter: Converter | None = None) -> ImageInfo:
     """Identify formats by signature first, extension second, and filesystem hints."""
     target = Path(path)
@@ -438,6 +492,13 @@ def detect_filesystem(head: bytes, image_size: int | None = None) -> FileSystemT
         return FileSystemType.NTFS
     if len(head) >= 1082 and head[1080:1082] == b"\x53\xef":
         return FileSystemType.EXT
+    # The Macintosh volume header / Master Directory Block starts at byte 1024.
+    # Keep classic HFS and HFS+ distinct because Sleuth Kit accepts different
+    # explicit filesystem selectors for their read-only parsers.
+    if len(head) >= 1026 and head[1024:1026] == b"BD":
+        return FileSystemType.HFS
+    if len(head) >= 1026 and head[1024:1026] in {b"H+", b"HX"}:
+        return FileSystemType.HFS_PLUS
     return FileSystemType.UNKNOWN
 
 

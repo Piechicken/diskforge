@@ -11,14 +11,17 @@ from pathlib import Path
 from typing import Iterator, Sequence
 
 from .core.compare import ComparisonResult, compare_streams
-from .core.filesystems import FatImageFilesystem, ImageFilesystem, IsoImageFilesystem, create_fat_image
+from .core.filesystems import (FatImageFilesystem, ImageFilesystem, IsoImageFilesystem,
+                               create_fat_image, replace_iso_file_safely)
 from .core.formats import Converter, convert_image, inspect_image
-from .core.models import (ExtractionPolicy, FileSystemType, ImageFormat, ImageInfo,
+from .core.models import (DiskPartition, ExtractionPolicy, FileSystemType, ImageFormat, ImageInfo,
                           ProgressCallback)
+from .core.mounts import ImageMountCapability, ImageMountManager, ImageMountSession
+from .core.partitions import list_partitions
 from .core.readonly_fs import SleuthKitImageFilesystem
 from .core.storage import CancellationToken, DiskForgeError, sha256_file
 
-API_VERSION = "1.0"
+API_VERSION = "1.1"
 
 
 @dataclass(frozen=True)
@@ -64,20 +67,46 @@ class DiskForgeClient:
         info = convert_image(source, destination, image_format, self.converter, progress, token, overwrite)
         return ApiResult("convert", Path(source), info.path, info.image_format.value)
 
+    def partitions(self, image: Path | str) -> list[DiskPartition]:
+        """Return validated MBR/GPT entries without selecting or mutating a partition."""
+        return list_partitions(image)
+
+    def replace_iso_file(self, source: Path | str, iso_path: str, replacement: Path | str,
+                         destination: Path | str, *, overwrite: bool = False) -> ApiResult:
+        """Write an equal-length ISO file replacement to a new verified image."""
+        result = replace_iso_file_safely(source, iso_path, replacement, destination, overwrite=overwrite)
+        return ApiResult("replace_iso_file", result.source, result.destination,
+                         f"Replaced {result.iso_path} ({result.bytes_replaced} bytes) in a verified new ISO")
+
+    def mount_capability(self) -> ImageMountCapability:
+        """Report whether the local operating-system read-only mount backend is available."""
+        return ImageMountManager().capability_report()
+
+    def mount_read_only(self, image: Path | str) -> ImageMountSession:
+        """Create a system-backed read-only mount session; callers must later unmount it."""
+        return ImageMountManager().mount(image)
+
+    def unmount(self, session: ImageMountSession) -> None:
+        """Release a session produced by :meth:`mount_read_only`."""
+        ImageMountManager().unmount(session)
+
     @contextmanager
-    def filesystem(self, image: Path | str, *, writable: bool = False) -> Iterator[ImageFilesystem]:
+    def filesystem(self, image: Path | str, *, writable: bool = False,
+                   partition_index: int | None = None) -> Iterator[ImageFilesystem]:
         """Open a filesystem facade and always release the underlying resource."""
         source = Path(image)
         info = self.inspect(source)
-        if info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
-            filesystem: ImageFilesystem = FatImageFilesystem(source, read_only=not writable)
+        if partition_index is not None:
+            filesystem: ImageFilesystem = FatImageFilesystem(source, read_only=not writable, partition_index=partition_index)
+        elif info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
+            filesystem = FatImageFilesystem(source, read_only=not writable)
         elif info.filesystem == FileSystemType.ISO9660:
             if writable:
                 raise DiskForgeError("ISO images are read-only; create a new ISO instead.")
             filesystem = IsoImageFilesystem(source)
-        elif info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT}:
+        elif info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS, FileSystemType.HFS_PLUS}:
             if writable:
-                raise DiskForgeError("NTFS and EXT image access is read-only.")
+                raise DiskForgeError("NTFS, EXT, HFS and HFS+ image access is read-only.")
             filesystem = SleuthKitImageFilesystem(source, info.filesystem)
         else:
             raise DiskForgeError("No filesystem facade is available for this image.")

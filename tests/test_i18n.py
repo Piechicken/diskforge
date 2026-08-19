@@ -60,7 +60,7 @@ def test_workspace_and_preview_labels_are_translated_in_every_non_english_locale
         "Save back to image",
         "Document details",
         "Editable text: save a copy or write back to a writable FAT image.",
-        "Sleuth Kit browsing is available only for NTFS and EXT filesystems.",
+        "Sleuth Kit browsing is available only for NTFS, EXT, HFS and HFS+ filesystems.",
     }
     for language in LANGUAGES:
         if language.code == "en":
@@ -164,6 +164,112 @@ def test_read_only_media_queue_is_translated_in_every_non_english_locale() -> No
         "Select one or more removable or optical media and an existing output directory.",
         "Reading physical media queue",
         "Read-only acquisition report",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_safe_iso_replacement_and_partition_browsing_are_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Safely replace ISO file…",
+        "Select ISO file",
+        "Select exactly one regular ISO file to replace safely.",
+        "Select equal-size replacement file",
+        "Save replaced ISO copy",
+        "Separate output required",
+        "The source ISO remains unchanged; choose a different output file.",
+        "Safely replacing ISO file into a new image",
+        "Partition table",
+        "Partitions",
+        "Unable to read partitions",
+        "No MBR or GPT partitions found. This may be a superfloppy image.",
+        "Choose a FAT partition to browse (other partitions remain read-only metadata):",
+        "Partition is read-only",
+        "Only FAT partitions can be edited or browsed natively. Select a FAT partition.",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_device_mbr_and_removable_format_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Removable format filesystem",
+        "Removable format label",
+        "Type FORMAT to erase and format removable media",
+        "Type FORMAT to format",
+        "Back up selected MBR…",
+        "Neutralize selected MBR",
+        "Format removable FAT media",
+        "Back up selected device MBR",
+        "Type ERASE exactly before changing a device MBR.",
+        "Back up current MBR before neutralizing",
+        "Type FORMAT exactly before formatting removable media.",
+        "Backing up device MBR",
+        "MBR backup complete",
+        "Verified MBR backup created:",
+        "Neutralizing device MBR",
+        "Device MBR neutralized",
+        "Readback verification succeeded. Backup created:",
+        "Formatting removable FAT media",
+        "Removable media formatted",
+        " was formatted and reopened successfully.",
+        "Restore selected MBR…",
+        "Select MBR backup to restore",
+        "Back up current MBR before restoring",
+        "Restoring device MBR",
+        "Device MBR restored",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_read_only_mount_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Mount image read-only…",
+        "Unmount image",
+        "Read-only mount unavailable",
+        "Mounting image read-only",
+        "Image mounted read-only",
+        "The image is mounted read-only at:\n",
+        "Unmounting image",
+        "Image unmounted",
+        "The DiskForge read-only mount session has been released.",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_dynamic_vhd_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Create dynamic VHD from FAT work image…",
+        "Dynamic VHD adapter unavailable",
+        "Create dynamic VHD from FAT work image",
+        "Choose a different output file; the FAT work image remains unchanged.",
+        "Creating verified dynamic VHD",
     }
     for language in LANGUAGES:
         if language.code == "en":

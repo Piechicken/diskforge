@@ -34,14 +34,19 @@ from diskforge.core.bootsector import (apply_boot_template, backup_and_write_boo
 from diskforge.core.bundle import create_bundle
 from diskforge.core.compare import compare_streams
 from diskforge.core.device_queue import DeviceReadRequest, read_device_queue
-from diskforge.core.devices import list_devices, read_device_to_image, write_image_to_device
+from diskforge.core.devices import (backup_device_mbr, format_removable_fat, list_devices,
+                                      neutralize_device_mbr, read_device_to_image, restore_device_mbr,
+                                      write_image_to_device)
 from diskforge.core.deployment import prepare_fat_deployment
 from diskforge.core.eltorito import export_boot_image, inspect_eltorito
 from diskforge.core.fat_layouts import FatImageLayout, create_fat_image_from_layout
-from diskforge.core.filesystems import FatImageFilesystem, ImageFilesystem, IsoImageFilesystem, create_fat_image, create_iso_from_directory, defragment_fat_image
-from diskforge.core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_image, create_editable_fixed_vhd_copy,
-                                     inspect_image, validate_fixed_vhd_fat)
+from diskforge.core.filesystems import (FatImageFilesystem, ImageFilesystem, IsoImageFilesystem,
+                                        create_fat_image, create_iso_from_directory, defragment_fat_image,
+                                        replace_iso_file_safely)
+from diskforge.core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_image, create_dynamic_vhd_from_raw,
+                                     create_editable_fixed_vhd_copy, inspect_image, validate_fixed_vhd_fat)
 from diskforge.core.media import create_dmf_image, trim_zero_tail, wrap_fat_image_in_mbr
+from diskforge.core.mounts import ImageMountManager, ImageMountSession
 from diskforge.core.metadata import load_image_metadata, save_image_comment
 from diskforge.core.models import (ConflictPolicy, DeviceInfo, ExtractionLayout, ExtractionPolicy,
                                    DeviceKind, FileSystemType, ImageEntry, ImageFormat, OperationKind, Progress,
@@ -342,6 +347,14 @@ class DeviceDialog(QDialog):
         form.addRow("Image", image_row)
         form.addRow("Type ERASE to write", self.phrase)
         form.addRow("", self.verify)
+        self.format_fat = QComboBox()
+        self.format_fat.addItems(["FAT12", "FAT16", "FAT32"])
+        self.format_label = QLineEdit("DISKFORGE")
+        self.format_phrase = QLineEdit()
+        self.format_phrase.setPlaceholderText("Type FORMAT to erase and format removable media")
+        form.addRow("Removable format filesystem", self.format_fat)
+        form.addRow("Removable format label", self.format_label)
+        form.addRow("Type FORMAT to format", self.format_phrase)
         layout.addLayout(form)
         actions = QHBoxLayout()
         read = QPushButton("Read selected drive to image…")
@@ -353,6 +366,19 @@ class DeviceDialog(QDialog):
         close.clicked.connect(self.reject)
         actions.addWidget(read)
         actions.addWidget(write)
+        backup_mbr = QPushButton("Back up selected MBR…")
+        backup_mbr.clicked.connect(self._backup_mbr)
+        neutralize_mbr = QPushButton("Neutralize selected MBR")
+        neutralize_mbr.clicked.connect(self._neutralize_mbr)
+        restore_mbr = QPushButton("Restore selected MBR…")
+        restore_mbr.clicked.connect(self._restore_mbr)
+        format_fat = QPushButton("Format removable FAT media")
+        format_fat.setStyleSheet("font-weight: 700; color: #B42318;")
+        format_fat.clicked.connect(self._format_removable_fat)
+        actions.addWidget(backup_mbr)
+        actions.addWidget(neutralize_mbr)
+        actions.addWidget(restore_mbr)
+        actions.addWidget(format_fat)
         actions.addStretch()
         actions.addWidget(close)
         layout.addLayout(actions)
@@ -384,6 +410,53 @@ class DeviceDialog(QDialog):
             self.done(10)
             self.setProperty("operation", ("read", device, Path(path)))
 
+    def _backup_mbr(self) -> None:
+        device = self._selected()
+        if not device:
+            return
+        path, _ = QFileDialog.getSaveFileName(self, "Back up selected device MBR", "device.mbr", "MBR sector (*.mbr *.bin)")
+        if path:
+            self.done(12)
+            self.setProperty("operation", ("mbr_backup", device, Path(path)))
+
+    def _neutralize_mbr(self) -> None:
+        device = self._selected()
+        if not device:
+            return
+        if self.phrase.text() != "ERASE":
+            QMessageBox.warning(self, "Confirmation required", "Type ERASE exactly before changing a device MBR.")
+            return
+        path, _ = QFileDialog.getSaveFileName(self, "Back up current MBR before neutralizing", "pre-neutralize.mbr", "MBR sector (*.mbr *.bin)")
+        if path:
+            self.done(13)
+            self.setProperty("operation", ("mbr_neutralize", device, Path(path), self.phrase.text()))
+
+    def _restore_mbr(self) -> None:
+        device = self._selected()
+        if not device:
+            return
+        if self.phrase.text() != "ERASE":
+            QMessageBox.warning(self, "Confirmation required", "Type ERASE exactly before changing a device MBR.")
+            return
+        backup, _ = QFileDialog.getOpenFileName(self, "Select MBR backup to restore", "", "MBR sector (*.mbr *.bin);;All files (*)")
+        if not backup:
+            return
+        pre_restore, _ = QFileDialog.getSaveFileName(self, "Back up current MBR before restoring", "pre-restore.mbr", "MBR sector (*.mbr *.bin)")
+        if pre_restore:
+            self.done(15)
+            self.setProperty("operation", ("mbr_restore", device, Path(backup), Path(pre_restore), self.phrase.text()))
+
+    def _format_removable_fat(self) -> None:
+        device = self._selected()
+        if not device:
+            return
+        if self.format_phrase.text() != "FORMAT":
+            QMessageBox.warning(self, "Confirmation required", "Type FORMAT exactly before formatting removable media.")
+            return
+        self.done(14)
+        self.setProperty("operation", ("format_removable_fat", device, FileSystemType(self.format_fat.currentText()),
+                                        self.format_label.text(), self.format_phrase.text()))
+
     def _write(self) -> None:
         device = self._selected()
         path = Path(self.image_path.text()) if self.image_path.text() else None
@@ -412,6 +485,8 @@ class MainWindow(QMainWindow):
         self.current_fs: ImageFilesystem | None = None
         self.current_browse_session: BrowsableImageSession | None = None
         self._editable_fixed_vhd = False
+        self.current_partition_index: int | None = None
+        self.current_mount_session: ImageMountSession | None = None
         self.current_directory = "/"
         self.current_entries: list[ImageEntry] = []
         self._directory_page_size = 250
@@ -452,8 +527,12 @@ class MainWindow(QMainWindow):
         self.action_prepare_deployment = self._action("Prepare FAT deployment image…", None, self.prepare_current_fat_deployment)
         self.action_trim_zero_tail = self._action("Trim trailing zero sectors…", None, self.trim_current_zero_tail)
         self.action_iso_boot = self._action("Inspect / export ISO boot image…", None, self.inspect_iso_boot)
+        self.action_replace_iso = self._action("Safely replace ISO file…", None, self.replace_iso_file)
         self.action_editable_vhd = self._action("Create editable fixed VHD copy…", None, self.create_editable_vhd_copy)
+        self.action_dynamic_vhd = self._action("Create dynamic VHD from FAT work image…", None, self.create_dynamic_vhd)
         self.action_convert_dmg = self._action("Convert DMG to raw image…", None, self.convert_dmg_image)
+        self.action_mount = self._action("Mount image read-only…", None, self.mount_current_image)
+        self.action_unmount = self._action("Unmount image", None, self.unmount_current_image)
         self.action_up = self._action("Up", "Alt+Up", self.go_up)
         self.action_convert = self._action("Convert image…", None, self.convert_image)
         self.action_verify = self._action("Verify SHA-256", None, self.verify_image)
@@ -500,7 +579,8 @@ class MainWindow(QMainWindow):
         menu_image.addSeparator()
         menu_image.addActions([self.action_convert, self.action_resize, self.action_trim_zero_tail, self.action_compare, self.action_verify,
                                self.action_defragment, self.action_partitions, self.action_boot, self.action_wrap_mbr, self.action_prepare_deployment,
-                               self.action_iso_boot, self.action_editable_vhd, self.action_convert_dmg])
+                               self.action_iso_boot, self.action_replace_iso, self.action_editable_vhd, self.action_dynamic_vhd, self.action_convert_dmg,
+                               self.action_mount, self.action_unmount])
 
         menu_image.addSeparator()
         menu_image.addActions([self.action_export, self.action_print, self.action_bundle, self.action_sfx])
@@ -676,6 +756,12 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
         self.settings.setValue("geometry", self.saveGeometry())
         self._close_fs()
+        if self.current_mount_session:
+            try:
+                ImageMountManager().unmount(self.current_mount_session)
+            except Exception:
+                pass
+            self.current_mount_session = None
         for directory in self._preview_directories:
             shutil.rmtree(directory, ignore_errors=True)
         super().closeEvent(event)
@@ -711,17 +797,23 @@ class MainWindow(QMainWindow):
         selected_file = next((entry for entry in self.current_entries if entry.path in self._selected_paths() and not entry.is_dir), None)
         for action in [self.action_close, self.action_convert, self.action_resize, self.action_compare,
                        self.action_verify, self.action_partitions, self.action_boot, self.action_comment,
-                       self.action_bundle, self.action_sfx, self.action_trim_zero_tail, self.action_iso_boot]:
+                       self.action_bundle, self.action_sfx, self.action_trim_zero_tail, self.action_iso_boot,
+                       self.action_replace_iso]:
             action.setEnabled(open_image)
-        fat_source = open_image and self.current_info is not None and self.current_info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}
+        fat_source = open_image and isinstance(self.current_fs, FatImageFilesystem)
         self.action_wrap_mbr.setEnabled(fat_source)
         self.action_prepare_deployment.setEnabled(fat_source)
-        self.action_iso_boot.setEnabled(open_image and self.current_info is not None and (self.current_info.image_format == ImageFormat.ISO or self.current_info.filesystem == FileSystemType.ISO9660))
+        iso_open = open_image and self.current_info is not None and (self.current_info.image_format == ImageFormat.ISO or self.current_info.filesystem == FileSystemType.ISO9660)
+        self.action_iso_boot.setEnabled(iso_open)
+        self.action_replace_iso.setEnabled(iso_open and selected_file is not None and len(self._selected_paths()) == 1)
         fixed_fat_vhd = fat_source and self.current_info is not None and self.current_info.image_format == ImageFormat.VHD and any(
             note.startswith("Fixed VHD footer validated") for note in self.current_info.notes
         )
         self.action_editable_vhd.setEnabled(fixed_fat_vhd)
+        self.action_dynamic_vhd.setEnabled(fat_source)
         self.action_convert_dmg.setEnabled(open_image and self.current_info is not None and self.current_info.image_format == ImageFormat.DMG)
+        self.action_mount.setEnabled(open_image and self.current_mount_session is None)
+        self.action_unmount.setEnabled(self.current_mount_session is not None)
         self.action_extract.setEnabled(open_image and entries and self.current_fs is not None)
         self.action_preview.setEnabled(open_image and self.current_fs is not None and selected_file is not None and len(self._selected_paths()) == 1)
         self.action_inject.setEnabled(fs_writable)
@@ -918,6 +1010,27 @@ class MainWindow(QMainWindow):
             on_result=lambda result: self._open_path(Path(result.destination), editable_fixed_vhd=True),
         )
 
+    def create_dynamic_vhd(self) -> None:
+        """Export the current FAT work image as a separately validated dynamic VHD."""
+        if not self.current_path or not isinstance(self.current_fs, FatImageFilesystem):
+            return
+        source = self.current_path
+        converter = QemuImgConverter(self.settings.value("qemu_img_path", "") or None)
+        report = converter.capability_report()
+        if not report.available:
+            QMessageBox.information(self, "Dynamic VHD adapter unavailable", report.reason)
+            return
+        default = source.with_suffix(".dynamic.vhd")
+        output, _ = QFileDialog.getSaveFileName(self, "Create dynamic VHD from FAT work image", str(default), "VHD image (*.vhd)")
+        if not output:
+            return
+        destination = Path(output)
+        if destination.resolve() == source.resolve():
+            QMessageBox.warning(self, "Separate output required", "Choose a different output file; the FAT work image remains unchanged.")
+            return
+        self._run_worker("Creating verified dynamic VHD", create_dynamic_vhd_from_raw, source, destination, converter,
+                         on_result=lambda result: self._open_path(result.destination))
+
     def convert_dmg_image(self) -> None:
         """Convert a DMG through an explicitly configured read-only adapter."""
         if not self.current_path or not self.current_info or self.current_info.image_format != ImageFormat.DMG:
@@ -936,10 +1049,68 @@ class MainWindow(QMainWindow):
             return converter.convert(source, destination, token=token)
         self._run_worker("Converting DMG to raw image", convert_dmg, on_result=lambda result: self._open_path(Path(result)))
 
-    def _open_path(self, path: Path, *, editable_fixed_vhd: bool = False) -> None:
+    def mount_current_image(self) -> None:
+        """Ask the OS backend to attach the current image read-only only."""
+        if not self.current_path or self.current_mount_session is not None:
+            return
+        source = self.current_path
+        manager = ImageMountManager()
+        report = manager.capability_report()
+        if not report.available:
+            QMessageBox.information(self, "Read-only mount unavailable", report.reason)
+            return
+        self._run_worker("Mounting image read-only", manager.mount, source, on_result=self._mounted_image)
+
+    def _mounted_image(self, session: ImageMountSession) -> None:
+        self.current_mount_session = session
+        location = str(session.mount_point) if session.mount_point else session.device or "system-managed mount"
+        QMessageBox.information(self, "Image mounted read-only", f"The image is mounted read-only at:\n{location}")
+        self._update_action_state()
+
+    def unmount_current_image(self) -> None:
+        if not self.current_mount_session:
+            return
+        session = self.current_mount_session
+        self._run_worker("Unmounting image", ImageMountManager().unmount, session, on_result=lambda _result: self._unmounted_image())
+
+    def _unmounted_image(self) -> None:
+        self.current_mount_session = None
+        QMessageBox.information(self, "Image unmounted", "The DiskForge read-only mount session has been released.")
+        self._update_action_state()
+
+    def replace_iso_file(self) -> None:
+        """Create a verified ISO copy with one selected equal-length file replaced."""
+        if not self.current_path or not isinstance(self.current_fs, IsoImageFilesystem):
+            return
+        selected = next((entry for entry in self.current_entries
+                         if entry.path in self._selected_paths() and not entry.is_dir), None)
+        if selected is None:
+            QMessageBox.information(self, "Select ISO file", "Select exactly one regular ISO file to replace safely.")
+            return
+        replacement, _ = QFileDialog.getOpenFileName(self, "Select equal-size replacement file", "", "All files (*)")
+        if not replacement:
+            return
+        source_iso = self.current_path
+        source_file = Path(replacement)
+        default = source_iso.with_name(f"{source_iso.stem}-replaced.iso")
+        output, _ = QFileDialog.getSaveFileName(self, "Save replaced ISO copy", str(default), "ISO image (*.iso)")
+        if not output:
+            return
+        destination = Path(output)
+        if destination.resolve() == source_iso.resolve():
+            QMessageBox.warning(self, "Separate output required", "The source ISO remains unchanged; choose a different output file.")
+            return
+        def replace(progress=None, token=None):
+            return replace_iso_file_safely(source_iso, selected.path, source_file, destination)
+        self._run_worker("Safely replacing ISO file into a new image", replace,
+                         on_result=lambda result: self._open_path(Path(result.destination)))
+
+    def _open_path(self, path: Path, *, editable_fixed_vhd: bool = False,
+                   partition_index: int | None = None) -> None:
         try:
             self._close_fs()
             self._editable_fixed_vhd = False
+            self.current_partition_index = partition_index
             self.current_path = path
             converter = QemuImgConverter(self.settings.value("qemu_img_path", "") or None)
             self.current_info = inspect_image(path, converter)
@@ -955,11 +1126,13 @@ class MainWindow(QMainWindow):
                 browse_info = inspect_image(browse_path)
                 self.log(f"Opened read-only temporary browse session for {path.name}")
             self.current_directory = "/"
-            if browse_info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
+            if partition_index is not None:
+                self.current_fs = FatImageFilesystem(browse_path, read_only=True, partition_index=partition_index)
+            elif browse_info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
                 self.current_fs = FatImageFilesystem(browse_path, read_only=self.current_browse_session is not None)
             elif browse_info.filesystem == FileSystemType.ISO9660 or browse_info.image_format == ImageFormat.ISO:
                 self.current_fs = IsoImageFilesystem(browse_path)
-            elif browse_info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT}:
+            elif browse_info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS, FileSystemType.HFS_PLUS}:
                 self.current_fs = SleuthKitImageFilesystem(browse_path, browse_info.filesystem)
             else:
                 self.current_fs = None
@@ -991,6 +1164,7 @@ class MainWindow(QMainWindow):
     def close_image(self) -> None:
         self._close_fs()
         self.current_path, self.current_info, self.current_entries = None, None, []
+        self.current_partition_index = None
         self.current_directory = "/"
         self.tree.clear()
         self.table.setRowCount(0)
@@ -1868,8 +2042,23 @@ class MainWindow(QMainWindow):
             if not parts:
                 QMessageBox.information(self, "Partitions", "No MBR or GPT partitions found. This may be a superfloppy image.")
                 return
-            text = "\n".join(f"{part.index}: LBA {part.start_lba}, {human_bytes(part.size)}, {part.filesystem.value}, {part.name or part.type_code}" for part in parts)
-            QMessageBox.information(self, "Partition table", text)
+            labels = [
+                f"{part.index}: LBA {part.start_lba} · {human_bytes(part.size)} · {part.filesystem.value} · {part.name or part.type_code}"
+                for part in parts
+            ]
+            selected, accepted = QInputDialog.getItem(
+                self, "Partition table", "Choose a FAT partition to browse (other partitions remain read-only metadata):",
+                labels, 0, False,
+            )
+            if not accepted:
+                return
+            partition = parts[labels.index(selected)]
+            if partition.filesystem not in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
+                QMessageBox.information(self, "Partition is read-only", "Only FAT partitions can be edited or browsed natively. Select a FAT partition.")
+                return
+            image = self.current_path
+            self._open_path(image, partition_index=partition.index)
+            self.log(f"Opened FAT partition {partition.index} from {image.name}")
         except Exception as exc:
             QMessageBox.critical(self, "Unable to read partitions", str(exc))
 
@@ -1892,9 +2081,25 @@ class MainWindow(QMainWindow):
         if operation[0] == "read":
             _, device, destination = operation
             self._run_worker("Reading physical drive", read_device_to_image, device, destination, on_result=lambda path: self._open_path(Path(path)), overwrite=True)
-        else:
+        elif operation[0] == "write":
             _, device, image, phrase, verify = operation
             self._run_worker("Writing physical drive", write_image_to_device, image, device, phrase, on_result=lambda ok: QMessageBox.information(self, "Physical write complete", "The image was written and verified." if ok else "The image was written."), verify_after_write=verify)
+        elif operation[0] == "mbr_backup":
+            _, device, destination = operation
+            self._run_worker("Backing up device MBR", backup_device_mbr, device, destination,
+                             on_result=lambda result: QMessageBox.information(self, "MBR backup complete", f"Verified MBR backup created:\n{result.backup}"))
+        elif operation[0] == "mbr_neutralize":
+            _, device, destination, phrase = operation
+            self._run_worker("Neutralizing device MBR", neutralize_device_mbr, device, destination, phrase,
+                             on_result=lambda result: QMessageBox.information(self, "Device MBR neutralized", f"Readback verification succeeded. Backup created:\n{result.backup}"))
+        elif operation[0] == "mbr_restore":
+            _, device, backup, destination, phrase = operation
+            self._run_worker("Restoring device MBR", restore_device_mbr, device, backup, destination, phrase,
+                             on_result=lambda result: QMessageBox.information(self, "Device MBR restored", f"Readback verification succeeded. Backup created:\n{result.backup}"))
+        elif operation[0] == "format_removable_fat":
+            _, device, filesystem, label, phrase = operation
+            self._run_worker("Formatting removable FAT media", format_removable_fat, device, filesystem, label, phrase,
+                             on_result=lambda result: QMessageBox.information(self, "Removable media formatted", f"{result.label} was formatted and reopened successfully."))
 
     def design_batch(self, existing_recipe: Path | None = None) -> None:
         try:

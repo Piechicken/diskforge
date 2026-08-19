@@ -60,5 +60,5 @@ def test_package_and_project_versions_match() -> None:
         line.split('"', 2)[1] for line in project_text.splitlines()
         if line.startswith("version = ")
     )
-    assert project_version == "0.8.0"
+    assert project_version == "0.9.0.dev0"
     assert namespace["__version__"] == project_version

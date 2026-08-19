@@ -769,3 +769,231 @@ CATALOG["ja"].update({
     "Reading physical media queue": "物理メディアキューを読み取り中", "Read-only acquisition report": "読み取り専用取得レポート", "Succeeded:": "成功:", "failed:": "失敗:",
 })
 TRANSLATABLE = _catalog_keys()
+
+# Safe ISO replacement and explicit partition-browsing additions.
+CATALOG["zh_CN"].update({
+    "Safely replace ISO file…": "安全替换 ISO 文件…", "Select ISO file": "选择 ISO 文件",
+    "Select exactly one regular ISO file to replace safely.": "请选择恰好一个常规 ISO 文件以进行安全替换。",
+    "Select equal-size replacement file": "选择等大小的替换文件", "Save replaced ISO copy": "保存替换后的 ISO 副本",
+    "Separate output required": "需要单独的输出文件", "The source ISO remains unchanged; choose a different output file.": "源 ISO 将保持不变；请选择其他输出文件。",
+    "Safely replacing ISO file into a new image": "正在将 ISO 文件安全替换到新映像中",
+    "Partition table": "分区表", "Partitions": "分区", "Unable to read partitions": "无法读取分区",
+    "No MBR or GPT partitions found. This may be a superfloppy image.": "未找到 MBR 或 GPT 分区；这可能是超级软盘映像。",
+    "Choose a FAT partition to browse (other partitions remain read-only metadata):": "选择要浏览的 FAT 分区（其他分区仅显示只读元数据）：",
+    "Partition is read-only": "分区为只读", "Only FAT partitions can be edited or browsed natively. Select a FAT partition.": "只有 FAT 分区可原生编辑或浏览；请选择 FAT 分区。",
+})
+CATALOG["es"].update({
+    "Safely replace ISO file…": "Reemplazar archivo ISO de forma segura…", "Select ISO file": "Seleccionar archivo ISO",
+    "Select exactly one regular ISO file to replace safely.": "Seleccione exactamente un archivo ISO normal para reemplazarlo de forma segura.",
+    "Select equal-size replacement file": "Seleccionar archivo de reemplazo del mismo tamaño", "Save replaced ISO copy": "Guardar copia ISO reemplazada",
+    "Separate output required": "Se requiere una salida independiente", "The source ISO remains unchanged; choose a different output file.": "La ISO de origen no se modifica; elija otro archivo de salida.",
+    "Safely replacing ISO file into a new image": "Reemplazando de forma segura un archivo ISO en una nueva imagen",
+    "Partition table": "Tabla de particiones", "Partitions": "Particiones", "Unable to read partitions": "No se pueden leer las particiones",
+    "No MBR or GPT partitions found. This may be a superfloppy image.": "No se encontraron particiones MBR ni GPT. Puede ser una imagen de superdisquete.",
+    "Choose a FAT partition to browse (other partitions remain read-only metadata):": "Elija una partición FAT para explorar (las demás solo muestran metadatos de solo lectura):",
+    "Partition is read-only": "La partición es de solo lectura", "Only FAT partitions can be edited or browsed natively. Select a FAT partition.": "Solo las particiones FAT se pueden editar o explorar de forma nativa. Seleccione una partición FAT.",
+})
+CATALOG["fr"].update({
+    "Safely replace ISO file…": "Remplacer un fichier ISO en toute sécurité…", "Select ISO file": "Sélectionner un fichier ISO",
+    "Select exactly one regular ISO file to replace safely.": "Sélectionnez exactement un fichier ISO ordinaire à remplacer en toute sécurité.",
+    "Select equal-size replacement file": "Sélectionner un fichier de remplacement de même taille", "Save replaced ISO copy": "Enregistrer la copie ISO remplacée",
+    "Separate output required": "Une sortie distincte est requise", "The source ISO remains unchanged; choose a different output file.": "L’ISO source reste inchangée ; choisissez un autre fichier de sortie.",
+    "Safely replacing ISO file into a new image": "Remplacement sécurisé d’un fichier ISO dans une nouvelle image",
+    "Partition table": "Table de partitions", "Partitions": "Parties de disque", "Unable to read partitions": "Impossible de lire les partitions",
+    "No MBR or GPT partitions found. This may be a superfloppy image.": "Aucune partition MBR ou GPT trouvée. Il peut s’agir d’une image superfloppy.",
+    "Choose a FAT partition to browse (other partitions remain read-only metadata):": "Choisissez une partition FAT à parcourir (les autres restent des métadonnées en lecture seule) :",
+    "Partition is read-only": "La partition est en lecture seule", "Only FAT partitions can be edited or browsed natively. Select a FAT partition.": "Seules les partitions FAT peuvent être parcourues ou modifiées nativement. Sélectionnez une partition FAT.",
+})
+CATALOG["ru"].update({
+    "Safely replace ISO file…": "Безопасно заменить файл ISO…", "Select ISO file": "Выберите файл ISO",
+    "Select exactly one regular ISO file to replace safely.": "Выберите ровно один обычный файл ISO для безопасной замены.",
+    "Select equal-size replacement file": "Выберите файл замены того же размера", "Save replaced ISO copy": "Сохранить заменённую копию ISO",
+    "Separate output required": "Требуется отдельный выходной файл", "The source ISO remains unchanged; choose a different output file.": "Исходный ISO не изменяется; выберите другой выходной файл.",
+    "Safely replacing ISO file into a new image": "Безопасная замена файла ISO в новом образе",
+    "Partition table": "Таблица разделов", "Partitions": "Разделы", "Unable to read partitions": "Не удалось прочитать разделы",
+    "No MBR or GPT partitions found. This may be a superfloppy image.": "Разделы MBR или GPT не найдены. Возможно, это образ суперфлоппи.",
+    "Choose a FAT partition to browse (other partitions remain read-only metadata):": "Выберите раздел FAT для просмотра (остальные показывают только метаданные для чтения):",
+    "Partition is read-only": "Раздел доступен только для чтения", "Only FAT partitions can be edited or browsed natively. Select a FAT partition.": "Нативный просмотр и редактирование доступны только для разделов FAT. Выберите раздел FAT.",
+})
+CATALOG["ar"].update({
+    "Safely replace ISO file…": "استبدال ملف ISO بأمان…", "Select ISO file": "اختر ملف ISO",
+    "Select exactly one regular ISO file to replace safely.": "اختر ملف ISO عاديًا واحدًا بالضبط لاستبداله بأمان.",
+    "Select equal-size replacement file": "اختر ملف استبدال بالحجم نفسه", "Save replaced ISO copy": "احفظ نسخة ISO المستبدلة",
+    "Separate output required": "يلزم ملف إخراج منفصل", "The source ISO remains unchanged; choose a different output file.": "تبقى ISO المصدر دون تغيير؛ اختر ملف إخراج مختلفًا.",
+    "Safely replacing ISO file into a new image": "استبدال ملف ISO بأمان في صورة جديدة",
+    "Partition table": "جدول الأقسام", "Partitions": "الأقسام", "Unable to read partitions": "تعذر قراءة الأقسام",
+    "No MBR or GPT partitions found. This may be a superfloppy image.": "لم يتم العثور على أقسام MBR أو GPT. قد تكون هذه صورة قرص مرن فائق.",
+    "Choose a FAT partition to browse (other partitions remain read-only metadata):": "اختر قسم FAT لتصفحه (تظل الأقسام الأخرى بيانات وصفية للقراءة فقط):",
+    "Partition is read-only": "القسم للقراءة فقط", "Only FAT partitions can be edited or browsed natively. Select a FAT partition.": "يمكن تصفح أقسام FAT وتحريرها محليًا فقط. اختر قسم FAT.",
+})
+CATALOG["ja"].update({
+    "Safely replace ISO file…": "ISO ファイルを安全に置換…", "Select ISO file": "ISO ファイルを選択",
+    "Select exactly one regular ISO file to replace safely.": "安全に置換する通常の ISO ファイルを 1 つだけ選択してください。",
+    "Select equal-size replacement file": "同じサイズの置換ファイルを選択", "Save replaced ISO copy": "置換済み ISO コピーを保存",
+    "Separate output required": "別の出力先が必要です", "The source ISO remains unchanged; choose a different output file.": "元の ISO は変更されません。別の出力ファイルを選択してください。",
+    "Safely replacing ISO file into a new image": "新しいイメージで ISO ファイルを安全に置換中",
+    "Partition table": "パーティションテーブル", "Partitions": "パーティション", "Unable to read partitions": "パーティションを読み取れません",
+    "No MBR or GPT partitions found. This may be a superfloppy image.": "MBR または GPT パーティションが見つかりません。スーパーフロッピーイメージの可能性があります。",
+    "Choose a FAT partition to browse (other partitions remain read-only metadata):": "参照する FAT パーティションを選択してください（他は読み取り専用メタデータです）：",
+    "Partition is read-only": "パーティションは読み取り専用です", "Only FAT partitions can be edited or browsed natively. Select a FAT partition.": "ネイティブで参照・編集できるのは FAT パーティションのみです。FAT パーティションを選択してください。",
+})
+
+# Device MBR audit and removable FAT formatting additions.
+CATALOG["zh_CN"].update({
+    "Removable format filesystem": "可移动介质格式化文件系统", "Removable format label": "可移动介质格式化卷标",
+    "Type FORMAT to erase and format removable media": "输入 FORMAT 以擦除并格式化可移动介质", "Type FORMAT to format": "输入 FORMAT 以格式化",
+    "Back up selected MBR…": "备份所选 MBR…", "Neutralize selected MBR": "中性化所选 MBR", "Format removable FAT media": "格式化可移动 FAT 介质",
+    "Back up selected device MBR": "备份所选设备 MBR", "Type ERASE exactly before changing a device MBR.": "更改设备 MBR 前必须准确输入 ERASE。",
+    "Back up current MBR before neutralizing": "中性化前备份当前 MBR", "Type FORMAT exactly before formatting removable media.": "格式化可移动介质前必须准确输入 FORMAT。",
+    "Backing up device MBR": "正在备份设备 MBR", "MBR backup complete": "MBR 备份完成", "Verified MBR backup created:": "已创建并验证 MBR 备份：",
+    "Neutralizing device MBR": "正在中性化设备 MBR", "Device MBR neutralized": "设备 MBR 已中性化", "Readback verification succeeded. Backup created:": "读回验证成功。已创建备份：",
+    "Formatting removable FAT media": "正在格式化可移动 FAT 介质", "Removable media formatted": "可移动介质已格式化", " was formatted and reopened successfully.": " 已格式化并成功重新打开。",
+})
+CATALOG["es"].update({
+    "Removable format filesystem": "Sistema de archivos para formato extraíble", "Removable format label": "Etiqueta de formato extraíble",
+    "Type FORMAT to erase and format removable media": "Escriba FORMAT para borrar y formatear el medio extraíble", "Type FORMAT to format": "Escriba FORMAT para formatear",
+    "Back up selected MBR…": "Respaldar MBR seleccionado…", "Neutralize selected MBR": "Neutralizar MBR seleccionado", "Format removable FAT media": "Formatear medio FAT extraíble",
+    "Back up selected device MBR": "Respaldar MBR del dispositivo seleccionado", "Type ERASE exactly before changing a device MBR.": "Escriba ERASE exactamente antes de cambiar el MBR de un dispositivo.",
+    "Back up current MBR before neutralizing": "Respaldar MBR actual antes de neutralizar", "Type FORMAT exactly before formatting removable media.": "Escriba FORMAT exactamente antes de formatear el medio extraíble.",
+    "Backing up device MBR": "Respaldando MBR del dispositivo", "MBR backup complete": "Respaldo de MBR completado", "Verified MBR backup created:": "Se creó un respaldo MBR verificado:",
+    "Neutralizing device MBR": "Neutralizando MBR del dispositivo", "Device MBR neutralized": "MBR del dispositivo neutralizado", "Readback verification succeeded. Backup created:": "La verificación de lectura posterior se realizó correctamente. Respaldo creado:",
+    "Formatting removable FAT media": "Formateando medio FAT extraíble", "Removable media formatted": "Medio extraíble formateado", " was formatted and reopened successfully.": " se formateó y se volvió a abrir correctamente.",
+})
+CATALOG["fr"].update({
+    "Removable format filesystem": "Système de fichiers du format amovible", "Removable format label": "Étiquette du format amovible",
+    "Type FORMAT to erase and format removable media": "Saisissez FORMAT pour effacer et formater le support amovible", "Type FORMAT to format": "Saisissez FORMAT pour formater",
+    "Back up selected MBR…": "Sauvegarder le MBR sélectionné…", "Neutralize selected MBR": "Neutraliser le MBR sélectionné", "Format removable FAT media": "Formater un support FAT amovible",
+    "Back up selected device MBR": "Sauvegarder le MBR du périphérique sélectionné", "Type ERASE exactly before changing a device MBR.": "Saisissez exactement ERASE avant de modifier un MBR de périphérique.",
+    "Back up current MBR before neutralizing": "Sauvegarder le MBR actuel avant neutralisation", "Type FORMAT exactly before formatting removable media.": "Saisissez exactement FORMAT avant de formater un support amovible.",
+    "Backing up device MBR": "Sauvegarde du MBR du périphérique", "MBR backup complete": "Sauvegarde MBR terminée", "Verified MBR backup created:": "Sauvegarde MBR vérifiée créée :",
+    "Neutralizing device MBR": "Neutralisation du MBR du périphérique", "Device MBR neutralized": "MBR du périphérique neutralisé", "Readback verification succeeded. Backup created:": "La vérification par relecture a réussi. Sauvegarde créée :",
+    "Formatting removable FAT media": "Formatage du support FAT amovible", "Removable media formatted": "Support amovible formaté", " was formatted and reopened successfully.": " a été formaté et rouvert avec succès.",
+})
+CATALOG["ru"].update({
+    "Removable format filesystem": "Файловая система форматирования съёмного носителя", "Removable format label": "Метка форматирования съёмного носителя",
+    "Type FORMAT to erase and format removable media": "Введите FORMAT, чтобы стереть и отформатировать съёмный носитель", "Type FORMAT to format": "Введите FORMAT для форматирования",
+    "Back up selected MBR…": "Создать резервную копию выбранного MBR…", "Neutralize selected MBR": "Нейтрализовать выбранный MBR", "Format removable FAT media": "Форматировать съёмный носитель FAT",
+    "Back up selected device MBR": "Создать резервную копию MBR выбранного устройства", "Type ERASE exactly before changing a device MBR.": "Перед изменением MBR устройства введите точно ERASE.",
+    "Back up current MBR before neutralizing": "Создать копию текущего MBR перед нейтрализацией", "Type FORMAT exactly before formatting removable media.": "Перед форматированием съёмного носителя введите точно FORMAT.",
+    "Backing up device MBR": "Создание резервной копии MBR устройства", "MBR backup complete": "Резервная копия MBR создана", "Verified MBR backup created:": "Создана проверенная резервная копия MBR:",
+    "Neutralizing device MBR": "Нейтрализация MBR устройства", "Device MBR neutralized": "MBR устройства нейтрализован", "Readback verification succeeded. Backup created:": "Проверка повторным чтением выполнена. Создана резервная копия:",
+    "Formatting removable FAT media": "Форматирование съёмного носителя FAT", "Removable media formatted": "Съёмный носитель отформатирован", " was formatted and reopened successfully.": " был отформатирован и успешно открыт повторно.",
+})
+CATALOG["ar"].update({
+    "Removable format filesystem": "نظام ملفات تهيئة الوسيط القابل للإزالة", "Removable format label": "تسمية تهيئة الوسيط القابل للإزالة",
+    "Type FORMAT to erase and format removable media": "اكتب FORMAT لمسح الوسيط القابل للإزالة وتهيئته", "Type FORMAT to format": "اكتب FORMAT للتهيئة",
+    "Back up selected MBR…": "نسخ MBR المحدد احتياطيًا…", "Neutralize selected MBR": "تحييد MBR المحدد", "Format removable FAT media": "تهيئة وسيط FAT قابل للإزالة",
+    "Back up selected device MBR": "نسخ MBR للجهاز المحدد احتياطيًا", "Type ERASE exactly before changing a device MBR.": "اكتب ERASE بدقة قبل تغيير MBR لجهاز.",
+    "Back up current MBR before neutralizing": "نسخ MBR الحالي احتياطيًا قبل التحييد", "Type FORMAT exactly before formatting removable media.": "اكتب FORMAT بدقة قبل تهيئة الوسيط القابل للإزالة.",
+    "Backing up device MBR": "جارٍ نسخ MBR للجهاز احتياطيًا", "MBR backup complete": "اكتمل النسخ الاحتياطي لـ MBR", "Verified MBR backup created:": "تم إنشاء نسخة احتياطية متحقق منها لـ MBR:",
+    "Neutralizing device MBR": "جارٍ تحييد MBR للجهاز", "Device MBR neutralized": "تم تحييد MBR للجهاز", "Readback verification succeeded. Backup created:": "نجح التحقق بإعادة القراءة. تم إنشاء نسخة احتياطية:",
+    "Formatting removable FAT media": "جارٍ تهيئة وسيط FAT قابل للإزالة", "Removable media formatted": "تمت تهيئة الوسيط القابل للإزالة", " was formatted and reopened successfully.": " تمت تهيئته وإعادة فتحه بنجاح.",
+})
+CATALOG["ja"].update({
+    "Removable format filesystem": "リムーバブルメディアのフォーマットファイルシステム", "Removable format label": "リムーバブルメディアのフォーマットラベル",
+    "Type FORMAT to erase and format removable media": "FORMAT と入力してリムーバブルメディアを消去・フォーマット", "Type FORMAT to format": "FORMAT と入力してフォーマット",
+    "Back up selected MBR…": "選択した MBR をバックアップ…", "Neutralize selected MBR": "選択した MBR を中立化", "Format removable FAT media": "リムーバブル FAT メディアをフォーマット",
+    "Back up selected device MBR": "選択したデバイスの MBR をバックアップ", "Type ERASE exactly before changing a device MBR.": "デバイス MBR を変更する前に ERASE を正確に入力してください。",
+    "Back up current MBR before neutralizing": "中立化前に現在の MBR をバックアップ", "Type FORMAT exactly before formatting removable media.": "リムーバブルメディアをフォーマットする前に FORMAT を正確に入力してください。",
+    "Backing up device MBR": "デバイス MBR をバックアップ中", "MBR backup complete": "MBR バックアップが完了", "Verified MBR backup created:": "検証済み MBR バックアップを作成しました：",
+    "Neutralizing device MBR": "デバイス MBR を中立化中", "Device MBR neutralized": "デバイス MBR を中立化しました", "Readback verification succeeded. Backup created:": "再読み取り検証に成功しました。バックアップを作成しました：",
+    "Formatting removable FAT media": "リムーバブル FAT メディアをフォーマット中", "Removable media formatted": "リムーバブルメディアをフォーマットしました", " was formatted and reopened successfully.": " をフォーマットし、正常に再オープンしました。",
+})
+
+# Controlled read-only image mounting additions.
+CATALOG["zh_CN"].update({
+    "Mount image read-only…": "以只读方式挂载映像…", "Unmount image": "卸载映像", "Read-only mount unavailable": "只读挂载不可用",
+    "Mounting image read-only": "正在以只读方式挂载映像", "Image mounted read-only": "映像已只读挂载", "The image is mounted read-only at:\n": "映像已以只读方式挂载到：\n",
+    "Unmounting image": "正在卸载映像", "Image unmounted": "映像已卸载", "The DiskForge read-only mount session has been released.": "DiskForge 只读挂载会话已释放。",
+})
+CATALOG["es"].update({
+    "Mount image read-only…": "Montar imagen en solo lectura…", "Unmount image": "Desmontar imagen", "Read-only mount unavailable": "Montaje de solo lectura no disponible",
+    "Mounting image read-only": "Montando imagen en solo lectura", "Image mounted read-only": "Imagen montada en solo lectura", "The image is mounted read-only at:\n": "La imagen se montó en solo lectura en:\n",
+    "Unmounting image": "Desmontando imagen", "Image unmounted": "Imagen desmontada", "The DiskForge read-only mount session has been released.": "La sesión de montaje de solo lectura de DiskForge se liberó.",
+})
+CATALOG["fr"].update({
+    "Mount image read-only…": "Monter l’image en lecture seule…", "Unmount image": "Démonter l’image", "Read-only mount unavailable": "Montage en lecture seule indisponible",
+    "Mounting image read-only": "Montage de l’image en lecture seule", "Image mounted read-only": "Image montée en lecture seule", "The image is mounted read-only at:\n": "L’image est montée en lecture seule à l’emplacement :\n",
+    "Unmounting image": "Démontage de l’image", "Image unmounted": "Image démontée", "The DiskForge read-only mount session has been released.": "La session de montage en lecture seule DiskForge a été libérée.",
+})
+CATALOG["ru"].update({
+    "Mount image read-only…": "Подключить образ только для чтения…", "Unmount image": "Отключить образ", "Read-only mount unavailable": "Подключение только для чтения недоступно",
+    "Mounting image read-only": "Подключение образа только для чтения", "Image mounted read-only": "Образ подключён только для чтения", "The image is mounted read-only at:\n": "Образ подключён только для чтения в:\n",
+    "Unmounting image": "Отключение образа", "Image unmounted": "Образ отключён", "The DiskForge read-only mount session has been released.": "Сеанс подключения DiskForge только для чтения освобождён.",
+})
+CATALOG["ar"].update({
+    "Mount image read-only…": "تحميل الصورة للقراءة فقط…", "Unmount image": "إلغاء تحميل الصورة", "Read-only mount unavailable": "التحميل للقراءة فقط غير متاح",
+    "Mounting image read-only": "جارٍ تحميل الصورة للقراءة فقط", "Image mounted read-only": "تم تحميل الصورة للقراءة فقط", "The image is mounted read-only at:\n": "تم تحميل الصورة للقراءة فقط في:\n",
+    "Unmounting image": "جارٍ إلغاء تحميل الصورة", "Image unmounted": "تم إلغاء تحميل الصورة", "The DiskForge read-only mount session has been released.": "تم تحرير جلسة تحميل DiskForge للقراءة فقط.",
+})
+CATALOG["ja"].update({
+    "Mount image read-only…": "イメージを読み取り専用でマウント…", "Unmount image": "イメージをアンマウント", "Read-only mount unavailable": "読み取り専用マウントは利用できません",
+    "Mounting image read-only": "イメージを読み取り専用でマウント中", "Image mounted read-only": "イメージを読み取り専用でマウントしました", "The image is mounted read-only at:\n": "イメージは次の場所に読み取り専用でマウントされています：\n",
+    "Unmounting image": "イメージをアンマウント中", "Image unmounted": "イメージをアンマウントしました", "The DiskForge read-only mount session has been released.": "DiskForge の読み取り専用マウントセッションを解放しました。",
+})
+
+# Device MBR restore additions.
+CATALOG["zh_CN"].update({
+    "Restore selected MBR…": "恢复所选 MBR…", "Select MBR backup to restore": "选择要恢复的 MBR 备份",
+    "Back up current MBR before restoring": "恢复前备份当前 MBR", "Restoring device MBR": "正在恢复设备 MBR", "Device MBR restored": "设备 MBR 已恢复",
+})
+CATALOG["es"].update({
+    "Restore selected MBR…": "Restaurar MBR seleccionado…", "Select MBR backup to restore": "Seleccionar respaldo MBR para restaurar",
+    "Back up current MBR before restoring": "Respaldar MBR actual antes de restaurar", "Restoring device MBR": "Restaurando MBR del dispositivo", "Device MBR restored": "MBR del dispositivo restaurado",
+})
+CATALOG["fr"].update({
+    "Restore selected MBR…": "Restaurer le MBR sélectionné…", "Select MBR backup to restore": "Sélectionner la sauvegarde MBR à restaurer",
+    "Back up current MBR before restoring": "Sauvegarder le MBR actuel avant restauration", "Restoring device MBR": "Restauration du MBR du périphérique", "Device MBR restored": "MBR du périphérique restauré",
+})
+CATALOG["ru"].update({
+    "Restore selected MBR…": "Восстановить выбранный MBR…", "Select MBR backup to restore": "Выберите резервную копию MBR для восстановления",
+    "Back up current MBR before restoring": "Создать копию текущего MBR перед восстановлением", "Restoring device MBR": "Восстановление MBR устройства", "Device MBR restored": "MBR устройства восстановлен",
+})
+CATALOG["ar"].update({
+    "Restore selected MBR…": "استعادة MBR المحدد…", "Select MBR backup to restore": "اختر نسخة MBR الاحتياطية لاستعادتها",
+    "Back up current MBR before restoring": "نسخ MBR الحالي احتياطيًا قبل الاستعادة", "Restoring device MBR": "جارٍ استعادة MBR للجهاز", "Device MBR restored": "تمت استعادة MBR للجهاز",
+})
+CATALOG["ja"].update({
+    "Restore selected MBR…": "選択した MBR を復元…", "Select MBR backup to restore": "復元する MBR バックアップを選択",
+    "Back up current MBR before restoring": "復元前に現在の MBR をバックアップ", "Restoring device MBR": "デバイス MBR を復元中", "Device MBR restored": "デバイス MBR を復元しました",
+})
+
+# HFS/HFS+ read-only browsing diagnostic.
+CATALOG["zh_CN"].update({"Sleuth Kit browsing is available only for NTFS, EXT, HFS and HFS+ filesystems.": "Sleuth Kit 浏览仅适用于 NTFS、EXT、HFS 和 HFS+ 文件系统。"})
+CATALOG["es"].update({"Sleuth Kit browsing is available only for NTFS, EXT, HFS and HFS+ filesystems.": "La exploración con Sleuth Kit solo está disponible para los sistemas de archivos NTFS, EXT, HFS y HFS+."})
+CATALOG["fr"].update({"Sleuth Kit browsing is available only for NTFS, EXT, HFS and HFS+ filesystems.": "La navigation Sleuth Kit est disponible uniquement pour les systèmes de fichiers NTFS, EXT, HFS et HFS+."})
+CATALOG["ru"].update({"Sleuth Kit browsing is available only for NTFS, EXT, HFS and HFS+ filesystems.": "Просмотр Sleuth Kit доступен только для файловых систем NTFS, EXT, HFS и HFS+."})
+CATALOG["ar"].update({"Sleuth Kit browsing is available only for NTFS, EXT, HFS and HFS+ filesystems.": "يتوفر التصفح عبر Sleuth Kit فقط لأنظمة الملفات NTFS وEXT وHFS وHFS+."})
+CATALOG["ja"].update({"Sleuth Kit browsing is available only for NTFS, EXT, HFS and HFS+ filesystems.": "Sleuth Kit による参照は NTFS、EXT、HFS、HFS+ ファイルシステムでのみ利用できます。"})
+
+# Controlled dynamic VHD export additions.
+CATALOG["zh_CN"].update({
+    "Create dynamic VHD from FAT work image…": "从 FAT 工作映像创建动态 VHD…", "Dynamic VHD adapter unavailable": "动态 VHD 适配器不可用",
+    "Create dynamic VHD from FAT work image": "从 FAT 工作映像创建动态 VHD", "Choose a different output file; the FAT work image remains unchanged.": "请选择不同的输出文件；FAT 工作映像将保持不变。",
+    "Creating verified dynamic VHD": "正在创建已验证的动态 VHD",
+})
+CATALOG["es"].update({
+    "Create dynamic VHD from FAT work image…": "Crear VHD dinámico desde imagen de trabajo FAT…", "Dynamic VHD adapter unavailable": "Adaptador de VHD dinámico no disponible",
+    "Create dynamic VHD from FAT work image": "Crear VHD dinámico desde imagen de trabajo FAT", "Choose a different output file; the FAT work image remains unchanged.": "Elija otro archivo de salida; la imagen de trabajo FAT no se modifica.",
+    "Creating verified dynamic VHD": "Creando VHD dinámico verificado",
+})
+CATALOG["fr"].update({
+    "Create dynamic VHD from FAT work image…": "Créer un VHD dynamique depuis une image de travail FAT…", "Dynamic VHD adapter unavailable": "Adaptateur VHD dynamique indisponible",
+    "Create dynamic VHD from FAT work image": "Créer un VHD dynamique depuis une image de travail FAT", "Choose a different output file; the FAT work image remains unchanged.": "Choisissez un autre fichier de sortie ; l’image de travail FAT reste inchangée.",
+    "Creating verified dynamic VHD": "Création d’un VHD dynamique vérifié",
+})
+CATALOG["ru"].update({
+    "Create dynamic VHD from FAT work image…": "Создать динамический VHD из рабочего образа FAT…", "Dynamic VHD adapter unavailable": "Адаптер динамического VHD недоступен",
+    "Create dynamic VHD from FAT work image": "Создать динамический VHD из рабочего образа FAT", "Choose a different output file; the FAT work image remains unchanged.": "Выберите другой выходной файл; рабочий образ FAT останется неизменным.",
+    "Creating verified dynamic VHD": "Создание проверенного динамического VHD",
+})
+CATALOG["ar"].update({
+    "Create dynamic VHD from FAT work image…": "إنشاء VHD ديناميكي من صورة عمل FAT…", "Dynamic VHD adapter unavailable": "محول VHD الديناميكي غير متاح",
+    "Create dynamic VHD from FAT work image": "إنشاء VHD ديناميكي من صورة عمل FAT", "Choose a different output file; the FAT work image remains unchanged.": "اختر ملف إخراج مختلفًا؛ ستبقى صورة عمل FAT دون تغيير.",
+    "Creating verified dynamic VHD": "جارٍ إنشاء VHD ديناميكي متحقق منه",
+})
+CATALOG["ja"].update({
+    "Create dynamic VHD from FAT work image…": "FAT 作業イメージから動的 VHD を作成…", "Dynamic VHD adapter unavailable": "動的 VHD アダプターを利用できません",
+    "Create dynamic VHD from FAT work image": "FAT 作業イメージから動的 VHD を作成", "Choose a different output file; the FAT work image remains unchanged.": "別の出力ファイルを選択してください。FAT 作業イメージは変更されません。",
+    "Creating verified dynamic VHD": "検証済み動的 VHD を作成中",
+})

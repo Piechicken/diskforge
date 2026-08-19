@@ -36,7 +36,19 @@ from .formats import inspect_image
 from .models import (ConflictPolicy, ExtractionLayout, ExtractionPolicy, FileSystemType,
                      ImageEntry, OperationKind, Progress, ProgressCallback, iter_parent_paths)
 from .partitions import fat_partition_offset
-from .storage import CancellationToken, DiskForgeError
+from .storage import CancellationToken, DiskForgeError, sha256_file, stream_copy
+
+
+@dataclass(frozen=True)
+class IsoReplacementResult:
+    """Verified result of a conservative file replacement in a copied ISO."""
+
+    source: Path
+    destination: Path
+    iso_path: str
+    bytes_replaced: int
+    source_sha256: str
+    output_sha256: str
 
 
 @dataclass(frozen=True)
@@ -188,9 +200,11 @@ def _extraction_target(destination: Path, entry: ImageEntry, policy: ExtractionP
 class FatImageFilesystem(ImageFilesystem):
     """Read/write FAT filesystem wrapper, including MBR/GPT partition offsets."""
 
-    def __init__(self, image_path: Path | str, read_only: bool = False) -> None:
+    def __init__(self, image_path: Path | str, read_only: bool = False,
+                 partition_index: int | None = None) -> None:
         self.path = Path(image_path)
-        self.offset = fat_partition_offset(self.path)
+        self.partition_index = partition_index
+        self.offset = fat_partition_offset(self.path, partition_index=partition_index)
         # Historical FAT volumes may retain the DOS dirty-volume bit even when
         # their directory and allocation data are fully readable.  pyfatfs emits
         # this advisory at open time; it cannot help the user recover data and
@@ -443,6 +457,95 @@ class FatImageFilesystem(ImageFilesystem):
                 for entry in entries
             ) + "\n", encoding="utf-8")
         return output
+
+
+def _iso9660_file_path(path: str) -> str:
+    """Normalize one user-facing path to the ISO9660 file identifier form."""
+    normalized = _normal(path)
+    if normalized == "/":
+        raise DiskForgeError("ISO replacement requires an existing regular file, not the root directory.")
+    upper = normalized.upper()
+    return upper if ";" in Path(upper).name else upper + ";1"
+
+
+def replace_iso_file_safely(source_iso: Path | str, iso_path: str, replacement: Path | str,
+                            destination_iso: Path | str, *, overwrite: bool = False) -> IsoReplacementResult:
+    """Replace one equal-length ISO9660 file in a verified *new* ISO image.
+
+    ISO directory metadata is inherently fragile.  The service therefore uses
+    pycdlib's focused in-place editor only on a byte-for-byte copy, accepts no
+    directory or size changes, and validates the reopened result before making
+    it available.  The original ISO and the local replacement source are never
+    opened for writing.
+    """
+    source, candidate, destination = Path(source_iso), Path(replacement), Path(destination_iso)
+    if not source.is_file():
+        raise FileNotFoundError(source)
+    if not candidate.is_file():
+        raise FileNotFoundError(candidate)
+    if source.resolve() == destination.resolve():
+        raise DiskForgeError("The replacement destination must be different from the source ISO.")
+    if destination.exists() and not overwrite:
+        raise FileExistsError(destination)
+    if not hasattr(pycdlib, "InPlaceEditor"):
+        raise DiskForgeError("This pycdlib version does not provide the required safe ISO editor.")
+
+    internal_path = _iso9660_file_path(iso_path)
+    source_hash = sha256_file(source)
+    replacement_hash = sha256_file(candidate)
+    replacement_size = candidate.stat().st_size
+    probe = pycdlib.PyCdlib()
+    try:
+        probe.open(str(source))
+        if probe.has_rock_ridge() or probe.has_udf():
+            raise DiskForgeError(
+                "Safe replacement currently supports ISO9660/Joliet images only; Rock Ridge and UDF are refused."
+            )
+        try:
+            record = probe.get_record(iso_path=internal_path)
+        except Exception as exc:
+            raise FileNotFoundError(internal_path) from exc
+        if record.is_dir():
+            raise DiskForgeError("ISO replacement requires an existing regular file, not a directory.")
+        if int(record.data_length or 0) != replacement_size:
+            raise DiskForgeError("The replacement file size must exactly match the existing ISO file size.")
+    finally:
+        probe.close()
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        stream_copy(source, destination, OperationKind.CONVERT, overwrite=overwrite)
+        with candidate.open("rb") as payload:
+            with pycdlib.InPlaceEditor(str(destination)) as editor:
+                editor.modify_file(payload, replacement_size, internal_path)
+
+        verifier = pycdlib.PyCdlib()
+        extracted_path: Path | None = None
+        try:
+            verifier.open(str(destination))
+            verified_record = verifier.get_record(iso_path=internal_path)
+            if verified_record.is_dir() or int(verified_record.data_length or 0) != replacement_size:
+                raise DiskForgeError("The replaced ISO entry did not retain its expected type and size.")
+            descriptor, temporary_name = tempfile.mkstemp(prefix="diskforge-iso-verify-", suffix=".bin")
+            os.close(descriptor)
+            extracted_path = Path(temporary_name)
+            verifier.get_file_from_iso(str(extracted_path), iso_path=internal_path)
+            if sha256_file(extracted_path) != replacement_hash:
+                raise DiskForgeError("The reopened ISO does not contain the requested replacement bytes.")
+        finally:
+            verifier.close()
+            if extracted_path is not None:
+                extracted_path.unlink(missing_ok=True)
+
+        if sha256_file(source) != source_hash:
+            raise DiskForgeError("The source ISO changed during the replacement operation.")
+        if sha256_file(candidate) != replacement_hash:
+            raise DiskForgeError("The replacement source changed during the replacement operation.")
+        return IsoReplacementResult(source, destination, internal_path, replacement_size,
+                                    source_hash, sha256_file(destination))
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
 
 
 class IsoImageFilesystem(ImageFilesystem):
