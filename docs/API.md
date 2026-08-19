@@ -73,11 +73,13 @@ A valid FAT IMA can be opened through `client.filesystem(..., writable=True)` ju
 ZIP-compatible legacy compressed images with `.imz` or `.wlz` extensions are recognized as **single-payload containers** only.
  DiskForge rejects encrypted, unsafe, non-Deflate/non-Stored, or multi-payload archives; a valid payload is materialized to a caller-owned temporary raw image for read-only browsing. The GUI and CLI can create or extract the same constrained container shape, but this does not claim support for undocumented proprietary extensions beyond that ZIP-compatible profile.
 
-## Optional controlled NTFS/EXT injection
+## Optional controlled NTFS, EXT, and classic-HFS injection
 
-`DiskForgeClient.filesystem(..., writable=True)` remains **FAT-only**. The desktop, CLI, batch schema v4, and the explicit core adapters `diskforge.core.ntfs_inject.NtfsFileInjector` and `diskforge.core.ext_inject.ExtFileInjector` offer a separate optional workflow for NTFS/EXT. These adapters require already installed external tools, create a new standalone output file, and accept only new root-directory regular files. They SHA-256-check the source before and after, read back each payload for SHA-256 comparison, and validate the output filesystem before it is promoted. They deliberately reject physical devices, partition offsets, existing targets, folders, metadata, ACL/ADS work, rename, delete, and in-place writes.
+`DiskForgeClient.filesystem(..., writable=True)` remains **FAT-only**. The desktop, CLI, batch schema v4, and the explicit core adapters `diskforge.core.ntfs_inject.NtfsFileInjector`, `diskforge.core.ext_inject.ExtFileInjector`, and `diskforge.core.hfs_inject.HfsFileInjector` offer separate optional copy-on-write workflows for NTFS, EXT, and **classic HFS**. These adapters require already installed external tools, create a new standalone output file, and accept only new root-directory regular files. They SHA-256-check the source before and after, read back each payload for SHA-256 comparison, and validate the output filesystem signature before it is promoted. They deliberately reject physical devices, partition offsets, existing targets, folders, metadata, ACL/ADS work, rename, delete, and in-place writes.
 
-This is not an SDK-session mutation guarantee and is not a native cross-platform writer: hosts must explicitly provide `ntfscp`/`ntfsls`/`ntfscat` for NTFS or `debugfs`/`e2fsck` for EXT. See [FILESYSTEM_INJECTION.md](FILESYSTEM_INJECTION.md) for the exact contract, backend constraints, and citations.
+The classic-HFS adapter isolates `HOME` for every `hfsutils` operation, requires the `hls` absence diagnostic before invoking `hcopy`, and transfers raw data forks only. It does not preserve MacBinary data, resource forks, Finder metadata, or type/creator attributes. HFS+ is not accepted by this adapter and remains read-only.
+
+This is not an SDK-session mutation guarantee and is not a native cross-platform writer: hosts must explicitly provide `ntfscp`/`ntfsls`/`ntfscat` for NTFS, `debugfs`/`e2fsck` for EXT, or `hmount`/`hcopy`/`hls` for classic HFS. See [FILESYSTEM_INJECTION.md](FILESYSTEM_INJECTION.md) for the exact contract, backend constraints, and citations.
 
 ## Read-only mount sessions
 
@@ -95,7 +97,7 @@ finally:
 
 ## Conversion adapters
 
-Classic HFS and HFS+ browsing is routed through the explicitly installed Sleuth Kit `fls`/`icat` backend. This provides read-only listing and data-fork extraction only; DiskForge does not write HFS/HFS+ volumes, reconstruct resource forks, or attempt a filesystem repair.
+Classic HFS and HFS+ browsing is routed through the explicitly installed Sleuth Kit `fls`/`icat` backend. This provides read-only listing and data-fork extraction only. The separate `HfsFileInjector` may create a verified new **classic HFS** output with root-level raw-data-fork files under its documented copy-on-write contract; it does not make an SDK session writable and does not write HFS+ volumes, reconstruct resource forks, or attempt a filesystem repair.
 
 `DiskForgeClient` accepts an optional converter implementation. The desktop application uses an explicitly configured `qemu-img` adapter for VHDX, VMDK, QCOW2, and controlled dynamic-VHD export. Dynamic VHD allocation structures are not edited as flat sectors: DiskForge first edits a separate raw FAT work image, then invokes `qemu-img` with `vpc` dynamic options and validates the resulting dynamic VHD footer. The library does not download or invoke an external converter unless the host explicitly provides one.
 

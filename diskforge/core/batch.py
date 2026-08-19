@@ -18,6 +18,7 @@ from .filesystems import (FatImageFilesystem, IsoImageFilesystem, rebuild_iso_wi
 from .formats import (QemuImgConverter, convert_image, create_legacy_zip_image,
                       extract_legacy_zip_image, inspect_image)
 from .ext_inject import ExtFileInjector
+from .hfs_inject import HfsFileInjector
 from .ntfs_inject import NtfsFileInjector
 from .models import (BatchItemResult, BatchResult, ConflictPolicy, ExtractionLayout,
                      ExtractionPolicy, FileSystemType, ImageFormat, OperationKind)
@@ -73,6 +74,7 @@ class BatchRunner:
             OperationKind.ISO_EDIT: ("source", "destination"),
             OperationKind.NTFS_INJECT: ("source", "destination", "sources"),
             OperationKind.EXT_INJECT: ("source", "destination", "sources"),
+            OperationKind.HFS_INJECT: ("source", "destination", "sources"),
         }
         for position, raw in enumerate(spec["operations"]):
             item = raw if isinstance(raw, dict) else {}
@@ -90,7 +92,7 @@ class BatchRunner:
                 absent = [key for key in required[kind] if key not in item]
                 if absent:
                     raise DiskForgeError(f"Batch {kind.value} operation is missing: {', '.join(absent)}.")
-            if kind in {OperationKind.NTFS_INJECT, OperationKind.EXT_INJECT}:
+            if kind in {OperationKind.NTFS_INJECT, OperationKind.EXT_INJECT, OperationKind.HFS_INJECT}:
                 sources = item.get("sources")
                 if not isinstance(sources, list) or not sources or not all(isinstance(value, str) for value in sources):
                     raise DiskForgeError(f"Batch {kind.value} sources must be a non-empty string list.")
@@ -117,7 +119,7 @@ class BatchRunner:
                                          OperationKind.BUNDLE, OperationKind.UNBUNDLE, OperationKind.EXTRACT,
                                          OperationKind.LEGACY_COMPRESS, OperationKind.LEGACY_EXTRACT,
                                          OperationKind.ISO_REPLACE, OperationKind.ISO_EDIT,
-                                         OperationKind.NTFS_INJECT, OperationKind.EXT_INJECT},
+                                         OperationKind.NTFS_INJECT, OperationKind.EXT_INJECT, OperationKind.HFS_INJECT},
             })
         return preview
 
@@ -221,6 +223,14 @@ class BatchRunner:
             result = ExtFileInjector(item.get("debugfs_executable"), item.get("e2fsck_executable")).inject(
                 item["source"], item["destination"], sources,
             )
+            return str(result.destination)
+        if kind == OperationKind.HFS_INJECT:
+            sources = item.get("sources")
+            if not isinstance(sources, list) or not sources or not all(isinstance(value, str) for value in sources):
+                raise DiskForgeError("Batch hfs_inject sources must be a non-empty string list.")
+            result = HfsFileInjector(
+                item.get("hmount_executable"), item.get("hcopy_executable"), item.get("hls_executable"),
+            ).inject(item["source"], item["destination"], sources)
             return str(result.destination)
         if kind == OperationKind.ISO_REPLACE:
             result = replace_iso_file_safely(item["source"], str(item["iso_path"]), item["replacement"],

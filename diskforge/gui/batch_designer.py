@@ -38,6 +38,7 @@ _EDITABLE_KINDS = (
     OperationKind.INJECT,
     OperationKind.NTFS_INJECT,
     OperationKind.EXT_INJECT,
+    OperationKind.HFS_INJECT,
     OperationKind.BUNDLE,
     OperationKind.UNBUNDLE,
 )
@@ -97,6 +98,7 @@ class BatchDesignerDialog(QDialog):
             OperationKind.INJECT: "Inject into FAT image",
             OperationKind.NTFS_INJECT: "Inject safely into new NTFS image",
             OperationKind.EXT_INJECT: "Inject safely into new EXT image",
+            OperationKind.HFS_INJECT: "Inject safely into new classic HFS image",
             OperationKind.BUNDLE: "Create secure image container",
             OperationKind.UNBUNDLE: "Extract image container",
         }
@@ -217,6 +219,7 @@ class BatchDesignerDialog(QDialog):
             OperationKind.INJECT: "Inject local file paths into a writable FAT destination image.",
             OperationKind.NTFS_INJECT: "Copy a standalone NTFS image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.",
             OperationKind.EXT_INJECT: "Copy a standalone EXT image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.",
+            OperationKind.HFS_INJECT: "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.",
             OperationKind.BUNDLE: "Create an unencrypted, auditable image container from selected image files.",
             OperationKind.UNBUNDLE: "Extract named or all items from an unencrypted image container.",
         }
@@ -225,7 +228,7 @@ class BatchDesignerDialog(QDialog):
     def _choose_sources(self) -> None:
         values, _ = QFileDialog.getOpenFileNames(
             self, "Choose source images", "",
-            "Disk images (*.img *.ima *.bin *.dd *.dmf *.iso *.vhd *.vhdx *.vmdk *.qcow2);;All files (*)",
+            "Disk images (*.img *.ima *.hfs *.bin *.dd *.dmf *.iso *.vhd *.vhdx *.vmdk *.qcow2);;All files (*)",
         )
         if values:
             current = [line for line in self.sources.toPlainText().splitlines() if line.strip()]
@@ -314,9 +317,9 @@ class BatchDesignerDialog(QDialog):
             if not destination or not sources:
                 raise DiskForgeError("Injection requires a FAT destination image and local file paths.")
             item.update({"destination": destination, "sources": sources, "target_directory": self.target_directory.text().strip() or "/"})
-        elif kind in {OperationKind.NTFS_INJECT, OperationKind.EXT_INJECT}:
+        elif kind in {OperationKind.NTFS_INJECT, OperationKind.EXT_INJECT, OperationKind.HFS_INJECT}:
             if not source or not destination or not sources:
-                raise DiskForgeError("Controlled NTFS/EXT injection requires a source image, new destination image, and local file paths.")
+                raise DiskForgeError("Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.")
             item.update({"source": source, "destination": destination, "sources": sources})
         elif kind == OperationKind.BUNDLE:
             if not destination or not sources:

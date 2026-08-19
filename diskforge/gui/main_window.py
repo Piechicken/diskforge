@@ -39,6 +39,7 @@ from diskforge.core.devices import (backup_device_mbr, format_removable_fat, lis
                                       write_image_to_device)
 from diskforge.core.deployment import prepare_fat_deployment
 from diskforge.core.ext_inject import ExtFileInjector
+from diskforge.core.hfs_inject import HfsFileInjector
 from diskforge.core.eltorito import export_boot_image, inspect_eltorito
 from diskforge.core.fat_layouts import FatImageLayout, create_fat_image_from_layout
 from diskforge.core.floppy_format import FloppyControllerFormatter
@@ -73,7 +74,7 @@ from diskforge.gui.theme import apply_theme
 from diskforge.gui.workers import FunctionWorker
 
 
-IMAGE_FILTER = "Disk images (*.img *.ima *.bin *.dd *.dmf *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
+IMAGE_FILTER = "Disk images (*.img *.ima *.hfs *.bin *.dd *.dmf *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
 
 
 class NewImageDialog(QDialog):
@@ -617,7 +618,7 @@ class MainWindow(QMainWindow):
         self.action_close = self._action("Close image", "Ctrl+W", self.close_image)
         self.action_extract = self._action("Extract selected…", "Ctrl+E", self.extract_selected)
         self.action_inject = self._action("Inject files…", "Ctrl+I", self.inject_files)
-        self.action_controlled_inject = self._action("Inject files safely into new NTFS/EXT image…", None, self.inject_files_safely)
+        self.action_controlled_inject = self._action("Inject files safely into new NTFS/EXT/classic HFS image…", None, self.inject_files_safely)
         self.action_delete = self._action("Delete selected", "Delete", self.delete_selected)
         self.action_properties = self._action("Modify selected timestamp…", None, self.modify_timestamp)
         self.action_rename = self._action("Rename selected…", "F2", self.rename_selected)
@@ -925,7 +926,9 @@ class MainWindow(QMainWindow):
         self.action_extract.setEnabled(open_image and entries and self.current_fs is not None)
         self.action_preview.setEnabled(open_image and self.current_fs is not None and selected_file is not None and len(self._selected_paths()) == 1)
         self.action_inject.setEnabled(fs_writable)
-        controlled_filesystem = open_image and self.current_info is not None and self.current_info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT}
+        controlled_filesystem = open_image and self.current_info is not None and self.current_info.filesystem in {
+            FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS,
+        }
         self.action_controlled_inject.setEnabled(controlled_filesystem)
         self.action_delete.setEnabled(fs_writable and entries)
         self.action_properties.setEnabled(fs_writable and entries)
@@ -1603,7 +1606,7 @@ class MainWindow(QMainWindow):
             self._inject_local_paths([Path(value) for value in files], self.current_directory)
 
     def inject_files_safely(self) -> None:
-        """Create and verify a separate NTFS/EXT output; the open source never changes."""
+        """Create and verify a separate NTFS, EXT or classic-HFS output; source is immutable."""
         if not self.current_path or self.current_info is None:
             return
         if self.current_info.filesystem == FileSystemType.NTFS:
@@ -1612,17 +1615,19 @@ class MainWindow(QMainWindow):
         elif self.current_info.filesystem == FileSystemType.EXT:
             injector = ExtFileInjector()
             output_suffix = self.current_path.suffix or ".ext4"
+        elif self.current_info.filesystem == FileSystemType.HFS:
+            injector = HfsFileInjector()
+            output_suffix = self.current_path.suffix or ".hfs"
         else:
             return
         report = injector.capability_report()
         if not report.available:
             QMessageBox.information(self, "Optional backend unavailable", report.reason)
             return
-        QMessageBox.information(
-            self,
-            "Safe NTFS/EXT injection",
-            "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing.",
-        )
+        notice = "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing."
+        if self.current_info.filesystem == FileSystemType.HFS:
+            notice = "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing. Classic HFS copies raw data forks only; HFS+ remains read-only."
+        QMessageBox.information(self, "Safe NTFS/EXT/classic HFS injection", notice)
         files, _ = QFileDialog.getOpenFileNames(self, "Select regular local files", str(self.settings.value("last_directory", "")), "All files (*)")
         if not files:
             return
@@ -1637,7 +1642,7 @@ class MainWindow(QMainWindow):
         def completed(result) -> None:
             self.log(f"Verified {self.current_info.filesystem.value} output created: {result.destination}")
             self._open_path(result.destination)
-        self._run_worker("Creating verified NTFS/EXT output", job, on_result=completed)
+        self._run_worker("Creating verified NTFS/EXT/classic HFS output", job, on_result=completed)
 
     def _inject_dropped_paths(self, paths: list[Path], target_directory: str) -> None:
         """Inject local URLs accepted by the table's native drag-and-drop handler."""

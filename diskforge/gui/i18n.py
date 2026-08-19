@@ -1265,4 +1265,66 @@ CATALOG["ja"].update({
     "Copy a standalone EXT image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.": "独立した EXT イメージを新しい出力へコピーし、ルートに新しい通常ファイルを追加して各ペイロードを検証します。既存の出力先とインプレース変更は拒否されます。",
     "Controlled NTFS/EXT injection requires a source image, new destination image, and local file paths.": "制御済み NTFS/EXT 注入には、ソースイメージ、新しい出力イメージ、ローカルファイルパスが必要です。",
 })
+
+# Controlled classic-HFS copy-on-write injection additions.
+CATALOG["zh_CN"].update({
+    "Inject files safely into new NTFS/EXT/classic HFS image…": "安全注入文件到新的 NTFS/EXT/经典 HFS 映像…",
+    "Safe NTFS/EXT/classic HFS injection": "安全 NTFS/EXT/经典 HFS 注入",
+    "Classic HFS copies raw data forks only; HFS+ remains read-only.": "经典 HFS 仅复制原始数据 fork；HFS+ 保持只读。",
+    "Creating verified NTFS/EXT/classic HFS output": "正在创建已验证的 NTFS/EXT/经典 HFS 输出",
+    "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing. Classic HFS copies raw data forks only; HFS+ remains read-only.": "此操作绝不更改已打开的映像。它会创建独立输出，仅接受根目录中的常规文件，拒绝覆盖，并在写入后验证每个文件。经典 HFS 仅复制原始数据 fork；HFS+ 保持只读。",
+    "Inject safely into new classic HFS image": "安全注入到新的经典 HFS 映像",
+    "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.": "将独立经典 HFS 映像复制为新输出，添加新的根目录原始数据 fork 文件并验证每个载荷。已有目标、原位更改、HFS+、元数据和资源 fork 均会被拒绝。",
+    "Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.": "受控 NTFS/EXT/经典 HFS 注入需要源映像、新目标映像和本地文件路径。",
+})
+CATALOG["es"].update({
+    "Inject files safely into new NTFS/EXT/classic HFS image…": "Inyectar archivos de forma segura en una nueva imagen NTFS/EXT/HFS clásico…",
+    "Safe NTFS/EXT/classic HFS injection": "Inyección segura NTFS/EXT/HFS clásico",
+    "Classic HFS copies raw data forks only; HFS+ remains read-only.": "El HFS clásico solo copia bifurcaciones de datos sin procesar; HFS+ permanece de solo lectura.",
+    "Creating verified NTFS/EXT/classic HFS output": "Creando salida NTFS/EXT/HFS clásico verificada",
+    "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing. Classic HFS copies raw data forks only; HFS+ remains read-only.": "Esta operación nunca modifica la imagen abierta. Crea una salida independiente, solo acepta archivos regulares en el directorio raíz, rechaza la sobrescritura y verifica cada archivo después de escribirlo. El HFS clásico solo copia bifurcaciones de datos sin procesar; HFS+ permanece de solo lectura.",
+    "Inject safely into new classic HFS image": "Inyectar de forma segura en una nueva imagen HFS clásico",
+    "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.": "Copie una imagen HFS clásica independiente a una nueva salida, añada archivos nuevos de bifurcación de datos sin procesar en la raíz y verifique cada carga. Se rechazan los destinos existentes, los cambios en el lugar, HFS+, los metadatos y las bifurcaciones de recursos.",
+    "Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.": "La inyección NTFS/EXT/HFS clásico controlada requiere una imagen de origen, una nueva imagen de destino y rutas de archivos locales.",
+})
+CATALOG["fr"].update({
+    "Inject files safely into new NTFS/EXT/classic HFS image…": "Injecter des fichiers en toute sécurité dans une nouvelle image NTFS/EXT/HFS classique…",
+    "Safe NTFS/EXT/classic HFS injection": "Injection sécurisée NTFS/EXT/HFS classique",
+    "Classic HFS copies raw data forks only; HFS+ remains read-only.": "HFS classique ne copie que les fourches de données brutes ; HFS+ reste en lecture seule.",
+    "Creating verified NTFS/EXT/classic HFS output": "Création d’une sortie NTFS/EXT/HFS classique vérifiée",
+    "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing. Classic HFS copies raw data forks only; HFS+ remains read-only.": "Cette opération ne modifie jamais l’image ouverte. Elle crée une sortie distincte, accepte uniquement des fichiers ordinaires à la racine, refuse l’écrasement et vérifie chaque fichier après écriture. HFS classique ne copie que les fourches de données brutes ; HFS+ reste en lecture seule.",
+    "Inject safely into new classic HFS image": "Injecter en toute sécurité dans une nouvelle image HFS classique",
+    "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.": "Copiez une image HFS classique autonome vers une nouvelle sortie, ajoutez de nouveaux fichiers de fourche de données brutes à la racine et vérifiez chaque charge. Les destinations existantes, les modifications sur place, HFS+, les métadonnées et les fourches de ressources sont refusés.",
+    "Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.": "L’injection NTFS/EXT/HFS classique contrôlée requiert une image source, une nouvelle image de destination et des chemins de fichiers locaux.",
+})
+CATALOG["ru"].update({
+    "Inject files safely into new NTFS/EXT/classic HFS image…": "Безопасно добавить файлы в новый образ NTFS/EXT/классический HFS…",
+    "Safe NTFS/EXT/classic HFS injection": "Безопасное добавление NTFS/EXT/классический HFS",
+    "Classic HFS copies raw data forks only; HFS+ remains read-only.": "Классический HFS копирует только необработанные вилки данных; HFS+ остаётся доступной только для чтения.",
+    "Creating verified NTFS/EXT/classic HFS output": "Создание проверенного результата NTFS/EXT/классический HFS",
+    "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing. Classic HFS copies raw data forks only; HFS+ remains read-only.": "Эта операция никогда не изменяет открытый образ. Она создаёт отдельный результат, принимает только обычные файлы в корневом каталоге, запрещает перезапись и проверяет каждый файл после записи. Классический HFS копирует только необработанные вилки данных; HFS+ остаётся доступной только для чтения.",
+    "Inject safely into new classic HFS image": "Безопасно добавить в новый образ классического HFS",
+    "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.": "Скопируйте автономный образ классического HFS в новый результат, добавьте новые файлы с необработанной вилкой данных в корень и проверьте каждый файл. Существующие назначения, изменения на месте, HFS+, метаданные и ресурсные вилки отклоняются.",
+    "Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.": "Для контролируемого добавления NTFS/EXT/классического HFS требуются исходный образ, новый целевой образ и пути к локальным файлам.",
+})
+CATALOG["ar"].update({
+    "Inject files safely into new NTFS/EXT/classic HFS image…": "إدراج الملفات بأمان في صورة NTFS/EXT/HFS كلاسيكية جديدة…",
+    "Safe NTFS/EXT/classic HFS injection": "إدراج آمن في NTFS/EXT/HFS الكلاسيكي",
+    "Classic HFS copies raw data forks only; HFS+ remains read-only.": "ينسخ HFS الكلاسيكي شوكات البيانات الخام فقط؛ ويظل HFS+ للقراءة فقط.",
+    "Creating verified NTFS/EXT/classic HFS output": "جارٍ إنشاء إخراج NTFS/EXT/HFS كلاسيكي متحقق منه",
+    "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing. Classic HFS copies raw data forks only; HFS+ remains read-only.": "لا تعدل هذه العملية الصورة المفتوحة مطلقًا. فهي تنشئ مخرجًا منفصلًا، وتقبل الملفات العادية في الدليل الجذر فقط، وترفض الاستبدال، وتتحقق من كل ملف بعد كتابته. ينسخ HFS الكلاسيكي شوكات البيانات الخام فقط؛ ويظل HFS+ للقراءة فقط.",
+    "Inject safely into new classic HFS image": "إدراج آمن في صورة HFS كلاسيكية جديدة",
+    "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.": "انسخ صورة HFS كلاسيكية مستقلة إلى مخرج جديد، وأضف ملفات شوكة بيانات خام جديدة في الجذر، وتحقق من كل حمولة. تُرفض الوجهات الموجودة والتغييرات الموضعية وHFS+ والبيانات الوصفية وشوكات الموارد.",
+    "Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.": "يتطلب الإدراج المتحكم به في NTFS/EXT/HFS الكلاسيكي صورة مصدر وصورة وجهة جديدة ومسارات ملفات محلية.",
+})
+CATALOG["ja"].update({
+    "Inject files safely into new NTFS/EXT/classic HFS image…": "新しい NTFS/EXT/クラシック HFS イメージへ安全にファイルを追加…",
+    "Safe NTFS/EXT/classic HFS injection": "安全な NTFS/EXT/クラシック HFS ファイル追加",
+    "Classic HFS copies raw data forks only; HFS+ remains read-only.": "クラシック HFS では生データフォークのみをコピーします。HFS+ は読み取り専用のままです。",
+    "Creating verified NTFS/EXT/classic HFS output": "検証済み NTFS/EXT/クラシック HFS 出力を作成中",
+    "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing. Classic HFS copies raw data forks only; HFS+ remains read-only.": "この操作では開いているイメージを変更しません。別の出力を作成し、ルートディレクトリの通常ファイルだけを受け付け、上書きを拒否して、書き込み後に各ファイルを検証します。クラシック HFS では生データフォークのみをコピーします。HFS+ は読み取り専用のままです。",
+    "Inject safely into new classic HFS image": "新しいクラシック HFS イメージへ安全に追加",
+    "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.": "独立したクラシック HFS イメージを新しい出力へコピーし、ルートに新しい生データフォークファイルを追加して各ペイロードを検証します。既存の出力先、インプレース変更、HFS+、メタデータ、リソースフォークは拒否されます。",
+    "Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.": "制御済み NTFS/EXT/クラシック HFS 注入には、ソースイメージ、新しい出力イメージ、ローカルファイルパスが必要です。",
+})
 TRANSLATABLE = _catalog_keys()

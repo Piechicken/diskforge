@@ -15,7 +15,7 @@ def test_batch_preview_rejects_empty_controlled_injection_sources(tmp_path: Path
     recipe = tmp_path / "invalid.json"
     recipe.write_text(json.dumps({
         "schema": "diskforge.batch/v4",
-        "operations": [{"kind": "ntfs_inject", "source": "source.ntfs", "destination": "output.ntfs", "sources": []}],
+        "operations": [{"kind": "hfs_inject", "source": "source.hfs", "destination": "output.hfs", "sources": []}],
     }), encoding="utf-8")
 
     with pytest.raises(DiskForgeError, match="non-empty string list"):
@@ -34,6 +34,29 @@ def test_batch_v4_ntfs_inject_creates_new_verified_output(tmp_path: Path) -> Non
     recipe.write_text(json.dumps({
         "schema": "diskforge.batch/v4",
         "operations": [{"kind": "ntfs_inject", "source": str(source), "destination": str(output), "sources": [str(payload)]}],
+    }), encoding="utf-8")
+
+    preview = BatchRunner().preview(recipe)
+    result = BatchRunner().run(recipe)
+
+    assert preview[0]["will_write"] is True
+    assert result.succeeded == 1
+    assert output.is_file()
+    assert sha256_file(source) == before
+
+
+@pytest.mark.skipif(not all(shutil.which(tool) for tool in ("hformat", "hmount", "hcopy", "hls")), reason="optional hfsutils tools unavailable")
+def test_batch_v4_hfs_inject_creates_new_verified_output(tmp_path: Path) -> None:
+    source, output, payload = tmp_path / "source.hfs", tmp_path / "output.hfs", tmp_path / "PAYLOAD.TXT"
+    source.write_bytes(b"\0" * (800 * 1024))
+    payload.write_bytes(b"Batch classic HFS payload\n")
+    subprocess.run(["hformat", "-l", "DISKFORGE", str(source)], check=True,
+                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    before = sha256_file(source)
+    recipe = tmp_path / "hfs.json"
+    recipe.write_text(json.dumps({
+        "schema": "diskforge.batch/v4",
+        "operations": [{"kind": "hfs_inject", "source": str(source), "destination": str(output), "sources": [str(payload)]}],
     }), encoding="utf-8")
 
     preview = BatchRunner().preview(recipe)

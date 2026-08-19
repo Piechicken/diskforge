@@ -109,6 +109,7 @@ class OperationKind(str, Enum):
     ISO_EDIT = "iso_edit"
     NTFS_INJECT = "ntfs_inject"
     EXT_INJECT = "ext_inject"
+    HFS_INJECT = "hfs_inject"
 
 
 @dataclass(frozen=True)

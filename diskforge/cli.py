@@ -13,6 +13,7 @@ from .core.bundle import create_bundle, extract_bundle, inspect_bundle
 from .core.compare import compare_streams
 from .core.deployment import prepare_fat_deployment
 from .core.ext_inject import ExtFileInjector
+from .core.hfs_inject import HfsFileInjector
 from .core.device_queue import DeviceReadRequest, read_device_queue
 from .core.devices import (backup_device_mbr, compare_image_with_device, format_removable_fat,
                            neutralize_device_mbr, restore_device_mbr)
@@ -93,6 +94,14 @@ def parser() -> argparse.ArgumentParser:
     inject_ext.add_argument("sources", type=Path, nargs="+")
     inject_ext.add_argument("--debugfs", help="Optional explicit debugfs executable")
     inject_ext.add_argument("--e2fsck", help="Optional explicit e2fsck executable")
+
+    inject_hfs = commands.add_parser("inject-hfs", help="Copy regular local files into a new standalone classic HFS image output")
+    inject_hfs.add_argument("source", type=Path)
+    inject_hfs.add_argument("destination", type=Path)
+    inject_hfs.add_argument("sources", type=Path, nargs="+")
+    inject_hfs.add_argument("--hmount", help="Optional explicit hmount executable")
+    inject_hfs.add_argument("--hcopy", help="Optional explicit hcopy executable")
+    inject_hfs.add_argument("--hls", help="Optional explicit hls executable")
 
     rename = commands.add_parser("rename", help="Rename one FAT image entry")
     rename.add_argument("image", type=Path)
@@ -208,6 +217,10 @@ def parser() -> argparse.ArgumentParser:
     ext_status = commands.add_parser("ext-inject-status", help="Show optional controlled EXT injection capability")
     ext_status.add_argument("--debugfs", help="Optional explicit debugfs executable")
     ext_status.add_argument("--e2fsck", help="Optional explicit e2fsck executable")
+    hfs_status = commands.add_parser("hfs-inject-status", help="Show optional controlled classic HFS injection capability")
+    hfs_status.add_argument("--hmount", help="Optional explicit hmount executable")
+    hfs_status.add_argument("--hcopy", help="Optional explicit hcopy executable")
+    hfs_status.add_argument("--hls", help="Optional explicit hls executable")
     dmg_status = commands.add_parser("dmg-adapter-status", help="Show optional read-only DMG conversion adapter capability")
     mount_status = commands.add_parser("mount-status", help="Show controlled read-only image mount capability")
     mount_image = commands.add_parser("mount-image", help="Mount an image read-only and write a mount-session JSON file")
@@ -491,6 +504,15 @@ def main(argv: list[str] | None = None) -> int:
                 "source_sha256": result.source_sha256, "target_paths": list(result.target_paths),
                 "payload_sha256": list(result.payload_sha256),
             }, str(result.destination))
+        elif args.command == "inject-hfs":
+            result = HfsFileInjector(args.hmount, args.hcopy, args.hls).inject(
+                args.source, args.destination, args.sources, progress=progress,
+            )
+            _emit(args, {
+                "source": str(result.source), "destination": str(result.destination),
+                "source_sha256": result.source_sha256, "target_paths": list(result.target_paths),
+                "payload_sha256": list(result.payload_sha256),
+            }, str(result.destination))
         elif args.command == "rename":
             fs = _filesystem(args.image, writable=True, partition_index=args.partition)
             try:
@@ -623,6 +645,8 @@ def main(argv: list[str] | None = None) -> int:
             _emit(args, NtfsFileInjector(args.ntfscp, args.ntfsls, args.ntfscat).capability_report().as_mapping())
         elif args.command == "ext-inject-status":
             _emit(args, ExtFileInjector(args.debugfs, args.e2fsck).capability_report().as_mapping())
+        elif args.command == "hfs-inject-status":
+            _emit(args, HfsFileInjector(args.hmount, args.hcopy, args.hls).capability_report().as_mapping())
         elif args.command == "dmg-adapter-status":
             _emit(args, Dmg2ImgConverter().capability_report().as_mapping())
         elif args.command == "mount-status":

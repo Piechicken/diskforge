@@ -85,7 +85,7 @@ def test_batch_designer_rejects_raw_device_recipe() -> None:
         BatchDesignerDialog(recipe={"schema": "diskforge.batch/v3", "operations": [{"kind": "write_device"}]})
 
 
-@pytest.mark.parametrize("kind", ["ntfs_inject", "ext_inject"])
+@pytest.mark.parametrize("kind", ["ntfs_inject", "ext_inject", "hfs_inject"])
 def test_batch_designer_serializes_controlled_filesystem_injection(tmp_path: Path, kind: str) -> None:
     _application()
     source = tmp_path / f"source.{kind}"

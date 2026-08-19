@@ -367,7 +367,7 @@ def test_legacy_img_ima_floppy_workflow_is_translated_in_every_non_english_local
 
 
 
-def test_controlled_ntfs_ext_injection_is_translated_in_every_non_english_locale() -> None:
+def test_controlled_filesystem_injection_is_translated_in_every_non_english_locale() -> None:
     from diskforge.gui.i18n import CATALOG
 
     required = {
@@ -378,6 +378,11 @@ def test_controlled_ntfs_ext_injection_is_translated_in_every_non_english_locale
         "Select regular local files",
         "Save verified output image",
         "Creating verified NTFS/EXT output",
+        "Inject files safely into new NTFS/EXT/classic HFS image…",
+        "Safe NTFS/EXT/classic HFS injection",
+        "Classic HFS copies raw data forks only; HFS+ remains read-only.",
+        "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing. Classic HFS copies raw data forks only; HFS+ remains read-only.",
+        "Creating verified NTFS/EXT/classic HFS output",
     }
     for language in LANGUAGES:
         if language.code == "en":
@@ -397,6 +402,9 @@ def test_batch_designer_controlled_injection_is_translated_in_every_non_english_
         "Copy a standalone NTFS image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.",
         "Copy a standalone EXT image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.",
         "Controlled NTFS/EXT injection requires a source image, new destination image, and local file paths.",
+        "Inject safely into new classic HFS image",
+        "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.",
+        "Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.",
     }
     for language in LANGUAGES:
         if language.code == "en":
