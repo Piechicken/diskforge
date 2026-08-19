@@ -30,7 +30,8 @@ def test_explicit_dmg_adapter_writes_a_new_output_without_overwrite(tmp_path: Pa
             "shift\r\n"
             "goto loop\r\n"
             ":done\r\n"
-            "> \"%out%\" <nul set /p =converted\r\n",
+            "> \"%out%\" <nul set /p =converted\r\n"
+            "exit /b 0\r\n",
             encoding="utf-8",
         )
     else:
