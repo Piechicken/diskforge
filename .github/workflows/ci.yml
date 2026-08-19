@@ -32,6 +32,9 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      - name: Install Linux Qt offscreen runtime
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y --no-install-recommends libegl1
       - name: Install project
         run: python -m pip install --upgrade pip "setuptools>=69,<80" && python -m pip install -e ".[dev]"
       - name: Run core tests
