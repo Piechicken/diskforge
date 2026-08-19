@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 from diskforge.core.devices import _linux_devices, _macos_devices, _windows_devices
@@ -49,3 +50,28 @@ def test_windows_cdrom_device_is_marked_optical(monkeypatch) -> None:  # type: i
     assert len(devices) == 1
     assert devices[0].kind == DeviceKind.OPTICAL
     assert devices[0].removable
+
+
+def test_linux_removable_generic_scsi_node_is_exposed_only_when_sysfs_maps_it(monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    payload = {
+        "blockdevices": [{
+            "name": "sdb", "path": "/dev/sdb", "size": "1474560", "type": "disk", "rm": True,
+            "mountpoints": [], "model": "USB floppy",
+        }],
+    }
+    sysfs_root = tmp_path / "sys" / "class" / "scsi_generic"
+    (sysfs_root / "sg4" / "device" / "block" / "sdb").mkdir(parents=True)
+    original_glob = Path.glob
+
+    def glob(path, pattern):  # type: ignore[no-untyped-def]
+        if str(path) == "/sys/class/scsi_generic" and pattern == "sg*":
+            return [sysfs_root / "sg4"]
+        return original_glob(path, pattern)
+
+    monkeypatch.setattr("diskforge.core.devices.subprocess.run", lambda *args, **kwargs: SimpleNamespace(stdout=json.dumps(payload)))
+    monkeypatch.setattr("diskforge.core.devices.Path.glob", glob)
+    devices = _linux_devices()
+    assert [(item.identifier, item.removable, item.kind) for item in devices] == [
+        ("/dev/sdb", True, DeviceKind.REMOVABLE),
+        ("/dev/sg4", True, DeviceKind.REMOVABLE),
+    ]

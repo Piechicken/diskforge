@@ -226,6 +226,26 @@ def _linux_devices() -> list[DeviceInfo]:
             visit(child, system_disk)
     for item in records:
         visit(item)
+
+    # `ufiformat` needs a generic-SCSI node rather than the corresponding
+    # `/dev/sdX` block node.  Only surface such a node when sysfs binds it to a
+    # removable block device already discovered above; the formatter must still
+    # run `ufiformat -i` and reject any device that does not prove to be UFI.
+    by_identifier = {item.identifier: item for item in result}
+    for generic in Path("/sys/class/scsi_generic").glob("sg*"):
+        block_nodes = list((generic / "device" / "block").glob("*"))
+        for block_node in block_nodes:
+            parent = by_identifier.get(f"/dev/{block_node.name}")
+            if parent is None or not parent.removable:
+                continue
+            identifier = f"/dev/{generic.name}"
+            if identifier not in by_identifier:
+                result.append(DeviceInfo(identifier, f"{parent.display_name} — generic SCSI UFI probe",
+                                         parent.size, DeviceKind.REMOVABLE, removable=True,
+                                         mounted=parent.mounted, mountpoints=parent.mountpoints,
+                                         model=parent.model, system_disk=parent.system_disk))
+                by_identifier[identifier] = result[-1]
+            break
     return result
 
 
