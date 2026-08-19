@@ -61,6 +61,7 @@ DiskForge brings the most useful image-management workflows into one original, a
 | Annotate and resize | Non-invasive image comments and safe new-file RAW/FAT resize | Raw images refuse shrinking if non-zero tail bytes would be discarded. |
 | Build redistributable bundles | Authenticated multi-image `.dfb` containers and SHA-256-verified multi-image self-extracting `.pyz` archives | `.dfb` supports optional scrypt-derived AES-256-GCM encryption, compression, comments, and per-file verification. |
 | Read and write physical media | Streamed device imaging and restoration | Rejects system disks, mounted targets, and capacity mismatches; typed confirmation is required. Detected optical media are read-only and export to ISO by default. |
+| Low-level floppy formatting | Linux controller floppy and detected UFI USB floppy backends | `fdformat` is limited to standard controller nodes. A UFI USB candidate must be sysfs-associated with removable media, prove itself through `ufiformat -i`, use an explicitly reported capacity and the `FORMAT_FLOPPY` phrase, and is always verified with `-V`. FAT creation remains a separate, newly confirmed operation; real hardware acceptance is still required for each drive model. |
 
 ## Safety first
 
@@ -133,7 +134,7 @@ QT_QPA_PLATFORM=offscreen python scripts/gui_smoke.py
 QT_QPA_PLATFORM=offscreen python scripts/gui_i18n_smoke.py
 ```
 
-Read [BUILDING.md](docs/BUILDING.md) for build and release details, [API.md](docs/API.md) for the stable Python integration facade, and [COMPLETION_ACCEPTANCE.md](docs/COMPLETION_ACCEPTANCE.md) for the auditable convergence boundary. The visual smoke-test note is available in [gui_validation.md](artifacts/gui_validation.md).
+Read [BUILDING.md](docs/BUILDING.md) for build and release details, [API.md](docs/API.md) for the stable Python integration facade, [VALIDATION.md](docs/VALIDATION.md) for optional real-filesystem and UFI hardware acceptance, and [COMPLETION_ACCEPTANCE.md](docs/COMPLETION_ACCEPTANCE.md) for the auditable convergence boundary. The visual smoke-test note is available in [gui_validation.md](artifacts/gui_validation.md).
 
 ## Contributing
 

@@ -55,6 +55,7 @@ DiskForge は実用的なイメージ管理の流れを一つの UI に統合し
 | 検証と自動化 | SHA-256、完全操作対応グラフィカルレシピスタジオ、事前計画、項目ごとの結果確認、JSON バッチ、監査可能なログ | デザイナーは変換、検証、比較、サイズ変更、注入、抽出、コンテナー操作のレシピを作成、再読込、編集します。`--dry-run` は変更前に操作を確認し、無人バッチは物理デバイスへの書き込みを拒否します。 |
 | 再配布用アーカイブ | 認証付き `.dfb` コンテナーと SHA-256 検証付き複数イメージ自己展開 `.pyz` | `.dfb` は任意の AES-256-GCM 暗号化、圧縮、コメント、項目ごとの検証に対応します。 |
 | 物理メディアの読書き | ストリーミングによる取得と復元 | システムディスク、マウント済みターゲット、容量不一致を拒否し、入力確認を求めます。検出された光学メディアは読み取り専用で、既定で ISO に出力されます。 |
+| 低レベルフロッピーフォーマット | Linux コントローラーフロッピーおよび検出済み UFI USB フロッピーバックエンド | `fdformat` は標準コントローラーノードに限定されます。UFI USB 候補は sysfs によりリムーバブルメディアへ関連付けられ、`ufiformat -i` で識別され、報告された容量を明示選択して `FORMAT_FLOPPY` を入力する必要があります。常に `-V` で検証します。FAT 作成は再確認を要する別操作であり、各ドライブモデルには実機受入試験が必要です。 |
 
 ## 安全性を最優先
 
@@ -118,7 +119,7 @@ QT_QPA_PLATFORM=offscreen pytest
 QT_QPA_PLATFORM=offscreen python scripts/gui_smoke.py
 ```
 
-構築とリリースの詳細は [BUILDING.md](docs/BUILDING.md) を参照してください。GUI スモークテストの記録は [gui_validation.md](artifacts/gui_validation.md) にあります。
+構築とリリースの詳細は [BUILDING.md](docs/BUILDING.md)、実ファイルシステムと UFI ハードウェアの任意受入手順は [VALIDATION.md](docs/VALIDATION.md) を参照してください。GUI スモークテストの記録は [gui_validation.md](artifacts/gui_validation.md) にあります。
 
 ## コントリビューション
 

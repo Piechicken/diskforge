@@ -55,6 +55,7 @@ DiskForge reúne los flujos de trabajo más prácticos para gestionar imágenes 
 | Verificar y automatizar | SHA-256, estudio gráfico de recetas completas, plan de preflight, revisión de resultados por elemento y recetas JSON | El diseñador crea, reabre y edita recetas de conversión, validación, comparación, cambio de tamaño, inyección, extracción y contenedores. `--dry-run` permite revisar acciones sin cambios; las recetas no atendidas rechazan escrituras a dispositivos físicos. |
 | Crear paquetes redistribuibles | Contenedores `.dfb` autenticados y archivos autoextraíbles `.pyz` multiimagen verificados con SHA-256 | Los contenedores admiten cifrado AES-256-GCM opcional, compresión, comentarios y verificación por archivo. |
 | Leer y escribir medios físicos | Lectura y restauración en flujo | Rechaza discos del sistema, destinos montados y tamaños incompatibles; requiere confirmación escrita. Los medios ópticos detectados son de solo lectura y se exportan a ISO por defecto. |
+| Formateo de disquete de bajo nivel | Disquete de controlador Linux y backends de disquete USB UFI detectados | `fdformat` se limita a nodos de controlador estándar. Un candidato USB UFI debe estar asociado por sysfs a un medio extraíble, identificarse mediante `ufiformat -i`, usar una capacidad indicada explícitamente y la frase `FORMAT_FLOPPY`; siempre se verifica con `-V`. La creación de FAT sigue siendo una operación independiente con nueva confirmación; cada modelo requiere aceptación con hardware real. |
 
 ## Seguridad primero
 

@@ -55,6 +55,7 @@ DiskForge 将专业映像管理流程整合到统一界面。主窗口包含映�
 | 校验与自动化 | SHA-256、图形全操作配方编辑器、预演计划、逐项结果审阅、JSON 批处理、可审计日志 | 图形设计器可新建、重新打开和编辑转换、校验、比较、缩放、注入、提取和容器操作配方；`--dry-run` 可在不改动任何文件或设备前审阅操作，无人值守批处理会明确拒绝物理设备写入。 |
 | 再分发归档 | 经身份验证的 `.dfb` 容器和带 SHA-256 校验的多映像自解压 `.pyz` 归档 | `.dfb` 支持可选 AES-256-GCM 加密、压缩、注释及逐项校验。 |
 | 读写物理介质 | 流式读取与恢复 | 拒绝系统盘、已挂载目标和容量不匹配设备；必须输入确认短语。检测到的光学介质为只读，并默认导出为 ISO。 |
+| 低级软盘格式化 | Linux 控制器软盘与已探测 UFI USB 软驱后端 | `fdformat` 仅用于标准控制器节点。UFI USB 候选必须由 sysfs 关联到可移动介质、通过 `ufiformat -i` 证明设备身份、从报告的容量中明确选择一种并输入 `FORMAT_FLOPPY`；命令始终使用 `-V` 验证。创建 FAT 文件系统仍是需要再次确认的独立操作；每种软驱型号仍需真实硬件验收。 |
 
 ## 安全设计
 
@@ -118,7 +119,7 @@ QT_QPA_PLATFORM=offscreen pytest
 QT_QPA_PLATFORM=offscreen python scripts/gui_smoke.py
 ```
 
-详细构建与发布说明参阅 [BUILDING.md](docs/BUILDING.md)。界面冒烟验证记录参阅 [gui_validation.md](artifacts/gui_validation.md)。
+详细构建与发布说明参阅 [BUILDING.md](docs/BUILDING.md)，真实文件系统与 UFI 硬件的可选验收步骤参阅 [VALIDATION.md](docs/VALIDATION.md)。界面冒烟验证记录参阅 [gui_validation.md](artifacts/gui_validation.md)。
 
 ## 参与贡献
 
