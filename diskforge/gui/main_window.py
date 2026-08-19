@@ -383,11 +383,15 @@ class DeviceDialog(QDialog):
         format_floppy = QPushButton("Format controller floppy")
         format_floppy.setStyleSheet("font-weight: 700; color: #B42318;")
         format_floppy.clicked.connect(self._format_controller_floppy)
+        format_ufi_floppy = QPushButton("Format UFI USB floppy")
+        format_ufi_floppy.setStyleSheet("font-weight: 700; color: #B42318;")
+        format_ufi_floppy.clicked.connect(self._format_ufi_floppy)
         actions.addWidget(backup_mbr)
         actions.addWidget(neutralize_mbr)
         actions.addWidget(restore_mbr)
         actions.addWidget(format_fat)
         actions.addWidget(format_floppy)
+        actions.addWidget(format_ufi_floppy)
         actions.addStretch()
         actions.addWidget(close)
         layout.addLayout(actions)
@@ -464,6 +468,26 @@ class DeviceDialog(QDialog):
             return
         self.done(16)
         self.setProperty("operation", ("format_controller_floppy", device, self.floppy_phrase.text()))
+
+    def _format_ufi_floppy(self) -> None:
+        device = self._selected()
+        if not device:
+            return
+        if self.floppy_phrase.text() != "FORMAT_FLOPPY":
+            QMessageBox.warning(self, "Confirmation required", "Type FORMAT_FLOPPY exactly before UFI USB floppy formatting.")
+            return
+        try:
+            discovery = FloppyControllerFormatter().discover_usb(device)
+        except DiskForgeError as exc:
+            QMessageBox.warning(self, "UFI USB floppy unavailable", str(exc))
+            return
+        values = [str(capacity) for capacity in discovery.supported_capacities]
+        selected, accepted = QInputDialog.getItem(self, "Select UFI USB floppy capacity",
+                                                   "Choose exactly one capacity reported by the device:", values, 0, False)
+        if not accepted or not selected:
+            return
+        self.done(17)
+        self.setProperty("operation", ("format_ufi_floppy", device, int(selected), self.floppy_phrase.text()))
 
     def _format_removable_fat(self) -> None:
         device = self._selected()
@@ -2143,6 +2167,10 @@ class MainWindow(QMainWindow):
             _, device, phrase = operation
             self._run_worker("Formatting controller floppy", FloppyControllerFormatter().format, device, phrase,
                              on_result=lambda result: QMessageBox.information(self, "Controller floppy formatted", "Low-level format completed with backend verification."))
+        elif operation[0] == "format_ufi_floppy":
+            _, device, capacity, phrase = operation
+            self._run_worker("Formatting UFI USB floppy", FloppyControllerFormatter().format_usb, device, capacity, phrase,
+                             on_result=lambda result: QMessageBox.information(self, "UFI USB floppy formatted", "Low-level UFI formatting completed with backend verification."))
         elif operation[0] == "format_removable_fat":
             _, device, filesystem, label, phrase = operation
             self._run_worker("Formatting removable FAT media", format_removable_fat, device, filesystem, label, phrase,
