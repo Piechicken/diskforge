@@ -94,12 +94,17 @@ class ExtFileInjector:
                 process.communicate()
 
     @staticmethod
-    def _target_path(payload: Path) -> str:
+    def _target_name(name: str) -> str:
+        """Validate a target basename without relying on host filename rules."""
+        if not _SAFE_NAME.fullmatch(name):
+            raise DiskForgeError("EXT payload filename must use only ASCII letters, digits, dot, underscore, or hyphen.")
+        return "/" + name
+
+    @classmethod
+    def _target_path(cls, payload: Path) -> str:
         if not payload.is_file() or payload.is_symlink():
             raise DiskForgeError("EXT injection accepts regular local files only.")
-        if not _SAFE_NAME.fullmatch(payload.name):
-            raise DiskForgeError("EXT payload filename must use only ASCII letters, digits, dot, underscore, or hyphen.")
-        return "/" + payload.name
+        return cls._target_name(payload.name)
 
     @staticmethod
     def _validate_source(source: Path) -> None:

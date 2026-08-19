@@ -24,13 +24,9 @@ def test_ext_injector_reports_missing_optional_backend_and_refuses_use(tmp_path:
 
 
 @pytest.mark.parametrize("name", ["spaces are unsafe.txt", "semi;colon.txt", "pipe|name", ".hidden"])
-def test_ext_injector_rejects_command_unsafe_payload_names(tmp_path: Path, name: str) -> None:
-    payload = tmp_path / name
-    payload.parent.mkdir(parents=True, exist_ok=True)
-    payload.write_text("payload", encoding="utf-8")
-
+def test_ext_injector_rejects_command_unsafe_payload_names(name: str) -> None:
     with pytest.raises(DiskForgeError):
-        ExtFileInjector._target_path(payload)
+        ExtFileInjector._target_name(name)
 
 
 @pytest.mark.skipif(not all(shutil.which(tool) for tool in _EXT_TOOLS), reason="optional e2fsprogs tools unavailable")

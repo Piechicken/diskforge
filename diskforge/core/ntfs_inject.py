@@ -143,10 +143,8 @@ class NtfsFileInjector:
                 process.stderr.close()
 
     @staticmethod
-    def _target_path(payload: Path) -> str:
-        if not payload.is_file() or payload.is_symlink():
-            raise DiskForgeError("NTFS injection accepts regular local files only.")
-        name = payload.name
+    def _target_name(name: str) -> str:
+        """Validate a target basename without relying on host filename rules."""
         stem = name.split(".", 1)[0].upper()
         if not name or name in {".", ".."} or name[-1:] in {" ", "."}:
             raise DiskForgeError("NTFS payload names cannot be empty or end in a space or dot.")
@@ -155,6 +153,12 @@ class NtfsFileInjector:
         if stem in _WINDOWS_RESERVED:
             raise DiskForgeError("NTFS payload name is reserved by Windows.")
         return "/" + name
+
+    @classmethod
+    def _target_path(cls, payload: Path) -> str:
+        if not payload.is_file() or payload.is_symlink():
+            raise DiskForgeError("NTFS injection accepts regular local files only.")
+        return cls._target_name(payload.name)
 
     @staticmethod
     def _validate_source(source: Path) -> None:

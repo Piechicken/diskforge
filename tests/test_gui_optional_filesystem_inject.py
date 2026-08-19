@@ -8,25 +8,19 @@ import pytest
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 from diskforge.core.formats import inspect_image
+from diskforge.core.models import FileSystemType, ImageFormat, ImageInfo
 from diskforge.gui import main_window as window_module
 from diskforge.gui.main_window import MainWindow
 
 
-@pytest.mark.parametrize("filesystem", ["ntfs", "ext"])
-def test_gui_controlled_inject_action_is_enabled_only_for_ntfs_or_ext(qtbot, tmp_path: Path, filesystem: str) -> None:  # type: ignore[no-untyped-def]
-    image = tmp_path / f"source.{filesystem}"
-    if filesystem == "ntfs":
-        image.write_bytes(b"\0" * (64 * 1024 * 1024))
-        subprocess.run(["mkntfs", "-F", "-Q", "-s", "512", "-S", "63", "-H", "16", "-p", "0", str(image)], check=True,
-                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    else:
-        image.write_bytes(b"\0" * (64 * 1024 * 1024))
-        subprocess.run(["mke2fs", "-q", "-t", "ext4", "-F", str(image)], check=True,
-                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+@pytest.mark.parametrize("filesystem", [FileSystemType.NTFS, FileSystemType.EXT])
+def test_gui_controlled_inject_action_is_enabled_only_for_ntfs_or_ext(qtbot, tmp_path: Path, filesystem: FileSystemType) -> None:  # type: ignore[no-untyped-def]
+    image = tmp_path / f"source.{filesystem.value.lower()}"
+    image.write_bytes(b"\0")
     window = MainWindow()
     qtbot.addWidget(window)
     window.current_path = image
-    window.current_info = inspect_image(image)
+    window.current_info = ImageInfo(image, ImageFormat.IMG, image.stat().st_size, filesystem=filesystem)
     window.current_fs = None
     window._update_action_state()
 

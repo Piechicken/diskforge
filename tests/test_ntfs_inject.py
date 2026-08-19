@@ -24,12 +24,9 @@ def test_ntfs_injector_reports_missing_optional_backend_and_refuses_use(tmp_path
 
 
 @pytest.mark.parametrize("name", ["CON", "report?.txt", "trailing.", "trailing "])
-def test_ntfs_injector_rejects_windows_unsafe_payload_names(tmp_path: Path, name: str) -> None:
-    payload = tmp_path / name
-    payload.write_text("payload", encoding="utf-8")
-
+def test_ntfs_injector_rejects_windows_unsafe_payload_names(name: str) -> None:
     with pytest.raises(DiskForgeError):
-        NtfsFileInjector._target_path(payload)
+        NtfsFileInjector._target_name(name)
 
 
 @pytest.mark.skipif(not all(shutil.which(tool) for tool in _NTFS_TOOLS), reason="optional ntfsprogs tools unavailable")
