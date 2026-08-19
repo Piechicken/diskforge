@@ -364,3 +364,43 @@ def test_legacy_img_ima_floppy_workflow_is_translated_in_every_non_english_local
         translated = CATALOG[language.code]
         assert required <= set(translated)
         assert all(translated[source] != source for source in required)
+
+
+
+def test_controlled_ntfs_ext_injection_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inject files safely into new NTFS/EXT image…",
+        "Optional backend unavailable",
+        "Safe NTFS/EXT injection",
+        "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing.",
+        "Select regular local files",
+        "Save verified output image",
+        "Creating verified NTFS/EXT output",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+
+def test_batch_designer_controlled_injection_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inject safely into new NTFS image",
+        "Inject safely into new EXT image",
+        "Copy a standalone NTFS image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.",
+        "Copy a standalone EXT image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.",
+        "Controlled NTFS/EXT injection requires a source image, new destination image, and local file paths.",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)

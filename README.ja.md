@@ -56,11 +56,11 @@ DiskForge は実用的なイメージ管理の流れを一つの UI に統合し
 |---|---|---|
 | イメージ作成 | RAW/IMG/IMA、FAT12、FAT16、FAT32、検証済み旧式 FAT12 フロッピープロファイル、DMF レイアウト FAT12、ISO9660/Joliet/Rock Ridge/UDF | 編集可能な FAT、明示的な IMG/IMA プロファイルまたは対応カスタム CHS、DMF、任意の El Torito ブートメディア付き ISO を作成できます。 |
 | 閲覧と抽出 | 検証済みの表示ラベルなし旧式 DOS フロッピーを含む FAT12/16/32、ISO9660/Joliet、固定 VHD データビュー、任意の NTFS/EXT 読み取り専用バックエンド | ツリーと表は決定的なページングと並べ替えキャッシュを使用します。ダブルクリックすると、テキスト、画像、一般的なアーカイブ、旧式パッケージ、実行ファイル、バイナリデータ用の非実行文書ワークスペースが開きます。テキストは検索、コピー保存ができ、書き込み可能な FAT 項目だけ編集してイメージへ保存し戻せます。固定 VHD はフッターを除く一時 RAW 読み取り専用ビューで開きます。 |
-| 内容の変更 | FAT ファイル/フォルダーの注入、削除、時刻変更、安全な再構築式 ISO 編集 | FAT IMG と IMA は同じ編集ワークフローを共有します。ISO 編集は常に新規イメージを出力し、内容を検証して Rock Ridge/UDF を維持します。検証済み単一初期 El Torito エントリのみ保持し、複数ブート、ハイブリッド、曖昧な構成は拒否します。 |
+| 内容の変更 | FAT ファイル/フォルダーの注入、削除、時刻変更、安全な再構築式 ISO 編集、任意の制御済み NTFS/EXT 注入 | FAT IMG と IMA は同じ編集ワークフローを共有します。ISO 編集は常に新規イメージを出力し、内容を検証して Rock Ridge/UDF を維持します。検証済み単一初期 El Torito エントリのみ保持し、複数ブート、ハイブリッド、曖昧な構成は拒否します。`ntfsprogs` または `e2fsprogs` が明示的に利用可能な場合、NTFS/EXT は検証済みの独立出力イメージのルートへ新しい通常ファイルだけを追加できます。元イメージ、パーティションオフセット、メタデータ、名前変更、削除、上書きは許可されません。 |
 | 形式変換 | RAW/IMG/IMA と固定 VHD をネイティブ変換 | IMG と IMA は明示的に選択した拡張子を保持します。VHDX、VMDK、QCOW2 は明示的に設定した `qemu-img` アダプターを使用します。 |
 | FAT のコンパクト化 | 再構築方式のデフラグ | 元のイメージを保持したまま、新しいイメージを書き出します。 |
 | 構造とブートの検査 | 512 バイトの 16 進ビュー/編集、FAT BPB、オリジナルテンプレート、中立 MBR と展開計画、末尾ゼロセクター、El Torito カタログ | テンプレートは BPB を保持し外部ブートコードを含みません。保護操作はバックアップを作成し、出力は新規ファイルです。 |
-| 検証と自動化 | SHA-256、完全操作対応グラフィカルレシピスタジオ、事前計画、項目ごとの結果確認、JSON バッチ、監査可能なログ | デザイナーは変換、検証、比較、サイズ変更、注入、抽出、コンテナー操作のレシピを作成、再読込、編集します。`--dry-run` は変更前に操作を確認し、無人バッチは物理デバイスへの書き込みを拒否します。 |
+| 検証と自動化 | SHA-256、完全操作対応グラフィカルレシピスタジオ、事前計画、項目ごとの結果確認、JSON バッチ、監査可能なログ | スキーマ v4 は `iso_edit`、`ntfs_inject`、`ext_inject` を追加します。デザイナーは変換、検証、比較、サイズ変更、注入、抽出、コンテナー操作のレシピを作成、再読込、編集します。`--dry-run` は変更前に操作を確認し、無人バッチは物理デバイスへの書き込みを拒否します。 |
 | 再配布用アーカイブ | 認証付き `.dfb` コンテナーと SHA-256 検証付き複数イメージ自己展開 `.pyz` | `.dfb` は任意の AES-256-GCM 暗号化、圧縮、コメント、項目ごとの検証に対応します。各ネイティブパッケージには、受信側で Python を事前インストールせずに `.pyz` ペイロードを検証・抽出できる独立した `DiskForgeExtractor` も含まれます。 |
 | 物理メディアの読書き | ストリーミングによる取得と復元 | システムディスク、マウント済みターゲット、容量不一致を拒否し、入力確認を求めます。検出された光学メディアは読み取り専用で、既定で ISO に出力されます。 |
 | 低レベルフロッピーフォーマット | Linux コントローラーフロッピーおよび検出済み UFI USB フロッピーバックエンド | `fdformat` は標準コントローラーノードに限定されます。UFI USB 候補は sysfs によりリムーバブルメディアへ関連付けられ、`ufiformat -i` で識別され、報告された容量を明示選択して `FORMAT_FLOPPY` を入力する必要があります。常に `-V` で検証します。FAT 作成は再確認を要する別操作であり、各ドライブモデルには実機受入試験が必要です。 |
@@ -91,6 +91,10 @@ diskforge-cli create-fat demo.img --size-mib 32 --fat 16
 diskforge-cli info demo.img
 diskforge-cli list demo.img
 diskforge-cli create-iso folder bootable.iso --boot-image boot.img --boot-media noemul
+diskforge-cli inject-ntfs standalone.ntfs revised.ntfs PAYLOAD.TXT
+diskforge-cli inject-ext standalone.ext4 revised.ext4 PAYLOAD.TXT
+diskforge-cli ntfs-inject-status
+diskforge-cli ext-inject-status
 diskforge-cli boot-templates
 diskforge-cli prepare-fat-deployment demo.img demo-deploy.img
 diskforge-cli batch recipe.json --dry-run
@@ -114,9 +118,11 @@ python scripts/build.py
 | ISO9660 / Joliet | 対応 | 読み取り・抽出 | フォルダーから作成 |
 | 固定 VHD | 対応 | 一時読み取り専用データビューと変換 | 対応 |
 | VHDX / VMDK / QCOW2 | アダプター設定時 | 変換ワークフロー経由 | アダプター設定時 |
-| NTFS / EXT / DMG | シグネチャまたはパーティション情報 | ネイティブ変更なし | 互換性のある外部ワークフローを使用 |
+| NTFS / EXT2 / EXT3 / EXT4 | シグネチャまたはパーティション情報 | 任意の Sleuth Kit による読み取り/一覧/抽出、設定済み `ntfsprogs` / `e2fsprogs` による新規出力への制御済み注入 | 外部バックエンド限定：offset-0 の独立ボリューム、ルートの新規通常ファイル、上書き拒否。元の SHA-256、読み戻し SHA-256、ファイルシステム検証が必須です。 |
+| HFS / HFS+ | シグネチャまたはパーティション情報 | 任意の Sleuth Kit による読み取り/一覧/データフォーク抽出 | 読み取り専用。ジャーナル付き HFS+ 書き込み、リソースフォーク再構築、ファイルシステム修復は非対応です。 |
+| DMG | シグネチャ情報 | ネイティブ変更なし | 互換性のある外部ワークフローを使用。 |
 
-DiskForge は、未対応の編集パスを隠したり安全でない書き込みを試みたりしません。仮想ディスクの変換には **Tools → Preferences** で `qemu-img` を設定してください。アプリケーションが外部コンバーターを黙ってダウンロードまたは実行することはありません。
+DiskForge は、未対応の編集パスを隠したり安全でない書き込みを試みたりしません。仮想ディスクの変換には **Tools → Preferences** で `qemu-img` を設定してください。NTFS/EXT の読み取り専用閲覧にはローカルの Sleuth Kit `fls` と `icat` が必要で、任意の制御済み注入には明示設定された `ntfscp`/`ntfsls`/`ntfscat` または `debugfs`/`e2fsck` が必要です。アプリケーションが外部ツールを黙ってダウンロード、マウント、実行することはありません。詳細は [FILESYSTEM_INJECTION.md](docs/FILESYSTEM_INJECTION.md) を参照してください。
 
 ## 品質とビルド
 

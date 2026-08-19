@@ -66,12 +66,18 @@ with client.filesystem("disk.img", partition_index=2, writable=False) as filesys
     print(filesystem.list_entries("/"))
 ```
 
-`replace_iso_file()` is intentionally narrower than generic ISO authoring. It only replaces one existing normal ISO file whose replacement has exactly the original logical size; it creates a different output file and verifies the reopened result. Rock Ridge and UDF ISO images are rejected by this safe first implementation.
+`replace_iso_file()` is intentionally narrower than generic ISO authoring. It only replaces one existing normal ISO file whose replacement has exactly the original logical size; it creates a different output file and verifies the reopened result. The desktop and CLI additionally expose a rebuild-based ISO editor that preserves verified Rock Ridge/UDF profiles and a verified single initial El Torito entry; it remains outside the stable SDK facade during API 1.1.
 
 A valid FAT IMA can be opened through `client.filesystem(..., writable=True)` just like a FAT IMG and can therefore be listed, extracted, injected, renamed, and otherwise edited through the same managed FAT session. The verified named legacy-floppy profile directory and custom-geometry validation are deliberately exposed by the desktop, CLI `create-legacy-floppy`, and `diskforge.core.legacy_floppy` service during this SDK version; they are not yet advertised as a stable `DiskForgeClient` method.
 
 ZIP-compatible legacy compressed images with `.imz` or `.wlz` extensions are recognized as **single-payload containers** only.
  DiskForge rejects encrypted, unsafe, non-Deflate/non-Stored, or multi-payload archives; a valid payload is materialized to a caller-owned temporary raw image for read-only browsing. The GUI and CLI can create or extract the same constrained container shape, but this does not claim support for undocumented proprietary extensions beyond that ZIP-compatible profile.
+
+## Optional controlled NTFS/EXT injection
+
+`DiskForgeClient.filesystem(..., writable=True)` remains **FAT-only**. The desktop, CLI, batch schema v4, and the explicit core adapters `diskforge.core.ntfs_inject.NtfsFileInjector` and `diskforge.core.ext_inject.ExtFileInjector` offer a separate optional workflow for NTFS/EXT. These adapters require already installed external tools, create a new standalone output file, and accept only new root-directory regular files. They SHA-256-check the source before and after, read back each payload for SHA-256 comparison, and validate the output filesystem before it is promoted. They deliberately reject physical devices, partition offsets, existing targets, folders, metadata, ACL/ADS work, rename, delete, and in-place writes.
+
+This is not an SDK-session mutation guarantee and is not a native cross-platform writer: hosts must explicitly provide `ntfscp`/`ntfsls`/`ntfscat` for NTFS or `debugfs`/`e2fsck` for EXT. See [FILESYSTEM_INJECTION.md](FILESYSTEM_INJECTION.md) for the exact contract, backend constraints, and citations.
 
 ## Read-only mount sessions
 

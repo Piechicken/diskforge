@@ -2,7 +2,7 @@
 
 All notable changes to DiskForge are documented in this file. The project uses semantic versioning for public releases.
 
-## v0.10.0.dev0 — Safe ISO Reconstruction and Legacy IMG/IMA Depth
+## v0.10.0.dev0 — Safe ISO Reconstruction, Legacy IMG/IMA Depth, and Controlled Filesystem Injection
 
 DiskForge v0.10.0.dev0 is an unreleased development checkpoint. It expands verified image-content workflows while preserving the principle that a byte-stream extension or a boot catalog is never treated as permission to make an unsafe or ambiguous modification.
 
@@ -13,14 +13,15 @@ DiskForge v0.10.0.dev0 is an unreleased development checkpoint. It expands verif
 | ISO command and batch closure | `edit-iso` is available in the CLI. Batch schema v4 adds declarative `iso_edit`, with preview-before-write and the same core safety guards. The desktop ISO action now describes its actual safe scope rather than implying that only plain ISO media is accepted. |
 | Legacy IMG/IMA creation | IMA is now a distinct first-class raw-image target, while retaining its flat-sector semantics. The desktop, CLI, batch conversion, and format selector support explicit IMG or IMA output. New verified FAT12 profiles cover conventional PC-compatible 5.25-inch and 3.5-inch 160 KB through 2.88 MB layouts, including DMF and 82-track layouts; custom supported CHS geometry is explicit. |
 | Legacy image editing | A valid FAT IMA follows the same native workflow as a FAT IMG: browse, internal preview, inject, delete, rename, adjust standard attributes, extract, hash, and convert. The UI offers the full profile directory, IMG/IMA selection, custom geometry, and complete seven-language labels. |
+| Controlled NTFS/EXT injection | Optional `ntfsprogs` and `e2fsprogs` adapters can add regular local files to a **new standalone output image**. The source remains SHA-256 unchanged; targets are root-only and must not exist; write-back is preflighted or undo-logged, read back, SHA-256 verified, and reopened/validated before promotion. Desktop, CLI, and batch v4 expose the same copy-on-write contract. |
 
 ### Development validation
 
-The current v0.10.0.dev0 checkpoint passes **239 tests**, has **3 explicitly skipped optional real-fixture tests**, and emits **zero warnings** under `QT_QPA_PLATFORM=offscreen pytest -W error`. The regression set includes standard/Rock Ridge/UDF ISO rebuilds, protected single-entry El Torito preservation and rejection boundaries, 15 legacy FAT12 profiles, IMG/IMA editing and conversion, desktop creation, CLI creation, batch IMA conversion, batch schema v4, and seven-language catalog coverage.
+The current v0.10.0.dev0 checkpoint passes **265 tests**, has **3 explicitly skipped optional real-fixture tests**, and emits **zero warnings** under `QT_QPA_PLATFORM=offscreen pytest -W error`. The regression set includes standard/Rock Ridge/UDF ISO rebuilds, protected single-entry El Torito preservation and rejection boundaries, 15 legacy FAT12 profiles, IMG/IMA editing and conversion, desktop creation, CLI creation, batch IMA conversion, batch schema v4, seven-language catalog coverage, and local optional `ntfsprogs`/`e2fsprogs` integration checks for controlled NTFS/EXT injection.
 
 ### Explicit boundaries
 
-v0.10.0.dev0 does **not** claim editable support for every historical floppy encoding. Flat-sector FAT creation supports 512, 1024, 2048, and 4096-byte sectors. 128/256-byte-sector media, GCR or variable-sector encodings, hard-sectored disks, copy-protected tracks, non-FAT filesystems, and flux/bitcell captures remain raw-byte inspection, preservation, checksum, and comparison workflows unless and until a separately validated track-level backend exists. NTFS/EXT/HFS/HFS+ writing also remains outside the native path.
+v0.10.0.dev0 does **not** claim editable support for every historical floppy encoding. Flat-sector FAT creation supports 512, 1024, 2048, and 4096-byte sectors. 128/256-byte-sector media, GCR or variable-sector encodings, hard-sectored disks, copy-protected tracks, non-FAT filesystems, and flux/bitcell captures remain raw-byte inspection, preservation, checksum, and comparison workflows unless and until a separately validated track-level backend exists. NTFS/EXT injection is **optional external-backend support**, not native or universal writing: it rejects partition-offset and physical-device paths, pre-existing targets, directories, metadata/ACL/ADS work, delete/rename, and all in-place writes. HFS/HFS+ remains read-only; no resource-fork reconstruction, journaled HFS+ write, or filesystem repair is claimed.
 
 ## v0.9.0 — Controlled Media Depth, Read-Only Reach, and Verifiable Delivery
 

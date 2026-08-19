@@ -56,11 +56,11 @@ DiskForge 将专业映像管理流程整合到统一界面。主窗口包含映�
 |---|---|---|
 | 创建映像 | RAW/IMG/IMA、FAT12、FAT16、FAT32、经过验证的老式 FAT12 软盘预设、DMF 布局 FAT12、ISO9660/Joliet/Rock Ridge/UDF | 可创建标准可编辑 FAT 映像、明确的 IMG/IMA 老式软盘预设或受支持自定义 CHS 几何、DMF 映像，以及含可选 El Torito 启动介质的 ISO。 |
 | 浏览与提取 | FAT12/16/32（包含经过验证的无显示标签旧式 DOS 软盘）、ISO9660/Joliet、固定 VHD 数据视图，以及可选 NTFS/EXT 只读后端 | 目录树和表格采用确定性分页与排序缓存，不会无界加载大目录。双击会打开无需系统默认程序的文档式工作区：文本可查找、另存副本，且仅在可写 FAT 条目中可编辑后保存回映像；图像、常见压缩包、传统安装包、可执行文件和二进制数据均以安全、不执行的方式检查。固定 VHD 以排除尾部元数据的临时 RAW 只读视图打开。 |
-| 修改映像内容 | FAT 文件/目录注入、删除、时间属性编辑；安全的 ISO 重建编辑 | FAT IMG 与 IMA 共享完整可编辑工作流。ISO 编辑始终输出新的重建映像并核验暂存内容，保留 Rock Ridge/UDF；仅可保留已验证的单初始 El Torito 条目，多启动、混合或歧义启动布局会被拒绝。 |
+| 修改映像内容 | FAT 文件/目录注入、删除、时间属性编辑；安全的 ISO 重建编辑；可选 NTFS/EXT 受控注入 | FAT IMG 与 IMA 共享完整可编辑工作流。ISO 编辑始终输出新的重建映像并核验暂存内容，保留 Rock Ridge/UDF；仅可保留已验证的单初始 El Torito 条目，多启动、混合或歧义启动布局会被拒绝。若显式提供 `ntfsprogs` 或 `e2fsprogs` 后端，NTFS/EXT 只能将新的根目录常规文件写入独立且已验证的输出映像；不允许原映像、分区偏移、元数据、改名、删除或覆盖写入。 |
 | 格式转换 | 原生 RAW/IMG/IMA 与固定 VHD | IMG 与 IMA 转换会保留用户明确选择的原始映像扩展名；VHDX、VMDK、QCOW2 通过显式配置的 `qemu-img` 适配器处理。 |
 | FAT 紧凑整理 | 基于重建的碎片整理 | 输出新映像，原映像保留作为恢复点。 |
 | 结构与启动检查 | 512 字节十六进制查看/编辑、FAT BPB 属性、原创启动模板、中性 MBR FAT 封装与部署规划、尾部零扇区裁剪、El Torito 引导目录 | 模板保留 BPB 且不使用导入的启动程序；结构修改先备份，封装、部署预处理和裁剪均输出新文件。 |
-| 校验与自动化 | SHA-256、图形全操作配方编辑器、预演计划、逐项结果审阅、JSON 批处理、可审计日志 | 图形设计器可新建、重新打开和编辑转换、校验、比较、缩放、注入、提取和容器操作配方；`--dry-run` 可在不改动任何文件或设备前审阅操作，无人值守批处理会明确拒绝物理设备写入。 |
+| 校验与自动化 | SHA-256、图形全操作配方编辑器、预演计划、逐项结果审阅、JSON 批处理、可审计日志 | 批处理 v4 支持声明式 `iso_edit`、`ntfs_inject` 与 `ext_inject`；图形设计器可新建、重新打开和编辑转换、校验、比较、缩放、注入、提取和容器操作配方；`--dry-run` 可在不改动任何文件或设备前审阅操作，无人值守批处理会明确拒绝物理设备写入。 |
 | 再分发归档 | 经身份验证的 `.dfb` 容器和带 SHA-256 校验的多映像自解压 `.pyz` 归档 | `.dfb` 支持可选 AES-256-GCM 加密、压缩、注释及逐项校验。每个原生平台包还附带独立的 `DiskForgeExtractor`，可在接收端未预装 Python 时验证并解开 `.pyz` 载荷。 |
 | 读写物理介质 | 流式读取与恢复 | 拒绝系统盘、已挂载目标和容量不匹配设备；必须输入确认短语。检测到的光学介质为只读，并默认导出为 ISO。 |
 | 低级软盘格式化 | Linux 控制器软盘与已探测 UFI USB 软驱后端 | `fdformat` 仅用于标准控制器节点。UFI USB 候选必须由 sysfs 关联到可移动介质、通过 `ufiformat -i` 证明设备身份、从报告的容量中明确选择一种并输入 `FORMAT_FLOPPY`；命令始终使用 `-V` 验证。创建 FAT 文件系统仍是需要再次确认的独立操作；每种软驱型号仍需真实硬件验收。 |
@@ -94,6 +94,10 @@ diskforge-cli create-legacy-floppy win16-disk --profile pc525_dsdd_360 --format 
 diskforge-cli create-legacy-floppy custom-disk --format img --cylinders 80 --heads 2 --sectors-per-track 9
 diskforge-cli create-iso folder bootable.iso --boot-image boot.img --boot-media noemul
 diskforge-cli edit-iso bootable.iso revised.iso --add README.TXT --mkdir /DOCS
+diskforge-cli inject-ntfs standalone.ntfs revised.ntfs PAYLOAD.TXT
+diskforge-cli inject-ext standalone.ext4 revised.ext4 PAYLOAD.TXT
+diskforge-cli ntfs-inject-status
+diskforge-cli ext-inject-status
 diskforge-cli boot-templates
 diskforge-cli prepare-fat-deployment demo.img demo-deploy.img
 diskforge-cli batch recipe.json --dry-run
@@ -117,9 +121,11 @@ python scripts/build.py
 | ISO9660 / Joliet | 支持 | 只读浏览与提取 | 从目录创建 |
 | 固定 VHD | 支持 | 临时只读数据视图与转换 | 支持 |
 | VHDX / VMDK / QCOW2 | 配置适配器后支持 | 通过转换工作流 | 配置适配器后支持 |
-| NTFS / EXT / DMG | 签名或分区提示 | 不提供原生修改 | 建议使用兼容的外部工作流 |
+| NTFS / EXT2 / EXT3 / EXT4 | 签名或分区提示 | 可选 Sleuth Kit 读取/列举/提取；配置 `ntfsprogs` / `e2fsprogs` 后可受控注入到新输出 | 仅外部后端：独立 offset-0 卷、新根目录常规文件、拒绝覆盖；必须核验源 SHA-256、读回 SHA-256 和文件系统。 |
+| HFS / HFS+ | 签名或分区提示 | 可选 Sleuth Kit 读取/列举/数据 fork 提取 | 只读；不支持有日志 HFS+ 写入、资源 fork 重建或文件系统修复。 |
+| DMG | 签名提示 | 不原生修改 | 建议使用兼容的外部工作流。 |
 
-DiskForge 会明确暴露不支持的编辑路径，不会进行未经验证的危险写入。若需要虚拟磁盘转换，请在 **Tools → Preferences** 中配置 `qemu-img`；应用不会静默下载或运行外部转换器。
+DiskForge 会明确暴露不支持的编辑路径，不会进行未经验证的危险写入。若需要虚拟磁盘转换，请在 **Tools → Preferences** 中配置 `qemu-img`；NTFS/EXT 只读浏览需要本地 Sleuth Kit 的 `fls` 与 `icat`，可选受控注入需要显式配置 `ntfscp`/`ntfsls`/`ntfscat` 或 `debugfs`/`e2fsck`。应用不会静默下载、挂载或运行外部工具。详见 [FILESYSTEM_INJECTION.md](docs/FILESYSTEM_INJECTION.md)。
 
 ## 工程质量
 

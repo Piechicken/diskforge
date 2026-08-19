@@ -107,6 +107,8 @@ class OperationKind(str, Enum):
     LEGACY_EXTRACT = "legacy_extract"
     ISO_REPLACE = "iso_replace"
     ISO_EDIT = "iso_edit"
+    NTFS_INJECT = "ntfs_inject"
+    EXT_INJECT = "ext_inject"
 
 
 @dataclass(frozen=True)

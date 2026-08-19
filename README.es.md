@@ -56,11 +56,11 @@ DiskForge reúne los flujos de trabajo más prácticos para gestionar imágenes 
 |---|---|---|
 | Crear imágenes | RAW/IMG/IMA, FAT12, FAT16, FAT32, perfiles FAT12 de disquete heredado verificados, FAT12 con diseño DMF, ISO9660/Joliet/Rock Ridge/UDF | Cree imágenes FAT editables, perfiles explícitos IMG/IMA o geometría CHS personalizada compatible, DMF documentadas e ISO con medio El Torito opcional. |
 | Explorar y extraer | FAT12/16/32, incluidos disquetes DOS antiguos sin etiqueta validada, ISO9660/Joliet, vista de datos VHD fijo y backend NTFS/EXT opcional de solo lectura | El árbol y la tabla usan páginas deterministas y caché de ordenación para directorios grandes. El doble clic abre un espacio documental no ejecutable para texto, imágenes, archivos comunes, paquetes heredados, ejecutables y datos binarios. El texto permite buscar, guardar una copia y, solo en entradas FAT escribibles, editar y guardar de vuelta. Los VHD fijos se abren mediante una vista RAW temporal de solo lectura sin su pie. |
-| Cambiar el contenido | Inyección FAT, carpetas recursivas, borrado y edición de fechas; edición ISO segura por reconstrucción | IMG e IMA con FAT comparten el flujo editable. La edición ISO crea siempre una imagen nueva, verifica el contenido y conserva Rock Ridge/UDF; solo se mantiene una entrada inicial El Torito verificada y se rechazan diseños de arranque múltiples, híbridos o ambiguos. |
+| Cambiar el contenido | Inyección FAT, carpetas recursivas, borrado y edición de fechas; edición ISO segura por reconstrucción; inyección NTFS/EXT controlada opcional | IMG e IMA con FAT comparten el flujo editable. La edición ISO crea siempre una imagen nueva, verifica el contenido y conserva Rock Ridge/UDF; solo se mantiene una entrada inicial El Torito verificada y se rechazan diseños de arranque múltiples, híbridos o ambiguos. Con `ntfsprogs` o `e2fsprogs` disponibles explícitamente, NTFS/EXT solo puede recibir archivos regulares nuevos en el directorio raíz de una salida independiente verificada; no se permiten escritura en el origen, desplazamientos de partición, metadatos, renombre, borrado ni sobrescritura. |
 | Convertir formatos | RAW/IMG/IMA y VHD fijo de forma nativa | IMG e IMA conservan la extensión elegida explícitamente; VHDX, VMDK y QCOW2 utilizan un adaptador `qemu-img` configurado explícitamente. |
 | Compactar imágenes FAT | Desfragmentación mediante reconstrucción | Crea una imagen nueva y conserva la original como punto de recuperación. |
 | Inspeccionar estructuras y arranque | Visor/editor de 512 bytes, propiedades FAT BPB, modelos originales, MBR neutral y planificación de despliegue, recorte cero y catálogo El Torito | Los modelos conservan BPB y no importan código externo; las operaciones protegidas hacen copia de seguridad y las salidas se crean en archivos nuevos. |
-| Verificar y automatizar | SHA-256, estudio gráfico de recetas completas, plan de preflight, revisión de resultados por elemento y recetas JSON | El diseñador crea, reabre y edita recetas de conversión, validación, comparación, cambio de tamaño, inyección, extracción y contenedores. `--dry-run` permite revisar acciones sin cambios; las recetas no atendidas rechazan escrituras a dispositivos físicos. |
+| Verificar y automatizar | SHA-256, estudio gráfico de recetas completas, plan de preflight, revisión de resultados por elemento y recetas JSON | El esquema v4 añade `iso_edit`, `ntfs_inject` y `ext_inject`; el diseñador crea, reabre y edita recetas de conversión, validación, comparación, cambio de tamaño, inyección, extracción y contenedores. `--dry-run` permite revisar acciones sin cambios; las recetas no atendidas rechazan escrituras a dispositivos físicos. |
 | Crear paquetes redistribuibles | Contenedores `.dfb` autenticados y archivos autoextraíbles `.pyz` multiimagen verificados con SHA-256 | Los contenedores admiten cifrado AES-256-GCM opcional, compresión, comentarios y verificación por archivo. Cada paquete nativo también incluye `DiskForgeExtractor` independiente para verificar y extraer cargas `.pyz` sin que el destinatario instale Python previamente. |
 | Leer y escribir medios físicos | Lectura y restauración en flujo | Rechaza discos del sistema, destinos montados y tamaños incompatibles; requiere confirmación escrita. Los medios ópticos detectados son de solo lectura y se exportan a ISO por defecto. |
 | Formateo de disquete de bajo nivel | Disquete de controlador Linux y backends de disquete USB UFI detectados | `fdformat` se limita a nodos de controlador estándar. Un candidato USB UFI debe estar asociado por sysfs a un medio extraíble, identificarse mediante `ufiformat -i`, usar una capacidad indicada explícitamente y la frase `FORMAT_FLOPPY`; siempre se verifica con `-V`. La creación de FAT sigue siendo una operación independiente con nueva confirmación; cada modelo requiere aceptación con hardware real. |
@@ -91,6 +91,10 @@ diskforge-cli create-fat demo.img --size-mib 32 --fat 16
 diskforge-cli info demo.img
 diskforge-cli list demo.img
 diskforge-cli create-iso carpeta arrancable.iso --boot-image boot.img --boot-media noemul
+diskforge-cli inject-ntfs standalone.ntfs revised.ntfs PAYLOAD.TXT
+diskforge-cli inject-ext standalone.ext4 revised.ext4 PAYLOAD.TXT
+diskforge-cli ntfs-inject-status
+diskforge-cli ext-inject-status
 diskforge-cli boot-templates
 diskforge-cli prepare-fat-deployment demo.img demo-deploy.img
 diskforge-cli batch recipe.json --dry-run
@@ -114,9 +118,11 @@ Compile en cada sistema operativo de destino para generar su aplicación nativa.
 | ISO9660 / Joliet | Sí | Lectura y extracción | Crear desde carpeta |
 | VHD fijo | Sí | Vista de datos temporal de solo lectura y conversión | Sí |
 | VHDX / VMDK / QCOW2 | Con adaptador | Mediante flujo de conversión | Con adaptador |
-| NTFS / EXT / DMG | Indicio de firma o partición | Sin modificación nativa | Use un flujo externo compatible |
+| NTFS / EXT2 / EXT3 / EXT4 | Indicio de firma o partición | Lectura/listado/extracción con Sleuth Kit opcional; inyección controlada a una nueva salida con `ntfsprogs` / `e2fsprogs` configurados | Solo backend externo: volúmenes independientes offset-0, archivos regulares nuevos en raíz, sin sobrescritura; se requieren SHA-256 del origen, SHA-256 de lectura y validación del sistema. |
+| HFS / HFS+ | Indicio de firma o partición | Lectura/listado/extracción de fork de datos con Sleuth Kit opcional | Solo lectura; sin escritura HFS+ con diario, reconstrucción de forks de recursos ni reparación. |
+| DMG | Indicio de firma | Sin modificación nativa | Use un flujo externo compatible. |
 
-DiskForge expone con claridad las rutas de edición no compatibles en lugar de intentar escrituras inseguras. Configure `qemu-img` en **Tools → Preferences** cuando necesite convertir discos virtuales; la aplicación nunca descarga ni ejecuta un conversor externo silenciosamente.
+DiskForge expone con claridad las rutas de edición no compatibles en lugar de intentar escrituras inseguras. Configure `qemu-img` en **Tools → Preferences** cuando necesite convertir discos virtuales; la exploración NTFS/EXT de solo lectura requiere `fls` e `icat` de Sleuth Kit locales, y la inyección controlada opcional requiere `ntfscp`/`ntfsls`/`ntfscat` o `debugfs`/`e2fsck` configurados explícitamente. La aplicación nunca descarga, monta ni ejecuta una herramienta externa silenciosamente. Consulte [FILESYSTEM_INJECTION.md](docs/FILESYSTEM_INJECTION.md).
 
 ## Calidad de ingeniería
 

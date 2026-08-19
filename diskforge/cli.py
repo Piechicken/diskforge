@@ -12,6 +12,7 @@ from .core.bootsector import apply_boot_template, edit_fat_boot_properties, impo
 from .core.bundle import create_bundle, extract_bundle, inspect_bundle
 from .core.compare import compare_streams
 from .core.deployment import prepare_fat_deployment
+from .core.ext_inject import ExtFileInjector
 from .core.device_queue import DeviceReadRequest, read_device_queue
 from .core.devices import (backup_device_mbr, compare_image_with_device, format_removable_fat,
                            neutralize_device_mbr, restore_device_mbr)
@@ -28,6 +29,7 @@ from .core.legacy_floppy import (LEGACY_FLOPPY_PROFILES, LegacyFloppyGeometry,
                                   create_legacy_fat_floppy, create_legacy_fat_floppy_profile)
 from .core.media import create_dmf_image, trim_zero_tail, wrap_fat_image_in_mbr
 from .core.mounts import ImageMountManager, ImageMountSession
+from .core.ntfs_inject import NtfsFileInjector
 from .core.metadata import load_image_metadata, save_image_comment
 from .core.models import (ConflictPolicy, DeviceInfo, DeviceKind, ExtractionLayout, ExtractionPolicy,
                           FileSystemType, ImageFormat)
@@ -76,6 +78,21 @@ def parser() -> argparse.ArgumentParser:
     inject.add_argument("sources", type=Path, nargs="+")
     inject.add_argument("--target-directory", default="/")
     inject.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
+
+    inject_ntfs = commands.add_parser("inject-ntfs", help="Copy regular local files into a new standalone NTFS image output")
+    inject_ntfs.add_argument("source", type=Path)
+    inject_ntfs.add_argument("destination", type=Path)
+    inject_ntfs.add_argument("sources", type=Path, nargs="+")
+    inject_ntfs.add_argument("--ntfscp", help="Optional explicit ntfscp executable")
+    inject_ntfs.add_argument("--ntfsls", help="Optional explicit ntfsls executable")
+    inject_ntfs.add_argument("--ntfscat", help="Optional explicit ntfscat executable")
+
+    inject_ext = commands.add_parser("inject-ext", help="Copy regular local files into a new standalone EXT image output")
+    inject_ext.add_argument("source", type=Path)
+    inject_ext.add_argument("destination", type=Path)
+    inject_ext.add_argument("sources", type=Path, nargs="+")
+    inject_ext.add_argument("--debugfs", help="Optional explicit debugfs executable")
+    inject_ext.add_argument("--e2fsck", help="Optional explicit e2fsck executable")
 
     rename = commands.add_parser("rename", help="Rename one FAT image entry")
     rename.add_argument("image", type=Path)
@@ -184,6 +201,13 @@ def parser() -> argparse.ArgumentParser:
     boot_export.add_argument("--overwrite", action="store_true")
 
     converter_status = commands.add_parser("converter-status", help="Show optional virtual-disk converter capability")
+    ntfs_status = commands.add_parser("ntfs-inject-status", help="Show optional controlled NTFS injection capability")
+    ntfs_status.add_argument("--ntfscp", help="Optional explicit ntfscp executable")
+    ntfs_status.add_argument("--ntfsls", help="Optional explicit ntfsls executable")
+    ntfs_status.add_argument("--ntfscat", help="Optional explicit ntfscat executable")
+    ext_status = commands.add_parser("ext-inject-status", help="Show optional controlled EXT injection capability")
+    ext_status.add_argument("--debugfs", help="Optional explicit debugfs executable")
+    ext_status.add_argument("--e2fsck", help="Optional explicit e2fsck executable")
     dmg_status = commands.add_parser("dmg-adapter-status", help="Show optional read-only DMG conversion adapter capability")
     mount_status = commands.add_parser("mount-status", help="Show controlled read-only image mount capability")
     mount_image = commands.add_parser("mount-image", help="Mount an image read-only and write a mount-session JSON file")
@@ -451,6 +475,22 @@ def main(argv: list[str] | None = None) -> int:
                 _emit(args, {"paths": outputs}, "\n".join(outputs))
             finally:
                 fs.close()
+        elif args.command == "inject-ntfs":
+            result = NtfsFileInjector(args.ntfscp, args.ntfsls, args.ntfscat).inject(
+                args.source, args.destination, args.sources, progress=progress,
+            )
+            _emit(args, {
+                "source": str(result.source), "destination": str(result.destination),
+                "source_sha256": result.source_sha256, "target_paths": list(result.target_paths),
+                "payload_sha256": list(result.payload_sha256),
+            }, str(result.destination))
+        elif args.command == "inject-ext":
+            result = ExtFileInjector(args.debugfs, args.e2fsck).inject(args.source, args.destination, args.sources, progress=progress)
+            _emit(args, {
+                "source": str(result.source), "destination": str(result.destination),
+                "source_sha256": result.source_sha256, "target_paths": list(result.target_paths),
+                "payload_sha256": list(result.payload_sha256),
+            }, str(result.destination))
         elif args.command == "rename":
             fs = _filesystem(args.image, writable=True, partition_index=args.partition)
             try:
@@ -579,6 +619,10 @@ def main(argv: list[str] | None = None) -> int:
             _emit(args, {"path": str(output), "index": args.index, "bytes": output.stat().st_size}, str(output))
         elif args.command == "converter-status":
             _emit(args, QemuImgConverter().capability_report().as_mapping())
+        elif args.command == "ntfs-inject-status":
+            _emit(args, NtfsFileInjector(args.ntfscp, args.ntfsls, args.ntfscat).capability_report().as_mapping())
+        elif args.command == "ext-inject-status":
+            _emit(args, ExtFileInjector(args.debugfs, args.e2fsck).capability_report().as_mapping())
         elif args.command == "dmg-adapter-status":
             _emit(args, Dmg2ImgConverter().capability_report().as_mapping())
         elif args.command == "mount-status":

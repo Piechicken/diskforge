@@ -1194,3 +1194,75 @@ CATALOG["ru"].update({"Include Rock Ridge names": "Включить имена R
 CATALOG["ar"].update({"Include Rock Ridge names": "تضمين أسماء Rock Ridge", "Include UDF bridge filesystem": "تضمين نظام ملفات جسر UDF"})
 CATALOG["ja"].update({"Include Rock Ridge names": "Rock Ridge 名を含める", "Include UDF bridge filesystem": "UDF ブリッジファイルシステムを含める"})
 TRANSLATABLE = _catalog_keys()
+
+# Controlled NTFS/EXT copy-on-write injection additions.
+CATALOG["zh_CN"].update({
+    "Inject files safely into new NTFS/EXT image…": "安全注入文件到新的 NTFS/EXT 映像…", "Optional backend unavailable": "可选后端不可用",
+    "Safe NTFS/EXT injection": "安全 NTFS/EXT 注入", "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing.": "此操作绝不更改已打开的映像。它会创建独立输出，仅接受根目录中的常规文件，拒绝覆盖，并在写入后验证每个文件。",
+    "Select regular local files": "选择本地常规文件", "Save verified output image": "保存已验证的输出映像", "Creating verified NTFS/EXT output": "正在创建已验证的 NTFS/EXT 输出",
+})
+CATALOG["es"].update({
+    "Inject files safely into new NTFS/EXT image…": "Inyectar archivos de forma segura en una nueva imagen NTFS/EXT…", "Optional backend unavailable": "Backend opcional no disponible",
+    "Safe NTFS/EXT injection": "Inyección segura NTFS/EXT", "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing.": "Esta operación nunca modifica la imagen abierta. Crea una salida independiente, solo acepta archivos regulares en el directorio raíz, rechaza la sobrescritura y verifica cada archivo después de escribirlo.",
+    "Select regular local files": "Seleccionar archivos locales regulares", "Save verified output image": "Guardar imagen de salida verificada", "Creating verified NTFS/EXT output": "Creando salida NTFS/EXT verificada",
+})
+CATALOG["fr"].update({
+    "Inject files safely into new NTFS/EXT image…": "Injecter des fichiers en toute sécurité dans une nouvelle image NTFS/EXT…", "Optional backend unavailable": "Backend facultatif indisponible",
+    "Safe NTFS/EXT injection": "Injection NTFS/EXT sécurisée", "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing.": "Cette opération ne modifie jamais l’image ouverte. Elle crée une sortie distincte, accepte uniquement des fichiers ordinaires à la racine, refuse l’écrasement et vérifie chaque fichier après écriture.",
+    "Select regular local files": "Sélectionner des fichiers locaux ordinaires", "Save verified output image": "Enregistrer l’image de sortie vérifiée", "Creating verified NTFS/EXT output": "Création d’une sortie NTFS/EXT vérifiée",
+})
+CATALOG["ru"].update({
+    "Inject files safely into new NTFS/EXT image…": "Безопасно добавить файлы в новый образ NTFS/EXT…", "Optional backend unavailable": "Дополнительный модуль недоступен",
+    "Safe NTFS/EXT injection": "Безопасное добавление NTFS/EXT", "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing.": "Эта операция никогда не изменяет открытый образ. Она создаёт отдельный результат, принимает только обычные файлы в корневом каталоге, запрещает перезапись и проверяет каждый файл после записи.",
+    "Select regular local files": "Выбрать обычные локальные файлы", "Save verified output image": "Сохранить проверенный выходной образ", "Creating verified NTFS/EXT output": "Создание проверенного результата NTFS/EXT",
+})
+CATALOG["ar"].update({
+    "Inject files safely into new NTFS/EXT image…": "إدراج الملفات بأمان في صورة NTFS/EXT جديدة…", "Optional backend unavailable": "الواجهة الخلفية الاختيارية غير متاحة",
+    "Safe NTFS/EXT injection": "إدراج آمن في NTFS/EXT", "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing.": "لا تعدل هذه العملية الصورة المفتوحة مطلقًا. فهي تنشئ مخرجًا منفصلًا، وتقبل الملفات العادية في الدليل الجذر فقط، وترفض الاستبدال، وتتحقق من كل ملف بعد كتابته.",
+    "Select regular local files": "اختر ملفات محلية عادية", "Save verified output image": "حفظ صورة الإخراج المتحقق منها", "Creating verified NTFS/EXT output": "جارٍ إنشاء إخراج NTFS/EXT متحقق منه",
+})
+CATALOG["ja"].update({
+    "Inject files safely into new NTFS/EXT image…": "新しい NTFS/EXT イメージへ安全にファイルを追加…", "Optional backend unavailable": "オプションのバックエンドは利用できません",
+    "Safe NTFS/EXT injection": "安全な NTFS/EXT ファイル追加", "This operation never changes the open image. It creates a separate output, accepts root-directory regular files only, refuses overwrite, and verifies every file after writing.": "この操作では開いているイメージを変更しません。別の出力を作成し、ルートディレクトリの通常ファイルだけを受け付け、上書きを拒否して、書き込み後に各ファイルを検証します。",
+    "Select regular local files": "通常のローカルファイルを選択", "Save verified output image": "検証済み出力イメージを保存", "Creating verified NTFS/EXT output": "検証済み NTFS/EXT 出力を作成中",
+})
+TRANSLATABLE = _catalog_keys()
+
+# Batch-designer controlled filesystem injection additions.
+CATALOG["zh_CN"].update({
+    "Inject safely into new NTFS image": "安全注入到新的 NTFS 映像", "Inject safely into new EXT image": "安全注入到新的 EXT 映像",
+    "Copy a standalone NTFS image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.": "将独立 NTFS 映像复制为新输出，添加新的根目录常规文件并验证每个载荷。已有目标和原位更改会被拒绝。",
+    "Copy a standalone EXT image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.": "将独立 EXT 映像复制为新输出，添加新的根目录常规文件并验证每个载荷。已有目标和原位更改会被拒绝。",
+    "Controlled NTFS/EXT injection requires a source image, new destination image, and local file paths.": "受控 NTFS/EXT 注入需要源映像、新目标映像和本地文件路径。",
+})
+CATALOG["es"].update({
+    "Inject safely into new NTFS image": "Inyectar de forma segura en una nueva imagen NTFS", "Inject safely into new EXT image": "Inyectar de forma segura en una nueva imagen EXT",
+    "Copy a standalone NTFS image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.": "Copie una imagen NTFS independiente a una nueva salida, añada archivos regulares nuevos en la raíz y verifique cada carga. Se rechazan los destinos existentes y los cambios en el lugar.",
+    "Copy a standalone EXT image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.": "Copie una imagen EXT independiente a una nueva salida, añada archivos regulares nuevos en la raíz y verifique cada carga. Se rechazan los destinos existentes y los cambios en el lugar.",
+    "Controlled NTFS/EXT injection requires a source image, new destination image, and local file paths.": "La inyección NTFS/EXT controlada requiere una imagen de origen, una nueva imagen de destino y rutas de archivos locales.",
+})
+CATALOG["fr"].update({
+    "Inject safely into new NTFS image": "Injecter en toute sécurité dans une nouvelle image NTFS", "Inject safely into new EXT image": "Injecter en toute sécurité dans une nouvelle image EXT",
+    "Copy a standalone NTFS image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.": "Copiez une image NTFS autonome vers une nouvelle sortie, ajoutez de nouveaux fichiers ordinaires à la racine et vérifiez chaque charge. Les destinations existantes et les modifications sur place sont refusées.",
+    "Copy a standalone EXT image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.": "Copiez une image EXT autonome vers une nouvelle sortie, ajoutez de nouveaux fichiers ordinaires à la racine et vérifiez chaque charge. Les destinations existantes et les modifications sur place sont refusées.",
+    "Controlled NTFS/EXT injection requires a source image, new destination image, and local file paths.": "L’injection NTFS/EXT contrôlée requiert une image source, une nouvelle image de destination et des chemins de fichiers locaux.",
+})
+CATALOG["ru"].update({
+    "Inject safely into new NTFS image": "Безопасно добавить в новый образ NTFS", "Inject safely into new EXT image": "Безопасно добавить в новый образ EXT",
+    "Copy a standalone NTFS image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.": "Скопируйте автономный образ NTFS в новый результат, добавьте новые обычные файлы в корень и проверьте каждый файл. Существующие назначения и изменения на месте отклоняются.",
+    "Copy a standalone EXT image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.": "Скопируйте автономный образ EXT в новый результат, добавьте новые обычные файлы в корень и проверьте каждый файл. Существующие назначения и изменения на месте отклоняются.",
+    "Controlled NTFS/EXT injection requires a source image, new destination image, and local file paths.": "Для контролируемого добавления NTFS/EXT требуются исходный образ, новый целевой образ и пути к локальным файлам.",
+})
+CATALOG["ar"].update({
+    "Inject safely into new NTFS image": "إدراج آمن في صورة NTFS جديدة", "Inject safely into new EXT image": "إدراج آمن في صورة EXT جديدة",
+    "Copy a standalone NTFS image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.": "انسخ صورة NTFS مستقلة إلى مخرج جديد، وأضف ملفات عادية جديدة في الجذر، وتحقق من كل حمولة. تُرفض الوجهات الموجودة والتغييرات الموضعية.",
+    "Copy a standalone EXT image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.": "انسخ صورة EXT مستقلة إلى مخرج جديد، وأضف ملفات عادية جديدة في الجذر، وتحقق من كل حمولة. تُرفض الوجهات الموجودة والتغييرات الموضعية.",
+    "Controlled NTFS/EXT injection requires a source image, new destination image, and local file paths.": "يتطلب الإدراج المتحكم به في NTFS/EXT صورة مصدر وصورة وجهة جديدة ومسارات ملفات محلية.",
+})
+CATALOG["ja"].update({
+    "Inject safely into new NTFS image": "新しい NTFS イメージへ安全に追加", "Inject safely into new EXT image": "新しい EXT イメージへ安全に追加",
+    "Copy a standalone NTFS image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.": "独立した NTFS イメージを新しい出力へコピーし、ルートに新しい通常ファイルを追加して各ペイロードを検証します。既存の出力先とインプレース変更は拒否されます。",
+    "Copy a standalone EXT image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.": "独立した EXT イメージを新しい出力へコピーし、ルートに新しい通常ファイルを追加して各ペイロードを検証します。既存の出力先とインプレース変更は拒否されます。",
+    "Controlled NTFS/EXT injection requires a source image, new destination image, and local file paths.": "制御済み NTFS/EXT 注入には、ソースイメージ、新しい出力イメージ、ローカルファイルパスが必要です。",
+})
+TRANSLATABLE = _catalog_keys()

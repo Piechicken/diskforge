@@ -83,3 +83,30 @@ def test_batch_designer_rejects_raw_device_recipe() -> None:
     _application()
     with pytest.raises(DiskForgeError, match="Raw device"):
         BatchDesignerDialog(recipe={"schema": "diskforge.batch/v3", "operations": [{"kind": "write_device"}]})
+
+
+@pytest.mark.parametrize("kind", ["ntfs_inject", "ext_inject"])
+def test_batch_designer_serializes_controlled_filesystem_injection(tmp_path: Path, kind: str) -> None:
+    _application()
+    source = tmp_path / f"source.{kind}"
+    payload = tmp_path / "PAYLOAD.TXT"
+    destination = tmp_path / f"output.{kind}"
+    source.write_bytes(b"source")
+    payload.write_bytes(b"payload")
+    dialog = BatchDesignerDialog()
+    kind_index = dialog.kind_choice.findData(kind)
+    assert kind_index >= 0
+    dialog.kind_choice.setCurrentIndex(kind_index)
+    dialog.source.setText(str(source))
+    dialog.destination.setText(str(destination))
+    dialog.sources.setPlainText(str(payload))
+
+    operation = dialog.recipe()["operations"][0]
+
+    assert operation == {
+        "name": dialog.kind_choice.currentText(),
+        "kind": kind,
+        "source": str(source),
+        "destination": str(destination),
+        "sources": [str(payload)],
+    }

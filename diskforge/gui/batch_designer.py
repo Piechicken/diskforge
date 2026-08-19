@@ -36,6 +36,8 @@ _EDITABLE_KINDS = (
     OperationKind.COMPARE,
     OperationKind.RESIZE,
     OperationKind.INJECT,
+    OperationKind.NTFS_INJECT,
+    OperationKind.EXT_INJECT,
     OperationKind.BUNDLE,
     OperationKind.UNBUNDLE,
 )
@@ -93,6 +95,8 @@ class BatchDesignerDialog(QDialog):
             OperationKind.COMPARE: "Compare image bytes",
             OperationKind.RESIZE: "Resize image safely",
             OperationKind.INJECT: "Inject into FAT image",
+            OperationKind.NTFS_INJECT: "Inject safely into new NTFS image",
+            OperationKind.EXT_INJECT: "Inject safely into new EXT image",
             OperationKind.BUNDLE: "Create secure image container",
             OperationKind.UNBUNDLE: "Extract image container",
         }
@@ -211,6 +215,8 @@ class BatchDesignerDialog(QDialog):
             OperationKind.COMPARE: "Compare the source image with the destination image; no file is written.",
             OperationKind.RESIZE: "Create a safely resized destination image. Use an explicit byte size.",
             OperationKind.INJECT: "Inject local file paths into a writable FAT destination image.",
+            OperationKind.NTFS_INJECT: "Copy a standalone NTFS image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.",
+            OperationKind.EXT_INJECT: "Copy a standalone EXT image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.",
             OperationKind.BUNDLE: "Create an unencrypted, auditable image container from selected image files.",
             OperationKind.UNBUNDLE: "Extract named or all items from an unencrypted image container.",
         }
@@ -308,6 +314,10 @@ class BatchDesignerDialog(QDialog):
             if not destination or not sources:
                 raise DiskForgeError("Injection requires a FAT destination image and local file paths.")
             item.update({"destination": destination, "sources": sources, "target_directory": self.target_directory.text().strip() or "/"})
+        elif kind in {OperationKind.NTFS_INJECT, OperationKind.EXT_INJECT}:
+            if not source or not destination or not sources:
+                raise DiskForgeError("Controlled NTFS/EXT injection requires a source image, new destination image, and local file paths.")
+            item.update({"source": source, "destination": destination, "sources": sources})
         elif kind == OperationKind.BUNDLE:
             if not destination or not sources:
                 raise DiskForgeError("Container creation requires source images and destination.")
