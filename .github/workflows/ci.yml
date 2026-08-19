@@ -87,18 +87,21 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release
+          Copy-Item dist/DiskForgeExtractor.exe dist/DiskForge/DiskForgeExtractor.exe
           Compress-Archive -Path dist/DiskForge -DestinationPath release/DiskForge-${{ github.ref_name }}-${{ matrix.id }}.zip -Force
       - name: Package Linux application
         if: runner.os == 'Linux'
         shell: bash
         run: |
           mkdir -p release
+          cp dist/DiskForgeExtractor dist/DiskForge/DiskForgeExtractor
           (cd dist && zip -r "../release/DiskForge-${{ github.ref_name }}-${{ matrix.id }}.zip" DiskForge)
       - name: Package macOS application
         if: runner.os == 'macOS'
         shell: bash
         run: |
           mkdir -p release
+          cp dist/DiskForgeExtractor "dist/DiskForge.app/Contents/MacOS/DiskForgeExtractor"
           ditto -c -k --sequesterRsrc --keepParent "dist/DiskForge.app" "release/DiskForge-${{ github.ref_name }}-${{ matrix.id }}.zip"
       - name: Upload release package
         uses: actions/upload-artifact@v6

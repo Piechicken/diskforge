@@ -52,6 +52,9 @@ def test_release_workflow_uses_immutable_tag_only_publication() -> None:
     assert "--clobber" not in workflow
     assert "apt-get update" not in workflow
     assert "apt-get install -y --no-install-recommends libegl1" in workflow
+    assert "DiskForgeExtractor.exe" in workflow
+    assert "cp dist/DiskForgeExtractor dist/DiskForge/DiskForgeExtractor" in workflow
+    assert "DiskForge.app/Contents/MacOS/DiskForgeExtractor" in workflow
 
 
 def test_package_and_project_versions_match() -> None:
