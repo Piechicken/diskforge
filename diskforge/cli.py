@@ -20,7 +20,8 @@ from .core.fat_layouts import FatImageLayout, create_fat_image_from_layout
 from .core.filesystems import (FatImageFilesystem, IsoImageFilesystem, create_fat_image,
                                create_iso_from_directory, defragment_fat_image, replace_iso_file_safely)
 from .core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_image, create_dynamic_vhd_from_raw,
-                           create_editable_fixed_vhd_copy, inspect_image)
+                           create_editable_fixed_vhd_copy, create_legacy_zip_image, extract_legacy_zip_image,
+                           inspect_image)
 from .core.mbr import backup_mbr, reset_mbr_to_neutral, restore_mbr
 from .core.media import create_dmf_image, trim_zero_tail, wrap_fat_image_in_mbr
 from .core.mounts import ImageMountManager, ImageMountSession
@@ -181,6 +182,15 @@ def parser() -> argparse.ArgumentParser:
     dynamic_vhd.add_argument("destination", type=Path)
     dynamic_vhd.add_argument("--qemu-img", dest="qemu_img")
     dynamic_vhd.add_argument("--overwrite", action="store_true")
+
+    legacy_pack = commands.add_parser("create-legacy-zip", help="Create a ZIP-compatible IMZ or WLZ single-image container")
+    legacy_pack.add_argument("source", type=Path)
+    legacy_pack.add_argument("destination", type=Path)
+    legacy_pack.add_argument("--format", choices=[ImageFormat.IMZ.value, ImageFormat.WLZ.value], required=True)
+    legacy_pack.add_argument("--overwrite", action="store_true")
+    legacy_unpack = commands.add_parser("extract-legacy-zip", help="Safely extract the one raw payload from an IMZ or WLZ container")
+    legacy_unpack.add_argument("source", type=Path)
+    legacy_unpack.add_argument("destination", type=Path)
 
     resize = commands.add_parser("resize", help="Safely resize RAW or FAT image into a new file")
     resize.add_argument("source", type=Path)
@@ -540,6 +550,15 @@ def main(argv: list[str] | None = None) -> int:
             print() if not args.json else None
             _emit(args, {"source": str(result.source), "destination": str(result.destination),
                          "virtual_bytes": result.virtual_size, "disk_type": "dynamic"}, str(result.destination))
+        elif args.command == "create-legacy-zip":
+            result = create_legacy_zip_image(args.source, args.destination, ImageFormat(args.format),
+                                             overwrite=args.overwrite)
+            _emit(args, {"source": str(result.source), "destination": str(result.destination),
+                         "payload": result.payload_name, "payload_bytes": result.payload_size}, str(result.destination))
+        elif args.command == "extract-legacy-zip":
+            result = extract_legacy_zip_image(args.source, args.destination)
+            _emit(args, {"source": str(result.source), "destination": str(result.destination),
+                         "payload": result.payload_name, "payload_bytes": result.payload_size}, str(result.destination))
         elif args.command == "resize":
             result = resize_image(args.source, args.destination, args.size_bytes, progress=progress,
                                   overwrite=args.overwrite)

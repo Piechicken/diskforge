@@ -27,6 +27,8 @@ class ImageFormat(str, Enum):
     VMDK = "vmdk"
     QCOW2 = "qcow2"
     DMG = "dmg"
+    IMZ = "imz"
+    WLZ = "wlz"
     UNKNOWN = "unknown"
 
     @classmethod

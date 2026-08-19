@@ -277,3 +277,22 @@ def test_dynamic_vhd_workflow_is_translated_in_every_non_english_locale() -> Non
         translated = CATALOG[language.code]
         assert required <= set(translated)
         assert all(translated[source] != source for source in required)
+
+
+def test_legacy_zip_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Create ZIP-compatible legacy image…",
+        "Create ZIP-compatible legacy image",
+        "Container format:",
+        "Save ZIP-compatible legacy image",
+        "Choose a different output file; the source image remains unchanged.",
+        "Creating ZIP-compatible legacy image",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)

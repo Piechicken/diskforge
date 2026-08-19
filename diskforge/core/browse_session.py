@@ -6,7 +6,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from .formats import Converter, inspect_image
+from .formats import Converter, extract_legacy_zip_image, inspect_image
 from .models import ImageFormat, ImageInfo, OperationKind, ProgressCallback
 from .storage import CancellationToken, DiskForgeError, stream_copy
 
@@ -48,12 +48,15 @@ def materialize_browsable_image(source: Path | str, *, converter: Converter | No
     """
     original = Path(source)
     info = inspect_image(original, converter)
-    if info.image_format not in {ImageFormat.VHD, ImageFormat.VHDX, ImageFormat.VMDK, ImageFormat.QCOW2}:
+    if info.image_format not in {ImageFormat.VHD, ImageFormat.VHDX, ImageFormat.VMDK, ImageFormat.QCOW2,
+                                 ImageFormat.IMZ, ImageFormat.WLZ}:
         return BrowsableImageSession(original, original, info)
     temporary = Path(tempfile.mkdtemp(prefix="diskforge-browse-"))
     raw = temporary / f"{original.stem}.img"
     try:
-        if info.image_format == ImageFormat.VHD:
+        if info.image_format in {ImageFormat.IMZ, ImageFormat.WLZ}:
+            extract_legacy_zip_image(original, raw)
+        elif info.image_format == ImageFormat.VHD:
             if info.virtual_size is None:
                 raise DiskForgeError("VHD browsing requires a valid fixed-VHD virtual size.")
             stream_copy(original, raw, operation=OperationKind.CONVERT, limit=info.virtual_size, progress=progress,

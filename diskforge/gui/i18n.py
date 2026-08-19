@@ -997,3 +997,35 @@ CATALOG["ja"].update({
     "Create dynamic VHD from FAT work image": "FAT 作業イメージから動的 VHD を作成", "Choose a different output file; the FAT work image remains unchanged.": "別の出力ファイルを選択してください。FAT 作業イメージは変更されません。",
     "Creating verified dynamic VHD": "検証済み動的 VHD を作成中",
 })
+
+# ZIP-compatible legacy image additions.
+CATALOG["zh_CN"].update({
+    "Create ZIP-compatible legacy image…": "创建 ZIP 兼容的旧式映像…", "Create ZIP-compatible legacy image": "创建 ZIP 兼容的旧式映像",
+    "Container format:": "容器格式：", "Save ZIP-compatible legacy image": "保存 ZIP 兼容的旧式映像",
+    "Choose a different output file; the source image remains unchanged.": "请选择不同的输出文件；源映像将保持不变。", "Creating ZIP-compatible legacy image": "正在创建 ZIP 兼容的旧式映像",
+})
+CATALOG["es"].update({
+    "Create ZIP-compatible legacy image…": "Crear imagen heredada compatible con ZIP…", "Create ZIP-compatible legacy image": "Crear imagen heredada compatible con ZIP",
+    "Container format:": "Formato de contenedor:", "Save ZIP-compatible legacy image": "Guardar imagen heredada compatible con ZIP",
+    "Choose a different output file; the source image remains unchanged.": "Elija otro archivo de salida; la imagen de origen no se modifica.", "Creating ZIP-compatible legacy image": "Creando imagen heredada compatible con ZIP",
+})
+CATALOG["fr"].update({
+    "Create ZIP-compatible legacy image…": "Créer une image ancienne compatible ZIP…", "Create ZIP-compatible legacy image": "Créer une image ancienne compatible ZIP",
+    "Container format:": "Format de conteneur :", "Save ZIP-compatible legacy image": "Enregistrer l’image ancienne compatible ZIP",
+    "Choose a different output file; the source image remains unchanged.": "Choisissez un autre fichier de sortie ; l’image source reste inchangée.", "Creating ZIP-compatible legacy image": "Création d’une image ancienne compatible ZIP",
+})
+CATALOG["ru"].update({
+    "Create ZIP-compatible legacy image…": "Создать устаревший образ, совместимый с ZIP…", "Create ZIP-compatible legacy image": "Создать устаревший образ, совместимый с ZIP",
+    "Container format:": "Формат контейнера:", "Save ZIP-compatible legacy image": "Сохранить устаревший образ, совместимый с ZIP",
+    "Choose a different output file; the source image remains unchanged.": "Выберите другой выходной файл; исходный образ останется неизменным.", "Creating ZIP-compatible legacy image": "Создание устаревшего образа, совместимого с ZIP",
+})
+CATALOG["ar"].update({
+    "Create ZIP-compatible legacy image…": "إنشاء صورة قديمة متوافقة مع ZIP…", "Create ZIP-compatible legacy image": "إنشاء صورة قديمة متوافقة مع ZIP",
+    "Container format:": "تنسيق الحاوية:", "Save ZIP-compatible legacy image": "حفظ صورة قديمة متوافقة مع ZIP",
+    "Choose a different output file; the source image remains unchanged.": "اختر ملف إخراج مختلفًا؛ ستبقى الصورة المصدر دون تغيير.", "Creating ZIP-compatible legacy image": "جارٍ إنشاء صورة قديمة متوافقة مع ZIP",
+})
+CATALOG["ja"].update({
+    "Create ZIP-compatible legacy image…": "ZIP 互換のレガシーイメージを作成…", "Create ZIP-compatible legacy image": "ZIP 互換のレガシーイメージを作成",
+    "Container format:": "コンテナー形式：", "Save ZIP-compatible legacy image": "ZIP 互換のレガシーイメージを保存",
+    "Choose a different output file; the source image remains unchanged.": "別の出力ファイルを選択してください。元のイメージは変更されません。", "Creating ZIP-compatible legacy image": "ZIP 互換のレガシーイメージを作成中",
+})

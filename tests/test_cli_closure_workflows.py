@@ -103,3 +103,20 @@ def test_cli_create_dynamic_vhd_routes_explicit_converter_and_json(monkeypatch, 
     payload = json.loads(capsys.readouterr().out)
     assert captured == {"origin": source, "output": destination, "executable": "chosen-qemu-img", "overwrite": False}
     assert payload["disk_type"] == "dynamic"
+
+
+def test_cli_create_and_extract_legacy_zip_container(tmp_path: Path, capsys) -> None:  # type: ignore[no-untyped-def]
+    source = tmp_path / "source.img"
+    source.write_bytes(b"legacy payload")
+    container = tmp_path / "source.imz"
+    extracted = tmp_path / "extracted.img"
+
+    assert main(["--json", "create-legacy-zip", str(source), str(container), "--format", "imz"]) == 0
+    packed = json.loads(capsys.readouterr().out)
+    assert packed["payload"] == "source.img"
+    assert container.is_file()
+
+    assert main(["--json", "extract-legacy-zip", str(container), str(extracted)]) == 0
+    unpacked = json.loads(capsys.readouterr().out)
+    assert unpacked["payload_bytes"] == len(b"legacy payload")
+    assert extracted.read_bytes() == b"legacy payload"

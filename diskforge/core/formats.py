@@ -13,6 +13,7 @@ import shutil
 import struct
 import subprocess
 import uuid
+import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -50,6 +51,16 @@ class DynamicVhdExport:
     source: Path
     destination: Path
     virtual_size: int
+
+
+@dataclass(frozen=True)
+class LegacyZipImage:
+    """A ZIP-compatible legacy compressed image with exactly one raw payload."""
+
+    source: Path
+    destination: Path
+    payload_name: str
+    payload_size: int
 
 
 @dataclass(frozen=True)
@@ -353,6 +364,77 @@ def create_editable_fixed_vhd_copy(source: Path | str, destination: Path | str, 
     if copied != layout:
         raise DiskForgeError("The copied fixed VHD FAT layout did not validate consistently.")
     return EditableFixedVhdCopy(origin, output, layout.size_bytes)
+
+
+def _legacy_zip_payload(archive: zipfile.ZipFile) -> zipfile.ZipInfo:
+    entries = [entry for entry in archive.infolist() if not entry.is_dir()]
+    if len(entries) != 1:
+        raise DiskForgeError("A legacy compressed image must contain exactly one regular payload.")
+    entry = entries[0]
+    normal_name = entry.filename.replace("\\", "/")
+    if not normal_name or "/" in normal_name or Path(normal_name).name != normal_name:
+        raise DiskForgeError("Legacy compressed image contains an unsafe payload name.")
+    if entry.flag_bits & 0x1:
+        raise DiskForgeError("Encrypted legacy compressed images are not supported.")
+    if entry.compress_type not in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED}:
+        raise DiskForgeError("Legacy compressed image uses an unsupported ZIP compression method.")
+    return entry
+
+
+def create_legacy_zip_image(source: Path | str, destination: Path | str, image_format: ImageFormat,
+                            *, overwrite: bool = False) -> LegacyZipImage:
+    """Create a conservative ZIP-compatible IMZ/WLZ-style single-image container."""
+    origin, output = Path(source), Path(destination)
+    if image_format not in {ImageFormat.IMZ, ImageFormat.WLZ}:
+        raise DiskForgeError("Legacy ZIP image creation requires IMZ or WLZ output format.")
+    if not origin.is_file():
+        raise FileNotFoundError(origin)
+    if origin.resolve() == output.resolve():
+        raise DiskForgeError("Choose a different output file for a legacy compressed image.")
+    if output.exists() and not overwrite:
+        raise FileExistsError(output)
+    temporary = output.with_name(f".{output.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temporary.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
+            archive.write(origin, arcname=origin.name)
+        with zipfile.ZipFile(temporary) as archive:
+            entry = _legacy_zip_payload(archive)
+            if entry.file_size != origin.stat().st_size:
+                raise DiskForgeError("Legacy compressed image payload size does not match its source.")
+        if output.exists() and overwrite:
+            output.unlink()
+        os.replace(temporary, output)
+        return LegacyZipImage(origin, output, origin.name, origin.stat().st_size)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def extract_legacy_zip_image(source: Path | str, destination: Path | str) -> LegacyZipImage:
+    """Extract the only safe ZIP-compatible legacy payload to a caller-owned path."""
+    origin, output = Path(source), Path(destination)
+    image_format = ImageFormat.from_path(origin)
+    if image_format not in {ImageFormat.IMZ, ImageFormat.WLZ}:
+        raise DiskForgeError("Legacy ZIP extraction requires an IMZ or WLZ image.")
+    if not zipfile.is_zipfile(origin):
+        raise DiskForgeError("Legacy compressed image is not a valid ZIP-compatible container.")
+    if output.exists():
+        raise FileExistsError(output)
+    temporary = output.with_name(f".{output.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with zipfile.ZipFile(origin) as archive:
+            entry = _legacy_zip_payload(archive)
+            temporary.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open(entry, "r") as source_handle, temporary.open("wb") as target_handle:
+                shutil.copyfileobj(source_handle, target_handle, length=8 * 1024 * 1024)
+            if temporary.stat().st_size != entry.file_size:
+                raise DiskForgeError("Legacy compressed image payload was truncated during extraction.")
+        os.replace(temporary, output)
+        return LegacyZipImage(origin, output, entry.filename, entry.file_size)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
 
 
 def create_dynamic_vhd_from_raw(source: Path | str, destination: Path | str, converter: QemuImgConverter,

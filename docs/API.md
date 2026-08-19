@@ -68,6 +68,8 @@ with client.filesystem("disk.img", partition_index=2, writable=False) as filesys
 
 `replace_iso_file()` is intentionally narrower than generic ISO authoring. It only replaces one existing normal ISO file whose replacement has exactly the original logical size; it creates a different output file and verifies the reopened result. Rock Ridge and UDF ISO images are rejected by this safe first implementation.
 
+ZIP-compatible legacy compressed images with `.imz` or `.wlz` extensions are recognized as **single-payload containers** only. DiskForge rejects encrypted, unsafe, non-Deflate/non-Stored, or multi-payload archives; a valid payload is materialized to a caller-owned temporary raw image for read-only browsing. The GUI and CLI can create or extract the same constrained container shape, but this does not claim support for undocumented proprietary extensions beyond that ZIP-compatible profile.
+
 ## Read-only mount sessions
 
 `mount_read_only()` selects an available OS backend (`udisksctl` on Linux, PowerShell on Windows, or `hdiutil` on macOS). The method never requests a writable attachment. A session should be released in a `finally` block:

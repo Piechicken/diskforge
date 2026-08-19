@@ -44,7 +44,8 @@ from diskforge.core.filesystems import (FatImageFilesystem, ImageFilesystem, Iso
                                         create_fat_image, create_iso_from_directory, defragment_fat_image,
                                         replace_iso_file_safely)
 from diskforge.core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_image, create_dynamic_vhd_from_raw,
-                                     create_editable_fixed_vhd_copy, inspect_image, validate_fixed_vhd_fat)
+                                     create_editable_fixed_vhd_copy, create_legacy_zip_image, inspect_image,
+                                     validate_fixed_vhd_fat)
 from diskforge.core.media import create_dmf_image, trim_zero_tail, wrap_fat_image_in_mbr
 from diskforge.core.mounts import ImageMountManager, ImageMountSession
 from diskforge.core.metadata import load_image_metadata, save_image_comment
@@ -546,6 +547,7 @@ class MainWindow(QMainWindow):
         self.action_batch_designer = self._action("Design batch workflow…", None, self.design_batch)
         self.action_batch_edit = self._action("Edit batch recipe…", None, self.edit_batch)
         self.action_sfx = self._action("Create self-extracting bundle…", None, self.create_sfx)
+        self.action_legacy_zip = self._action("Create ZIP-compatible legacy image…", None, self.create_legacy_zip)
         self.action_preview = self._action("Preview selected file", "Return", self.preview_selected)
         self.action_view_details = self._action("Details view", None, lambda: self.set_view_mode("details"))
         self.action_view_icons = self._action("Icon view", None, lambda: self.set_view_mode("icons"))
@@ -583,7 +585,7 @@ class MainWindow(QMainWindow):
                                self.action_mount, self.action_unmount])
 
         menu_image.addSeparator()
-        menu_image.addActions([self.action_export, self.action_print, self.action_bundle, self.action_sfx])
+        menu_image.addActions([self.action_export, self.action_print, self.action_bundle, self.action_sfx, self.action_legacy_zip])
         menu_view = self.menuBar().addMenu("&View")
         menu_view.addActions([self.action_view_details, self.action_view_icons])
         menu_tools = self.menuBar().addMenu("&Tools")
@@ -813,6 +815,7 @@ class MainWindow(QMainWindow):
         self.action_dynamic_vhd.setEnabled(fat_source)
         self.action_convert_dmg.setEnabled(open_image and self.current_info is not None and self.current_info.image_format == ImageFormat.DMG)
         self.action_mount.setEnabled(open_image and self.current_mount_session is None)
+        self.action_legacy_zip.setEnabled(open_image and self.current_info is not None and self.current_info.image_format not in {ImageFormat.IMZ, ImageFormat.WLZ})
         self.action_unmount.setEnabled(self.current_mount_session is not None)
         self.action_extract.setEnabled(open_image and entries and self.current_fs is not None)
         self.action_preview.setEnabled(open_image and self.current_fs is not None and selected_file is not None and len(self._selected_paths()) == 1)
@@ -1120,7 +1123,8 @@ class MainWindow(QMainWindow):
                 validate_fixed_vhd_fat(path)
                 self._editable_fixed_vhd = True
                 self.log(f"Opened validated editable fixed-VHD copy for {path.name}")
-            elif self.current_info.image_format in {ImageFormat.VHD, ImageFormat.VHDX, ImageFormat.VMDK, ImageFormat.QCOW2}:
+            elif self.current_info.image_format in {ImageFormat.VHD, ImageFormat.VHDX, ImageFormat.VMDK, ImageFormat.QCOW2,
+                                                    ImageFormat.IMZ, ImageFormat.WLZ}:
                 self.current_browse_session = materialize_browsable_image(path, converter=converter)
                 browse_path = self.current_browse_session.image
                 browse_info = inspect_image(browse_path)
@@ -2061,6 +2065,27 @@ class MainWindow(QMainWindow):
             self.log(f"Opened FAT partition {partition.index} from {image.name}")
         except Exception as exc:
             QMessageBox.critical(self, "Unable to read partitions", str(exc))
+
+    def create_legacy_zip(self) -> None:
+        """Create a conservative single-payload IMZ/WLZ ZIP-compatible copy."""
+        if not self.current_path:
+            return
+        source = self.current_path
+        format_name, accepted = QInputDialog.getItem(self, "Create ZIP-compatible legacy image", "Container format:", ["IMZ", "WLZ"], 0, False)
+        if not accepted:
+            return
+        image_format = ImageFormat.IMZ if format_name == "IMZ" else ImageFormat.WLZ
+        default = source.with_suffix(f".{image_format.value}")
+        output, _ = QFileDialog.getSaveFileName(self, "Save ZIP-compatible legacy image", str(default),
+                                                "IMZ image (*.imz);;WLZ image (*.wlz)")
+        if not output:
+            return
+        destination = Path(output)
+        if destination.resolve() == source.resolve():
+            QMessageBox.warning(self, "Separate output required", "Choose a different output file; the source image remains unchanged.")
+            return
+        self._run_worker("Creating ZIP-compatible legacy image", create_legacy_zip_image, source, destination,
+                         image_format, on_result=lambda result: self._open_path(result.destination))
 
     def create_sfx(self) -> None:
         if not self.current_path:
