@@ -104,6 +104,7 @@ class OperationKind(str, Enum):
     UNBUNDLE = "unbundle"
     LEGACY_COMPRESS = "legacy_compress"
     LEGACY_EXTRACT = "legacy_extract"
+    ISO_REPLACE = "iso_replace"
 
 
 @dataclass(frozen=True)

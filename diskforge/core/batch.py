@@ -13,7 +13,7 @@ from typing import Any, Callable
 
 from .bundle import create_bundle, extract_bundle
 from .compare import compare_streams
-from .filesystems import FatImageFilesystem, IsoImageFilesystem
+from .filesystems import FatImageFilesystem, IsoImageFilesystem, replace_iso_file_safely
 from .formats import (QemuImgConverter, convert_image, create_legacy_zip_image,
                       extract_legacy_zip_image, inspect_image)
 from .models import (BatchItemResult, BatchResult, ConflictPolicy, ExtractionLayout,
@@ -66,6 +66,7 @@ class BatchRunner:
             OperationKind.UNBUNDLE: ("source", "destination"),
             OperationKind.LEGACY_COMPRESS: ("source", "destination", "format"),
             OperationKind.LEGACY_EXTRACT: ("source", "destination"),
+            OperationKind.ISO_REPLACE: ("source", "destination", "iso_path", "replacement"),
         }
         for position, raw in enumerate(spec["operations"]):
             item = raw if isinstance(raw, dict) else {}
@@ -98,7 +99,8 @@ class BatchRunner:
                 "destination": item.get("destination") or item.get("destination_root"),
                 "will_write": kind in {OperationKind.CONVERT, OperationKind.RESIZE, OperationKind.INJECT,
                                          OperationKind.BUNDLE, OperationKind.UNBUNDLE, OperationKind.EXTRACT,
-                                         OperationKind.LEGACY_COMPRESS, OperationKind.LEGACY_EXTRACT},
+                                         OperationKind.LEGACY_COMPRESS, OperationKind.LEGACY_EXTRACT,
+                                         OperationKind.ISO_REPLACE},
             })
         return preview
 
@@ -173,6 +175,10 @@ class BatchRunner:
                 location = comparison.first_difference if comparison.first_difference is not None else "size"
                 raise DiskForgeError(f"Byte comparison failed at {location}: {comparison.reason}")
             return None
+        if kind == OperationKind.ISO_REPLACE:
+            result = replace_iso_file_safely(item["source"], str(item["iso_path"]), item["replacement"],
+                                             item["destination"], overwrite=bool(item.get("overwrite", False)))
+            return str(result.destination)
         if kind == OperationKind.LEGACY_COMPRESS:
             result = create_legacy_zip_image(item["source"], item["destination"], ImageFormat(str(item["format"])),
                                              overwrite=bool(item.get("overwrite", False)))
