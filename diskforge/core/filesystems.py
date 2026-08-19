@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import posixpath
+import shutil
 import tempfile
 import warnings
 from dataclasses import dataclass
@@ -32,6 +33,7 @@ with warnings.catch_warnings():
     from pyfatfs.PyFat import PyFat
     from pyfatfs.PyFatFS import PyFatFS
 
+from .eltorito import inspect_eltorito
 from .formats import inspect_image
 from .models import (ConflictPolicy, ExtractionLayout, ExtractionPolicy, FileSystemType,
                      ImageEntry, OperationKind, Progress, ProgressCallback, iter_parent_paths)
@@ -546,6 +548,186 @@ def replace_iso_file_safely(source_iso: Path | str, iso_path: str, replacement: 
     except Exception:
         destination.unlink(missing_ok=True)
         raise
+
+
+@dataclass(frozen=True)
+class IsoRebuildResult:
+    """Verified result of standard ISO9660/Joliet content editing into a new file."""
+
+    source: Path
+    destination: Path
+    files_added: tuple[str, ...]
+    paths_deleted: tuple[str, ...]
+    directories_created: tuple[str, ...]
+    source_sha256: str
+    output_sha256: str
+
+
+def _iso_workspace_path(root: Path, path: str, *, allow_root: bool = False) -> tuple[str, Path]:
+    """Map a caller ISO path to a traversal-safe location in an isolated workspace."""
+    raw = str(path).replace("\\", "/")
+    if any(part in {"", ".", ".."} for part in raw.split("/") if part):
+        if ".." in raw.split("/"):
+            raise DiskForgeError("ISO edit paths must not contain parent-directory components.")
+    normalized = _normal(raw)
+    if normalized == "/" and not allow_root:
+        raise DiskForgeError("This ISO edit operation requires a path below the ISO root.")
+    candidate = root if normalized == "/" else root / normalized.lstrip("/")
+    resolved_root, resolved_candidate = root.resolve(), candidate.resolve()
+    if resolved_candidate != resolved_root and resolved_root not in resolved_candidate.parents:
+        raise DiskForgeError("ISO edit path escapes the isolated workspace.")
+    return normalized, candidate
+
+
+def _existing_iso_workspace_path(root: Path, path: str, *, allow_root: bool = False) -> tuple[str, Path]:
+    """Resolve an existing ISO9660 workspace path without case-sensitive host assumptions."""
+    normalized, _ = _iso_workspace_path(root, path, allow_root=allow_root)
+    if normalized == "/":
+        return normalized, root
+    candidate = root
+    for part in normalized.lstrip("/").split("/"):
+        matches = [child for child in candidate.iterdir() if child.name.casefold() == part.casefold()]
+        if len(matches) != 1:
+            raise FileNotFoundError(normalized)
+        candidate = matches[0]
+    return normalized, candidate
+
+
+def _iso_has_eltorito(source: Path) -> bool:
+    try:
+        inspect_eltorito(source)
+    except DiskForgeError as exc:
+        if str(exc) == "ISO image does not contain an El Torito boot record.":
+            return False
+        raise
+    return True
+
+
+def rebuild_iso_with_changes(source_iso: Path | str, destination_iso: Path | str, *,
+                             additions: Iterable[Path | str] = (), delete_paths: Iterable[str] = (),
+                             create_directories: Iterable[str] = (), target_directory: str = "/",
+                             volume_label: str | None = None, overwrite: bool = False,
+                             progress: ProgressCallback | None = None,
+                             token: CancellationToken | None = None) -> IsoRebuildResult:
+    """Safely rebuild a standard ISO9660/Joliet image after explicit content edits.
+
+    The source is always opened read-only and expanded inside a private temporary
+    workspace.  Changes are applied only in that workspace, then a separate ISO
+    is authored and reopened for a complete file-by-file SHA-256 verification.
+    Rock Ridge, UDF, and El Torito are deliberately refused because this standard
+    rebuild path would otherwise discard metadata that it cannot preserve.
+    """
+    source, destination = Path(source_iso), Path(destination_iso)
+    if not source.is_file():
+        raise FileNotFoundError(source)
+    if source.resolve() == destination.resolve():
+        raise DiskForgeError("The rebuilt ISO destination must be different from the source ISO.")
+    if destination.exists() and not overwrite:
+        raise FileExistsError(destination)
+    additions = tuple(Path(item) for item in additions)
+    deletions = tuple(delete_paths)
+    directories = tuple(create_directories)
+    if not additions and not deletions and not directories:
+        raise DiskForgeError("ISO rebuilding requires at least one add, delete, or directory operation.")
+    for item in additions:
+        if not item.exists():
+            raise FileNotFoundError(item)
+    source_hash = sha256_file(source)
+    probe = pycdlib.PyCdlib()
+    try:
+        probe.open(str(source))
+        if probe.has_rock_ridge() or probe.has_udf():
+            raise DiskForgeError("ISO rebuilding currently supports standard ISO9660/Joliet images only; Rock Ridge and UDF are refused.")
+        if _iso_has_eltorito(source):
+            raise DiskForgeError("ISO rebuilding refuses El Torito images to preserve boot catalog metadata.")
+        label_value = (volume_label or probe.pvd.volume_identifier.decode("ascii", errors="ignore").strip() or "DISKFORGE")[:32]
+    finally:
+        probe.close()
+    stage_root = Path(tempfile.mkdtemp(prefix="diskforge-iso-edit-"))
+    workspace, verification = stage_root / "content", stage_root / "verify"
+    changed_additions: list[str] = []
+    changed_deletions: list[str] = []
+    created_directories: list[str] = []
+    try:
+        source_fs = IsoImageFilesystem(source)
+        try:
+            source_entries = list(source_fs._walk("/"))
+            file_entries = [entry for entry in source_entries if not entry.is_dir]
+            for directory in sorted((entry for entry in source_entries if entry.is_dir), key=lambda entry: entry.path.count("/")):
+                _, target = _iso_workspace_path(workspace, directory.path)
+                target.mkdir(parents=True, exist_ok=True)
+            for index, entry in enumerate(file_entries, start=1):
+                if token:
+                    token.raise_if_cancelled()
+                _, target = _iso_workspace_path(workspace, entry.path)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                source_fs.extract([entry.path], workspace, token=token)
+                if progress:
+                    progress(Progress(OperationKind.ISO_EDIT, index, len(file_entries) or 1, f"Staging {entry.name}"))
+        finally:
+            source_fs.close()
+        for value in deletions:
+            normalized, target = _existing_iso_workspace_path(workspace, value)
+            if target.is_dir():
+                shutil.rmtree(target)
+            else:
+                target.unlink()
+            changed_deletions.append(normalized)
+        for value in directories:
+            normalized, target = _iso_workspace_path(workspace, value)
+            if target.exists() and not target.is_dir():
+                raise FileExistsError(normalized)
+            target.mkdir(parents=True, exist_ok=True)
+            created_directories.append(normalized)
+        _, target_root = _existing_iso_workspace_path(workspace, target_directory, allow_root=True)
+        if not target_root.is_dir():
+            raise FileNotFoundError(f"ISO target directory does not exist: {_normal(target_directory)}")
+        for item in additions:
+            if token:
+                token.raise_if_cancelled()
+            targets: list[tuple[Path, Path]] = []
+            if item.is_dir():
+                for candidate in item.rglob("*"):
+                    if candidate.is_file():
+                        targets.append((candidate, target_root / item.name / candidate.relative_to(item)))
+                if not targets:
+                    (target_root / item.name).mkdir(parents=True, exist_ok=True)
+            else:
+                targets.append((item, target_root / item.name))
+            for candidate, target in targets:
+                if target.exists():
+                    raise FileExistsError(target)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(candidate, target)
+                changed_additions.append("/" + target.relative_to(workspace).as_posix())
+        if token:
+            token.raise_if_cancelled()
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        create_iso_from_directory(workspace, destination, label_value)
+        verifier = IsoImageFilesystem(destination)
+        try:
+            expected_files = sorted(item for item in workspace.rglob("*") if item.is_file())
+            for index, expected in enumerate(expected_files, start=1):
+                if token:
+                    token.raise_if_cancelled()
+                relative = "/" + expected.relative_to(workspace).as_posix()
+                verifier.extract([relative], verification, token=token)
+                extracted = verification / relative.lstrip("/")
+                if sha256_file(extracted) != sha256_file(expected):
+                    raise DiskForgeError(f"Rebuilt ISO verification failed for {relative}.")
+                if progress:
+                    progress(Progress(OperationKind.ISO_EDIT, index, len(expected_files) or 1, f"Verifying {expected.name}"))
+        finally:
+            verifier.close()
+        if sha256_file(source) != source_hash:
+            raise DiskForgeError("The source ISO changed during rebuilding.")
+        return IsoRebuildResult(source, destination, tuple(sorted(changed_additions)), tuple(sorted(changed_deletions)),
+                                tuple(sorted(set(created_directories))), source_hash, sha256_file(destination))
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
+    finally:
+        shutil.rmtree(stage_root, ignore_errors=True)
 
 
 class IsoImageFilesystem(ImageFilesystem):

@@ -105,6 +105,7 @@ class OperationKind(str, Enum):
     LEGACY_COMPRESS = "legacy_compress"
     LEGACY_EXTRACT = "legacy_extract"
     ISO_REPLACE = "iso_replace"
+    ISO_EDIT = "iso_edit"
 
 
 @dataclass(frozen=True)

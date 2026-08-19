@@ -19,7 +19,7 @@ from .core.eltorito import export_boot_image, inspect_eltorito
 from .core.fat_layouts import FatImageLayout, create_fat_image_from_layout
 from .core.floppy_format import FloppyControllerFormatter
 from .core.filesystems import (FatImageFilesystem, IsoImageFilesystem, create_fat_image,
-                               create_iso_from_directory, defragment_fat_image, replace_iso_file_safely)
+                               create_iso_from_directory, defragment_fat_image, rebuild_iso_with_changes, replace_iso_file_safely)
 from .core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_image, create_dynamic_vhd_from_raw,
                            create_editable_fixed_vhd_copy, create_legacy_zip_image, extract_legacy_zip_image,
                            inspect_image)
@@ -148,6 +148,16 @@ def parser() -> argparse.ArgumentParser:
     replace_iso.add_argument("replacement", type=Path)
     replace_iso.add_argument("destination", type=Path)
     replace_iso.add_argument("--overwrite", action="store_true")
+
+    edit_iso = commands.add_parser("edit-iso", help="Rebuild a standard ISO9660/Joliet image after explicit content edits")
+    edit_iso.add_argument("source", type=Path)
+    edit_iso.add_argument("destination", type=Path)
+    edit_iso.add_argument("--add", action="append", type=Path, default=[], help="Local file or directory to add; repeatable")
+    edit_iso.add_argument("--delete", action="append", default=[], help="ISO file or directory path to delete; repeatable")
+    edit_iso.add_argument("--mkdir", action="append", default=[], help="ISO directory path to create; repeatable")
+    edit_iso.add_argument("--target-directory", default="/", help="Existing ISO directory receiving --add inputs")
+    edit_iso.add_argument("--label", help="Optional volume label for the rebuilt ISO")
+    edit_iso.add_argument("--overwrite", action="store_true")
 
     boot_info = commands.add_parser("iso-boot-info", help="Inspect an ISO El Torito boot catalog without modifying the ISO")
     boot_info.add_argument("image", type=Path)
@@ -502,6 +512,17 @@ def main(argv: list[str] | None = None) -> int:
                                              overwrite=args.overwrite)
             _emit(args, {"source": str(result.source), "destination": str(result.destination),
                          "iso_path": result.iso_path, "bytes_replaced": result.bytes_replaced,
+                         "source_sha256": result.source_sha256, "output_sha256": result.output_sha256},
+                  str(result.destination))
+        elif args.command == "edit-iso":
+            result = rebuild_iso_with_changes(
+                args.source, args.destination, additions=args.add, delete_paths=args.delete,
+                create_directories=args.mkdir, target_directory=args.target_directory,
+                volume_label=args.label, overwrite=args.overwrite, progress=progress,
+            )
+            _emit(args, {"source": str(result.source), "destination": str(result.destination),
+                         "files_added": list(result.files_added), "paths_deleted": list(result.paths_deleted),
+                         "directories_created": list(result.directories_created),
                          "source_sha256": result.source_sha256, "output_sha256": result.output_sha256},
                   str(result.destination))
         elif args.command == "iso-boot-info":

@@ -1069,3 +1069,55 @@ CATALOG["fr"].update({"Format UFI USB floppy": "Formater une disquette USB UFI",
 CATALOG["ru"].update({"Format UFI USB floppy": "Форматировать USB-дискету UFI", "Type FORMAT_FLOPPY exactly before UFI USB floppy formatting.": "Точно введите FORMAT_FLOPPY перед форматированием USB-дискеты UFI.", "UFI USB floppy unavailable": "USB-дискета UFI недоступна", "Select UFI USB floppy capacity": "Выберите ёмкость USB-дискеты UFI", "Choose exactly one capacity reported by the device:": "Выберите ровно одну ёмкость, сообщённую устройством:", "Formatting UFI USB floppy": "Форматирование USB-дискеты UFI", "UFI USB floppy formatted": "USB-дискета UFI отформатирована", "Low-level UFI formatting completed with backend verification.": "Низкоуровневое форматирование UFI завершено с проверкой бэкендом."})
 CATALOG["ar"].update({"Format UFI USB floppy": "تهيئة قرص مرن USB UFI", "Type FORMAT_FLOPPY exactly before UFI USB floppy formatting.": "اكتب FORMAT_FLOPPY تماماً قبل تهيئة قرص USB المرن من UFI.", "UFI USB floppy unavailable": "قرص USB المرن من UFI غير متاح", "Select UFI USB floppy capacity": "اختر سعة قرص USB المرن من UFI", "Choose exactly one capacity reported by the device:": "اختر سعة واحدة فقط أبلغ عنها الجهاز:", "Formatting UFI USB floppy": "تجري تهيئة قرص USB المرن من UFI", "UFI USB floppy formatted": "تمت تهيئة قرص USB المرن من UFI", "Low-level UFI formatting completed with backend verification.": "اكتملت تهيئة UFI منخفضة المستوى مع تحقق الواجهة الخلفية."})
 CATALOG["ja"].update({"Format UFI USB floppy": "UFI USB フロッピーをフォーマット", "Type FORMAT_FLOPPY exactly before UFI USB floppy formatting.": "UFI USB フロッピーをフォーマットする前に FORMAT_FLOPPY を正確に入力してください。", "UFI USB floppy unavailable": "UFI USB フロッピーを利用できません", "Select UFI USB floppy capacity": "UFI USB フロッピー容量を選択", "Choose exactly one capacity reported by the device:": "デバイスが報告した容量を 1 つだけ選択してください：", "Formatting UFI USB floppy": "UFI USB フロッピーをフォーマット中", "UFI USB floppy formatted": "UFI USB フロッピーをフォーマットしました", "Low-level UFI formatting completed with backend verification.": "バックエンド検証を伴う低レベル UFI フォーマットが完了しました。"})
+
+
+# Standard ISO9660/Joliet rebuild-editing additions.
+CATALOG["zh_CN"].update({
+    "Edit standard ISO content…": "编辑标准 ISO 内容…", "Add local file…": "添加本地文件…", "Add local folder…": "添加本地文件夹…",
+    "Delete selected ISO entries": "删除所选 ISO 条目", "Create ISO directory…": "创建 ISO 目录…", "Edit standard ISO content": "编辑标准 ISO 内容",
+    "Operation": "操作", "Select local file to add": "选择要添加的本地文件", "Select local folder to add": "选择要添加的本地文件夹",
+    "Select ISO entries": "选择 ISO 条目", "Select one or more ISO files or directories to delete.": "请选择一个或多个要删除的 ISO 文件或目录。",
+    "Create ISO directory": "创建 ISO 目录", "ISO directory path": "ISO 目录路径", "Save rebuilt ISO image": "保存重建后的 ISO 映像",
+    "Rebuilding standard ISO into a new image": "正在将标准 ISO 重建为新映像",
+})
+CATALOG["es"].update({
+    "Edit standard ISO content…": "Editar contenido ISO estándar…", "Add local file…": "Añadir archivo local…", "Add local folder…": "Añadir carpeta local…",
+    "Delete selected ISO entries": "Eliminar entradas ISO seleccionadas", "Create ISO directory…": "Crear directorio ISO…", "Edit standard ISO content": "Editar contenido ISO estándar",
+    "Operation": "Operación", "Select local file to add": "Seleccionar archivo local para añadir", "Select local folder to add": "Seleccionar carpeta local para añadir",
+    "Select ISO entries": "Seleccionar entradas ISO", "Select one or more ISO files or directories to delete.": "Seleccione uno o más archivos o directorios ISO para eliminar.",
+    "Create ISO directory": "Crear directorio ISO", "ISO directory path": "Ruta del directorio ISO", "Save rebuilt ISO image": "Guardar imagen ISO reconstruida",
+    "Rebuilding standard ISO into a new image": "Reconstruyendo ISO estándar en una nueva imagen",
+})
+CATALOG["fr"].update({
+    "Edit standard ISO content…": "Modifier le contenu ISO standard…", "Add local file…": "Ajouter un fichier local…", "Add local folder…": "Ajouter un dossier local…",
+    "Delete selected ISO entries": "Supprimer les entrées ISO sélectionnées", "Create ISO directory…": "Créer un répertoire ISO…", "Edit standard ISO content": "Modifier le contenu ISO standard",
+    "Operation": "Opération", "Select local file to add": "Sélectionner le fichier local à ajouter", "Select local folder to add": "Sélectionner le dossier local à ajouter",
+    "Select ISO entries": "Sélectionner des entrées ISO", "Select one or more ISO files or directories to delete.": "Sélectionnez un ou plusieurs fichiers ou répertoires ISO à supprimer.",
+    "Create ISO directory": "Créer un répertoire ISO", "ISO directory path": "Chemin du répertoire ISO", "Save rebuilt ISO image": "Enregistrer l’image ISO reconstruite",
+    "Rebuilding standard ISO into a new image": "Reconstruction de l’ISO standard dans une nouvelle image",
+})
+CATALOG["ru"].update({
+    "Edit standard ISO content…": "Редактировать содержимое стандартного ISO…", "Add local file…": "Добавить локальный файл…", "Add local folder…": "Добавить локальную папку…",
+    "Delete selected ISO entries": "Удалить выбранные записи ISO", "Create ISO directory…": "Создать каталог ISO…", "Edit standard ISO content": "Редактировать содержимое стандартного ISO",
+    "Operation": "Операция", "Select local file to add": "Выберите локальный файл для добавления", "Select local folder to add": "Выберите локальную папку для добавления",
+    "Select ISO entries": "Выберите записи ISO", "Select one or more ISO files or directories to delete.": "Выберите один или несколько файлов или каталогов ISO для удаления.",
+    "Create ISO directory": "Создать каталог ISO", "ISO directory path": "Путь к каталогу ISO", "Save rebuilt ISO image": "Сохранить пересобранный образ ISO",
+    "Rebuilding standard ISO into a new image": "Пересборка стандартного ISO в новый образ",
+})
+CATALOG["ar"].update({
+    "Edit standard ISO content…": "تحرير محتوى ISO القياسي…", "Add local file…": "إضافة ملف محلي…", "Add local folder…": "إضافة مجلد محلي…",
+    "Delete selected ISO entries": "حذف إدخالات ISO المحددة", "Create ISO directory…": "إنشاء دليل ISO…", "Edit standard ISO content": "تحرير محتوى ISO القياسي",
+    "Operation": "العملية", "Select local file to add": "اختر ملفاً محلياً لإضافته", "Select local folder to add": "اختر مجلداً محلياً لإضافته",
+    "Select ISO entries": "اختر إدخالات ISO", "Select one or more ISO files or directories to delete.": "اختر ملف ISO واحداً أو أكثر أو دلائل لحذفها.",
+    "Create ISO directory": "إنشاء دليل ISO", "ISO directory path": "مسار دليل ISO", "Save rebuilt ISO image": "حفظ صورة ISO المعاد إنشاؤها",
+    "Rebuilding standard ISO into a new image": "تجري إعادة إنشاء ISO القياسي في صورة جديدة",
+})
+CATALOG["ja"].update({
+    "Edit standard ISO content…": "標準 ISO の内容を編集…", "Add local file…": "ローカルファイルを追加…", "Add local folder…": "ローカルフォルダーを追加…",
+    "Delete selected ISO entries": "選択した ISO エントリを削除", "Create ISO directory…": "ISO ディレクトリを作成…", "Edit standard ISO content": "標準 ISO の内容を編集",
+    "Operation": "操作", "Select local file to add": "追加するローカルファイルを選択", "Select local folder to add": "追加するローカルフォルダーを選択",
+    "Select ISO entries": "ISO エントリを選択", "Select one or more ISO files or directories to delete.": "削除する ISO ファイルまたはディレクトリを 1 つ以上選択してください。",
+    "Create ISO directory": "ISO ディレクトリを作成", "ISO directory path": "ISO ディレクトリパス", "Save rebuilt ISO image": "再構築した ISO イメージを保存",
+    "Rebuilding standard ISO into a new image": "標準 ISO を新しいイメージとして再構築中",
+})
+TRANSLATABLE = _catalog_keys()

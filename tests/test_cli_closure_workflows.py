@@ -163,3 +163,24 @@ def test_cli_ufi_floppy_commands_use_explicit_snapshot_and_capacity(monkeypatch,
     assert main(["--json", "format-ufi-floppy", str(manifest), "--capacity", "1474560", "--confirm", "FORMAT_FLOPPY"]) == 0
     assert json.loads(capsys.readouterr().out)["backend"] == "ufiformat"
     assert calls == [("discover", str(device)), ("format", (str(device), 1474560, "FORMAT_FLOPPY"))]
+
+
+def test_cli_rebuilds_standard_iso_after_explicit_edits(tmp_path: Path, capsys) -> None:
+    source_tree = tmp_path / "source-iso"
+    (source_tree / "folder").mkdir(parents=True)
+    (source_tree / "KEEP.TXT").write_text("keep", encoding="utf-8")
+    (source_tree / "folder" / "OLD.TXT").write_text("remove", encoding="utf-8")
+    source = create_iso_from_directory(source_tree, tmp_path / "source.iso")
+    added = tmp_path / "ADDED.TXT"
+    added.write_text("added", encoding="utf-8")
+    destination = tmp_path / "edited.iso"
+
+    assert main([
+        "--json", "edit-iso", str(source), str(destination), "--add", str(added),
+        "--delete", "/folder/OLD.TXT", "--mkdir", "/empty", "--target-directory", "/folder",
+    ]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["destination"] == str(destination)
+    assert payload["files_added"] == ["/FOLDER/ADDED.TXT"]
+    assert payload["paths_deleted"] == ["/folder/OLD.TXT"]
+    assert payload["directories_created"] == ["/empty"]

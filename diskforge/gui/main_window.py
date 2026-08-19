@@ -43,7 +43,7 @@ from diskforge.core.fat_layouts import FatImageLayout, create_fat_image_from_lay
 from diskforge.core.floppy_format import FloppyControllerFormatter
 from diskforge.core.filesystems import (FatImageFilesystem, ImageFilesystem, IsoImageFilesystem,
                                         create_fat_image, create_iso_from_directory, defragment_fat_image,
-                                        replace_iso_file_safely)
+                                        rebuild_iso_with_changes, replace_iso_file_safely)
 from diskforge.core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_image, create_dynamic_vhd_from_raw,
                                      create_editable_fixed_vhd_copy, create_legacy_zip_image, inspect_image,
                                      validate_fixed_vhd_fat)
@@ -571,6 +571,7 @@ class MainWindow(QMainWindow):
         self.action_trim_zero_tail = self._action("Trim trailing zero sectors…", None, self.trim_current_zero_tail)
         self.action_iso_boot = self._action("Inspect / export ISO boot image…", None, self.inspect_iso_boot)
         self.action_replace_iso = self._action("Safely replace ISO file…", None, self.replace_iso_file)
+        self.action_edit_iso = self._action("Edit standard ISO content…", None, self.edit_standard_iso)
         self.action_editable_vhd = self._action("Create editable fixed VHD copy…", None, self.create_editable_vhd_copy)
         self.action_dynamic_vhd = self._action("Create dynamic VHD from FAT work image…", None, self.create_dynamic_vhd)
         self.action_convert_dmg = self._action("Convert DMG to raw image…", None, self.convert_dmg_image)
@@ -623,7 +624,7 @@ class MainWindow(QMainWindow):
         menu_image.addSeparator()
         menu_image.addActions([self.action_convert, self.action_resize, self.action_trim_zero_tail, self.action_compare, self.action_verify,
                                self.action_defragment, self.action_partitions, self.action_boot, self.action_wrap_mbr, self.action_prepare_deployment,
-                               self.action_iso_boot, self.action_replace_iso, self.action_editable_vhd, self.action_dynamic_vhd, self.action_convert_dmg,
+                               self.action_iso_boot, self.action_replace_iso, self.action_edit_iso, self.action_editable_vhd, self.action_dynamic_vhd, self.action_convert_dmg,
                                self.action_mount, self.action_unmount])
 
         menu_image.addSeparator()
@@ -842,7 +843,7 @@ class MainWindow(QMainWindow):
         for action in [self.action_close, self.action_convert, self.action_resize, self.action_compare,
                        self.action_verify, self.action_partitions, self.action_boot, self.action_comment,
                        self.action_bundle, self.action_sfx, self.action_trim_zero_tail, self.action_iso_boot,
-                       self.action_replace_iso]:
+                       self.action_replace_iso, self.action_edit_iso]:
             action.setEnabled(open_image)
         fat_source = open_image and isinstance(self.current_fs, FatImageFilesystem)
         self.action_wrap_mbr.setEnabled(fat_source)
@@ -850,6 +851,7 @@ class MainWindow(QMainWindow):
         iso_open = open_image and self.current_info is not None and (self.current_info.image_format == ImageFormat.ISO or self.current_info.filesystem == FileSystemType.ISO9660)
         self.action_iso_boot.setEnabled(iso_open)
         self.action_replace_iso.setEnabled(iso_open and selected_file is not None and len(self._selected_paths()) == 1)
+        self.action_edit_iso.setEnabled(iso_open)
         fixed_fat_vhd = fat_source and self.current_info is not None and self.current_info.image_format == ImageFormat.VHD and any(
             note.startswith("Fixed VHD footer validated") for note in self.current_info.notes
         )
@@ -1148,6 +1150,62 @@ class MainWindow(QMainWindow):
         def replace(progress=None, token=None):
             return replace_iso_file_safely(source_iso, selected.path, source_file, destination)
         self._run_worker("Safely replacing ISO file into a new image", replace,
+                         on_result=lambda result: self._open_path(Path(result.destination)))
+
+    def edit_standard_iso(self) -> None:
+        """Rebuild a supported standard ISO after one explicit content edit."""
+        if not self.current_path or not isinstance(self.current_fs, IsoImageFilesystem):
+            return
+        choices = [
+            "Add local file…", "Add local folder…", "Delete selected ISO entries", "Create ISO directory…",
+        ]
+        operation, accepted = QInputDialog.getItem(self, "Edit standard ISO content", "Operation", choices, 0, False)
+        if not accepted:
+            return
+        additions: list[Path] = []
+        deletions: list[str] = []
+        directories: list[str] = []
+        target_directory = "/"
+        selected_entries = [entry for entry in self.current_entries if entry.path in self._selected_paths()]
+        selected_directory = next((entry for entry in selected_entries if entry.is_dir), None)
+        if selected_directory is not None:
+            target_directory = selected_directory.path
+        if operation == "Add local file…":
+            filename, _ = QFileDialog.getOpenFileName(self, "Select local file to add", "", "All files (*)")
+            if not filename:
+                return
+            additions = [Path(filename)]
+        elif operation == "Add local folder…":
+            directory = QFileDialog.getExistingDirectory(self, "Select local folder to add")
+            if not directory:
+                return
+            additions = [Path(directory)]
+        elif operation == "Delete selected ISO entries":
+            deletions = [entry.path for entry in selected_entries]
+            if not deletions:
+                QMessageBox.information(self, "Select ISO entries", "Select one or more ISO files or directories to delete.")
+                return
+        else:
+            directory, accepted = QInputDialog.getText(self, "Create ISO directory", "ISO directory path")
+            if not accepted or not directory.strip():
+                return
+            directories = [directory]
+        source_iso = self.current_path
+        default = source_iso.with_name(f"{source_iso.stem}-edited.iso")
+        output, _ = QFileDialog.getSaveFileName(self, "Save rebuilt ISO image", str(default), "ISO image (*.iso)")
+        if not output:
+            return
+        destination = Path(output)
+        if destination.resolve() == source_iso.resolve():
+            QMessageBox.warning(self, "Separate output required", "The source ISO remains unchanged; choose a different output file.")
+            return
+        def rebuild(progress=None, token=None):
+            return rebuild_iso_with_changes(
+                source_iso, destination, additions=additions, delete_paths=deletions,
+                create_directories=directories, target_directory=target_directory,
+                progress=progress, token=token,
+            )
+        self._run_worker("Rebuilding standard ISO into a new image", rebuild,
                          on_result=lambda result: self._open_path(Path(result.destination)))
 
     def _open_path(self, path: Path, *, editable_fixed_vhd: bool = False,
