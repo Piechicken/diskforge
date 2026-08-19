@@ -33,8 +33,11 @@ class ImageFormat(str, Enum):
     def from_path(cls, path: Path | str) -> "ImageFormat":
         suffix = Path(path).suffix.lower().lstrip(".")
         aliases = {"ima": cls.IMG, "bin": cls.RAW, "dd": cls.RAW}
+        alias = aliases.get(suffix)
+        if alias is not None:
+            return alias
         try:
-            return aliases.get(suffix, cls(suffix))
+            return cls(suffix)
         except ValueError:
             return cls.UNKNOWN
 

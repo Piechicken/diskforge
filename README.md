@@ -30,14 +30,14 @@ The first public release provides four native desktop builds. Download the packa
 
 | Platform | Package | Launch |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.6.0-windows-x64.zip` | Extract, then run `DiskForge.exe`. |
-| Linux x64 | `DiskForge-v0.6.0-linux-x64.zip` | Extract, then run `./DiskForge`. |
-| macOS Intel | `DiskForge-v0.6.0-macos-intel-x64.zip` | Extract, then move `DiskForge.app` to Applications. |
-| macOS Apple Silicon | `DiskForge-v0.6.0-macos-arm64.zip` | Extract, then move `DiskForge.app` to Applications. |
+| Windows x64 | `DiskForge-v0.7.0-windows-x64.zip` | Extract, then run `DiskForge.exe`. |
+| Linux x64 | `DiskForge-v0.7.0-linux-x64.zip` | Extract, then run `./DiskForge`. |
+| macOS Intel | `DiskForge-v0.7.0-macos-intel-x64.zip` | Extract, then move `DiskForge.app` to Applications. |
+| macOS Apple Silicon | `DiskForge-v0.7.0-macos-arm64.zip` | Extract, then move `DiskForge.app` to Applications. |
 
 ## Interface languages
 
-DiskForge v0.6.0 localizes its desktop interface at runtime. Select **Tools → Language** to switch immediately between the six United Nations working languages—**Arabic, Chinese, English, French, Russian, and Spanish**—plus **Japanese**. The preference is retained for the next launch. Selecting Arabic switches the complete Qt layout to right-to-left while preserving technical values such as device paths, checksums, file extensions, and the physical-write confirmation phrase `ERASE`.
+DiskForge v0.7.0 localizes its desktop interface at runtime, including the workspace and native historical-file preview workflow. Select **Tools → Language** to switch immediately between the six United Nations working languages—**Arabic, Chinese, English, French, Russian, and Spanish**—plus **Japanese**. The preference is retained for the next launch. Selecting Arabic switches the complete Qt layout to right-to-left while preserving technical values such as device paths, checksums, file extensions, and the physical-write confirmation phrase `ERASE`.
 
 Read [LOCALIZATION.md](docs/LOCALIZATION.md) for the language matrix, RTL behavior, safety boundaries, and translation-maintenance workflow.
 
@@ -52,7 +52,7 @@ DiskForge brings the most useful image-management workflows into one original, a
 | Workflow | Native capability | Notes |
 |---|---|---|
 | Create images | RAW/IMG, FAT12, FAT16, FAT32, DMF-layout FAT12, ISO9660/Joliet | Create editable FAT images, documented 80×2×21-sector DMF-layout image files, ordinary ISO media, or El Torito ISO media from a local directory and an optional local boot image. |
-| Browse and extract | FAT12/16/32, ISO9660/Joliet, fixed VHD data views, and optional NTFS/EXT2/EXT3 read-only backend | Tree, sortable detail table, persistent icon grid, safe double-click preview, bulk extraction, image information, MBR/GPT inspection, path-preserving or flattened output, and explicit conflict policy. Fixed VHD opens through a temporary read-only RAW data view that excludes its footer. |
+| Browse and extract | FAT12/16/32—including validated unlabeled legacy DOS floppy media—ISO9660/Joliet, fixed VHD data views, and optional NTFS/EXT2/EXT3 read-only backend | Tree, sortable detail table, persistent icon grid, and non-executing double-click preview for text, images, common archives, legacy setup packages, executables, and binary data. Extraction, image information, MBR/GPT inspection, path-preserving or flattened output, and explicit conflict policy remain available. Fixed VHD opens through a temporary read-only RAW data view that excludes its footer. |
 | Change image contents | FAT injection, recursive folders, deletion, rename, timestamps, DOS attributes, and volume labels | Drag local files or folders into writable FAT images, including directly onto a displayed target folder. ISO, NTFS and EXT are deliberately exposed through read-only paths. |
 | Convert formats | RAW/IMG and fixed VHD natively | VHDX, VMDK, and QCOW2 use an explicitly configured `qemu-img` adapter. |
 | Compact FAT images | Rebuild-based defragmentation | Writes a new image, preserving the original image as the recovery point. |

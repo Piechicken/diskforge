@@ -7,6 +7,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+from .formats import detect_filesystem
 from .models import DiskPartition, FileSystemType, SECTOR_SIZE
 from .storage import DiskForgeError, read_sector
 
@@ -39,20 +40,14 @@ class GptInspection:
 
 
 def _filesystem_from_boot(path: Path, offset: int) -> FileSystemType:
-    if offset < 0 or offset + 2048 > path.stat().st_size:
+    """Inspect a filesystem boot sector with the shared conservative detector."""
+    size = path.stat().st_size
+    if offset < 0 or offset + SECTOR_SIZE > size:
         return FileSystemType.UNKNOWN
     with path.open("rb") as handle:
         handle.seek(offset)
-        data = handle.read(2048)
-    if len(data) >= 90 and data[82:90].strip().upper().startswith(b"FAT32"):
-        return FileSystemType.FAT32
-    if len(data) >= 62 and data[54:62].strip().upper().startswith(b"FAT"):
-        return FileSystemType.FAT16
-    if len(data) >= 11 and data[3:11] == b"NTFS    ":
-        return FileSystemType.NTFS
-    if len(data) >= 1082 and data[1080:1082] == b"\x53\xef":
-        return FileSystemType.EXT
-    return FileSystemType.UNKNOWN
+        data = handle.read(min(4096, size - offset))
+    return detect_filesystem(data, image_size=size - offset)
 
 
 def parse_mbr(path: Path | str) -> list[DiskPartition]:

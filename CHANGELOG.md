@@ -2,6 +2,23 @@
 
 All notable changes to DiskForge are documented in this file. The project uses semantic versioning for public releases.
 
+## v0.7.0 — Legacy Media Compatibility and Native Preview
+
+DiskForge v0.7.0 resolves the historical-media interoperability path with sample-led FAT detection and a non-executing desktop preview experience. The release keeps image bytes untouched during inspection, treats legacy media as a valid source rather than a recovery problem, and preserves the existing protection boundaries for all write operations.
+
+| Area | Additions in v0.7.0 |
+|---|---|
+| Legacy FAT recognition | FAT12, FAT16, and FAT32 are now detected from a validated BPB, boot signature, geometry, media descriptor, filesystem bounds, and available reserved-FAT evidence. The optional display-label field is no longer required, allowing older 360 KB and 1.44 MB DOS-style floppy images to open normally. `.IMA` is correctly treated as a RAW/IMG alias. |
+| Reliable historical browsing | Partition-offset discovery now uses the same BPB validation as image inspection. Historical FAT media can therefore move from image information to root-directory browsing through one consistent, read-only-safe path. The isolated third-party dirty-volume advisory is suppressed only while opening such a volume; all other warnings retain the strict policy. |
+| Native file preview | Double-click and Preview now extract to an isolated temporary workspace and display bounded, non-executing internal results. Text, images, ZIP, TAR, GZip, standard CAB listings, InstallShield `ISc(` setup headers, SZDD signatures, DOS MZ, NE, PE, and generic binary data have appropriate text, rendered-image, archive-index, executable-structure, or hexadecimal views. No system default application is needed for a basic inspection. |
+| Localization | Workspace branding and the new preview workflow—including historical package labels and executable safety messages—are catalogued in Simplified Chinese, English, Spanish, French, Russian, Arabic, and Japanese. A regression test verifies that core preview labels cannot fall back to English in non-English interfaces. |
+| Application icon | DiskForge now ships a coherent navy, silver, and amber disk-and-forge application icon. Runtime PNG assets and native Windows ICO/macOS ICNS derivatives are included in source and native packages. |
+| Verification hygiene | The offscreen image-open smoke test now configures Qt logging before import, eliminating the non-actionable `propagateSizeHints` platform diagnostic without weakening Python warning-as-error checks. |
+
+### Validation
+
+The release candidate adds synthetic regression coverage for a valid unlabeled 360 KB FAT12 superfloppy, `.IMA` aliases, non-executing text/archive/executable preview classification, seven-language preview labels, and application icon loading. Both supplied historical floppy images were also opened read-only and used to verify actual DOS executable, text, and InstallShield package preview classification. The full strict suite completes with 87 passing tests and no warnings; all three offscreen desktop smoke scripts emit zero bytes on standard error.
+
 ## v0.6.0 — Converged Boot, Deployment, Virtual-Disk, and Workflow Studio
 
 DiskForge v0.6.0 is a consolidated capability release rather than a narrow workflow patch. It connects image creation, boot preparation, virtual-disk browsing, deploy planning, automation preflight, portable settings, and visible task history through the same safety model: source images remain intact until an explicit output is chosen, physical writes retain the existing foreground `ERASE` confirmation, and unattended batch recipes still reject raw-device actions.

@@ -203,35 +203,72 @@ def inspect_image(path: Path | str, converter: Converter | None = None) -> Image
         metadata = converter.inspect(target)
         virtual_size = int(metadata.get("virtual-size", 0)) or None
         notes.append(f"Converter reports {metadata.get('format', detected.value)}")
-    fs_type = detect_filesystem(head)
+    fs_type = detect_filesystem(head, image_size=size)
     writable = os.access(target, os.W_OK) and detected not in {ImageFormat.ISO, ImageFormat.DMG}
     return ImageInfo(target, detected, size, fs_type, writable=writable,
                      virtual_size=virtual_size, notes=tuple(notes))
 
 
-def detect_filesystem(head: bytes) -> FileSystemType:
-    """Recognize non-invasive boot-sector and ISO signatures."""
+_FAT_SECTOR_SIZES = {512, 1024, 2048, 4096}
+_FAT_CLUSTER_SIZES = {1, 2, 4, 8, 16, 32, 64, 128}
+
+
+def _fat_bpb_filesystem(head: bytes, image_size: int | None) -> FileSystemType | None:
+    """Validate a FAT BPB without relying on the optional display-label field.
+
+    Older DOS media commonly omits the FAT12/FAT16 string at offsets 54–61.  A
+    recognised BPB must therefore stand on its own: valid jump and boot
+    signature, internally consistent geometry, a recognised media descriptor,
+    and—when present in the inspected prefix—the corresponding FAT reserved
+    entry.  These checks avoid treating arbitrary raw data as a filesystem.
+    """
+    if len(head) < 512 or head[0] not in {0xEB, 0xE9} or head[510:512] != b"\x55\xaa":
+        return None
+    bytes_per_sector = int.from_bytes(head[11:13], "little")
+    sectors_per_cluster = head[13]
+    reserved = int.from_bytes(head[14:16], "little")
+    fat_count = head[16]
+    root_entries = int.from_bytes(head[17:19], "little")
+    total_sectors = int.from_bytes(head[19:21], "little") or int.from_bytes(head[32:36], "little")
+    fat_sectors = int.from_bytes(head[22:24], "little") or int.from_bytes(head[36:40], "little")
+    media = head[21]
+    if bytes_per_sector not in _FAT_SECTOR_SIZES or sectors_per_cluster not in _FAT_CLUSTER_SIZES:
+        return None
+    if reserved < 1 or fat_count not in {1, 2} or total_sectors < 1 or fat_sectors < 1:
+        return None
+    if media != 0xF0 and not 0xF8 <= media <= 0xFF:
+        return None
+    if image_size is not None:
+        if image_size < bytes_per_sector or image_size % bytes_per_sector or total_sectors > image_size // bytes_per_sector:
+            return None
+    root_dir_sectors = (root_entries * 32 + bytes_per_sector - 1) // bytes_per_sector
+    data_sectors = total_sectors - (reserved + fat_count * fat_sectors + root_dir_sectors)
+    if data_sectors <= 0:
+        return None
+    fat_offset = reserved * bytes_per_sector
+    # FAT12 stores two reserved entries in three bytes.  The standard form is
+    # ``media FF FF``; pyfatfs also emits ``media 0F FF``.  Both preserve the
+    # required low-nibble end marker, so accept either while retaining the
+    # matching-media-byte check.
+    if fat_offset + 3 <= len(head) and (head[fat_offset] != media or head[fat_offset + 1] & 0x0F != 0x0F):
+        return None
+    clusters = data_sectors // sectors_per_cluster
+    if clusters < 1:
+        return None
+    if clusters < 4085:
+        return FileSystemType.FAT12
+    if clusters < 65525:
+        return FileSystemType.FAT16
+    return FileSystemType.FAT32
+
+
+def detect_filesystem(head: bytes, image_size: int | None = None) -> FileSystemType:
+    """Recognize non-invasive filesystem signatures and validated FAT BPBs."""
     if len(head) >= 6 and head[1:6] == b"CD001":
         return FileSystemType.ISO9660
-    if len(head) >= 90:
-        marker = head[82:90].strip().upper()
-        if marker.startswith(b"FAT32"):
-            return FileSystemType.FAT32
-    if len(head) >= 62 and (head[54:62].strip().upper().startswith(b"FAT") or head[82:90].strip().upper().startswith(b"FAT")):
-        # Derive FAT12/FAT16 from BPB cluster count instead of trusting a display label.
-        bytes_per_sector = int.from_bytes(head[11:13], "little")
-        sectors_per_cluster = head[13]
-        reserved = int.from_bytes(head[14:16], "little")
-        fat_count = head[16]
-        root_entries = int.from_bytes(head[17:19], "little")
-        total_sectors = int.from_bytes(head[19:21], "little") or int.from_bytes(head[32:36], "little")
-        fat_sectors = int.from_bytes(head[22:24], "little") or int.from_bytes(head[36:40], "little")
-        if bytes_per_sector and sectors_per_cluster and total_sectors and fat_sectors:
-            root_dir_sectors = (root_entries * 32 + bytes_per_sector - 1) // bytes_per_sector
-            data_sectors = total_sectors - (reserved + fat_count * fat_sectors + root_dir_sectors)
-            clusters = data_sectors // sectors_per_cluster
-            return FileSystemType.FAT12 if clusters < 4085 else FileSystemType.FAT16
-        return FileSystemType.FAT16
+    fat_filesystem = _fat_bpb_filesystem(head, image_size)
+    if fat_filesystem is not None:
+        return fat_filesystem
     if len(head) >= 11 and head[3:11] == b"NTFS    ":
         return FileSystemType.NTFS
     if len(head) >= 1082 and head[1080:1082] == b"\x53\xef":

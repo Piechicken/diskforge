@@ -39,3 +39,26 @@ def test_all_supported_languages_can_be_selected(tmp_path) -> None:  # type: ign
     for language in LANGUAGES:
         manager.set_language(language.code)
         assert manager.language.code == language.code
+
+
+def test_workspace_and_preview_labels_are_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "DiskForge Workspace",
+        "Preparing file preview",
+        "Preview unavailable",
+        "Image preview",
+        "Text preview",
+        "ZIP archive contents",
+        "CAB archive contents",
+        "InstallShield setup data",
+        "DOS MZ executable",
+        "Binary inspection",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)

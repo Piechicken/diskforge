@@ -114,7 +114,19 @@ class FatImageFilesystem(ImageFilesystem):
     def __init__(self, image_path: Path | str, read_only: bool = False) -> None:
         self.path = Path(image_path)
         self.offset = fat_partition_offset(self.path)
-        self.fs = PyFatFS(str(self.path), offset=self.offset, read_only=read_only, preserve_case=True)
+        # Historical FAT volumes may retain the DOS dirty-volume bit even when
+        # their directory and allocation data are fully readable.  pyfatfs emits
+        # this advisory at open time; it cannot help the user recover data and
+        # would otherwise leak as an application warning.  Scope the filter to
+        # this one dependency message so all other warnings remain fatal.
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r"Filesystem was not cleanly unmounted on last access.*",
+                category=UserWarning,
+                module=r"pyfatfs\.PyFat",
+            )
+            self.fs = PyFatFS(str(self.path), offset=self.offset, read_only=read_only, preserve_case=True)
         self.read_only = read_only
 
     def close(self) -> None:

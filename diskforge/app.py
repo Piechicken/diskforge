@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import sys
 import traceback
+from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QSettings, Qt
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from diskforge.gui.i18n import install_language_manager
@@ -29,6 +31,12 @@ QStatusBar { background: #FFFFFF; border-top: 1px solid #E4E7EC; }
 """
 
 
+def _resource_path(relative: str) -> Path:
+    """Resolve bundled resources in source and frozen application layouts."""
+    root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
+    return root / relative
+
+
 def _exception_hook(exc_type, exc_value, exc_traceback) -> None:  # type: ignore[no-untyped-def]
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
@@ -43,12 +51,14 @@ def main() -> int:
     QCoreApplication.setApplicationName("DiskForge")
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps)
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(str(_resource_path("assets/icons/diskforge-icon.png"))))
     app.setStyle("Fusion")
     app.setStyleSheet(STYLE)
     settings = create_settings(sys.argv[1:])
     install_language_manager(app, settings)
     sys.excepthook = _exception_hook
     window = MainWindow(settings=settings)
+    window.setWindowIcon(app.windowIcon())
     window.show()
     return app.exec()
 

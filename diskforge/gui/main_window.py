@@ -13,8 +13,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Sequence
 
-from PySide6.QtCore import QDateTime, QMimeData, QSettings, QSize, Qt, QThreadPool, QTimer, QUrl
-from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QDrag, QFont, QKeySequence, QTextDocument
+from PySide6.QtCore import QDateTime, QMimeData, QSettings, QSize, Qt, QThreadPool, QUrl
+from PySide6.QtGui import QAction, QActionGroup, QDrag, QFont, QKeySequence, QTextDocument
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFontComboBox,
@@ -43,6 +43,7 @@ from diskforge.core.models import (ConflictPolicy, DeviceInfo, ExtractionLayout,
                                    DeviceKind, FileSystemType, ImageEntry, ImageFormat, OperationKind, Progress,
                                    human_bytes)
 from diskforge.core.partitions import list_partitions
+from diskforge.core.preview import inspect_file_preview
 from diskforge.core.readonly_fs import SleuthKitImageFilesystem
 from diskforge.core.resize import resize_image
 from diskforge.core.selfextract import create_self_extractor
@@ -50,6 +51,7 @@ from diskforge.core.storage import DiskForgeError, sha256_file
 from diskforge.gui.batch_designer import BatchDesignerDialog
 from diskforge.gui.dragdrop import ImageEntryList, ImageEntryTable
 from diskforge.gui.i18n import LANGUAGES, language_manager
+from diskforge.gui.preview import FilePreviewDialog
 from diskforge.gui.theme import apply_theme
 from diskforge.gui.workers import FunctionWorker
 
@@ -1084,21 +1086,13 @@ class MainWindow(QMainWindow):
         self._run_worker("Injecting files", job, on_result=lambda values: self._after_fs_change(f"Injected {len(values)} item(s) into {destination}"))
 
     def preview_selected(self) -> None:
-        """Extract one file to a temporary directory and open it with the host default application."""
+        """Extract one file to an isolated directory and inspect it without execution."""
         if not self.current_path or not self.current_fs:
             return
         paths = self._selected_paths()
         entry = next((candidate for candidate in self.current_entries if candidate.path in paths and not candidate.is_dir), None)
         if len(paths) != 1 or entry is None:
             return
-        dangerous = {".app", ".bat", ".cmd", ".com", ".exe", ".msi", ".ps1", ".py", ".scr", ".sh"}
-        if Path(entry.name).suffix.lower() in dangerous:
-            answer = QMessageBox.warning(
-                self, "Open extracted executable", "The selected file may execute code when opened by the system. Extract it for inspection instead?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel, QMessageBox.StandardButton.Cancel,
-            )
-            if answer != QMessageBox.StandardButton.Yes:
-                return
         source, fs_type = self.current_path, self.current_info.filesystem if self.current_info else FileSystemType.UNKNOWN
         target = Path(tempfile.mkdtemp(prefix="diskforge-preview-"))
         self._preview_directories.append(target)
@@ -1116,15 +1110,17 @@ class MainWindow(QMainWindow):
                 return outputs[0]
             finally:
                 fs.close()
-        self._run_worker("Preparing file preview", job, on_result=self._open_preview)
+        self._run_worker("Preparing file preview", job, on_result=self._show_preview)
 
-    def _open_preview(self, path: Path) -> None:
-        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(path))):
-            QMessageBox.warning(self, "Preview unavailable", f"No default application accepted this file:\n{path}")
-            return
-        self.log(f"Preview opened: {path.name}")
-        parent = path.parent
-        QTimer.singleShot(60 * 60 * 1000, lambda: self._cleanup_preview(parent))
+    def _show_preview(self, path: Path) -> None:
+        try:
+            document = inspect_file_preview(path)
+            FilePreviewDialog(document, self).exec()
+            self.log(f"Preview inspected: {path.name} ({document.kind})")
+        except Exception as exc:
+            QMessageBox.warning(self, "Preview unavailable", str(exc))
+        finally:
+            self._cleanup_preview(path.parent)
 
     def _cleanup_preview(self, directory: Path) -> None:
         shutil.rmtree(directory, ignore_errors=True)

@@ -63,19 +63,19 @@ jobs:
           - id: windows-x64
             label: Windows x64
             os: windows-latest
-            archive: DiskForge-v0.6.0-windows-x64.zip
+            archive: DiskForge-v0.7.0-windows-x64.zip
           - id: linux-x64
             label: Linux x64
             os: ubuntu-latest
-            archive: DiskForge-v0.6.0-linux-x64.zip
+            archive: DiskForge-v0.7.0-linux-x64.zip
           - id: macos-intel-x64
             label: macOS Intel x64
             os: macos-26-intel
-            archive: DiskForge-v0.6.0-macos-intel-x64.zip
+            archive: DiskForge-v0.7.0-macos-intel-x64.zip
           - id: macos-arm64
             label: macOS Apple Silicon
             os: macos-latest
-            archive: DiskForge-v0.6.0-macos-arm64.zip
+            archive: DiskForge-v0.7.0-macos-arm64.zip
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -115,7 +115,7 @@ jobs:
           retention-days: 7
 
   release:
-    name: Publish v0.6.0
+    name: Publish v0.7.0
     needs: package
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -133,18 +133,18 @@ jobs:
         shell: bash
         run: |
           cd release
-          sha256sum DiskForge-v0.6.0-*.zip > SHA256SUMS.txt
+          sha256sum DiskForge-v0.7.0-*.zip > SHA256SUMS.txt
           cat SHA256SUMS.txt
       - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: v0.6.0
+          VERSION: v0.7.0
         shell: bash
         run: |
           if gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$VERSION" release/DiskForge-v0.6.0-*.zip release/SHA256SUMS.txt --clobber --repo "$GITHUB_REPOSITORY"
+            gh release upload "$VERSION" release/DiskForge-v0.7.0-*.zip release/SHA256SUMS.txt --clobber --repo "$GITHUB_REPOSITORY"
             gh release edit "$VERSION" --title "DiskForge $VERSION" --notes-file CHANGELOG.md --repo "$GITHUB_REPOSITORY"
           else
-            gh release create "$VERSION" release/DiskForge-v0.6.0-*.zip release/SHA256SUMS.txt \
+            gh release create "$VERSION" release/DiskForge-v0.7.0-*.zip release/SHA256SUMS.txt \
               --target "$GITHUB_SHA" --title "DiskForge $VERSION" --notes-file CHANGELOG.md --repo "$GITHUB_REPOSITORY"
           fi

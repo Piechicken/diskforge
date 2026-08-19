@@ -29,14 +29,14 @@ La primera versión pública incluye cuatro paquetes nativos de escritorio. Desc
 
 | Plataforma | Paquete | Inicio |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.6.0-windows-x64.zip` | Descomprima y ejecute `DiskForge.exe`. |
-| Linux x64 | `DiskForge-v0.6.0-linux-x64.zip` | Descomprima y ejecute `./DiskForge`. |
-| macOS Intel | `DiskForge-v0.6.0-macos-intel-x64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
-| macOS Apple Silicon | `DiskForge-v0.6.0-macos-arm64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
+| Windows x64 | `DiskForge-v0.7.0-windows-x64.zip` | Descomprima y ejecute `DiskForge.exe`. |
+| Linux x64 | `DiskForge-v0.7.0-linux-x64.zip` | Descomprima y ejecute `./DiskForge`. |
+| macOS Intel | `DiskForge-v0.7.0-macos-intel-x64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
+| macOS Apple Silicon | `DiskForge-v0.7.0-macos-arm64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
 
-## Novedades de v0.6.0
+## Novedades de v0.7.0
 
-La versión 0.6.0 reúne creación de arranque, planificación de despliegue, exploración de discos virtuales, preflight de automatización, configuración portátil e historial de tareas. Puede crear un ISO El Torito desde un directorio y una imagen de arranque local opcional sin modificar el archivo origen. Los modelos de sector de arranque son originales, conservan el BPB FAT y crean una copia de seguridad completa. Los VHD fijos se exploran mediante una vista RAW temporal de solo lectura; la planificación FAT crea primero una imagen MBR neutral revisable y no evita la confirmación `ERASE` para dispositivos. Las recetas por lotes disponen de `--dry-run`, y el centro de tareas muestra estados de cola, ejecución, finalización, error y cancelación. El modo portátil guarda preferencias en un INI y pytest sigue tratando cualquier aviso como error.
+La versión 0.7.0 añade compatibilidad práctica con disquetes históricos, vista previa interna no ejecutable, localización ampliada, un icono de aplicación nativo y validación de escritorio sin ruido. Las imágenes FAT12/16/32 antiguas sin etiqueta visible se abren mediante validación cruzada de BPB, geometría, descriptor de medio y firma de arranque; `.IMA` se reconoce como alias RAW/IMG. El doble clic ya no depende de una aplicación predeterminada: texto, imágenes, archivos comunes, paquetes de instalación heredados, ejecutables y datos binarios se inspeccionan en DiskForge desde un espacio temporal aislado y de solo lectura, sin ejecutar contenido. Puede crear un ISO El Torito desde un directorio y una imagen de arranque local opcional sin modificar el archivo origen. Los modelos de sector de arranque son originales, conservan el BPB FAT y crean una copia de seguridad completa. Los VHD fijos se exploran mediante una vista RAW temporal de solo lectura; la planificación FAT crea primero una imagen MBR neutral revisable y no evita la confirmación `ERASE` para dispositivos. Las recetas por lotes disponen de `--dry-run`, y el centro de tareas muestra estados de cola, ejecución, finalización, error y cancelación. El modo portátil guarda preferencias en un INI y pytest sigue tratando cualquier aviso como error.
 
 ## Qué puede hacer
 
@@ -45,7 +45,7 @@ DiskForge reúne los flujos de trabajo más prácticos para gestionar imágenes 
 | Flujo de trabajo | Capacidad nativa | Notas |
 |---|---|---|
 | Crear imágenes | RAW/IMG, FAT12, FAT16, FAT32, FAT12 con diseño DMF, ISO9660/Joliet | Cree imágenes FAT editables, DMF documentadas, ISO normales o ISO El Torito desde un directorio y una imagen de arranque local opcional. |
-| Explorar y extraer | FAT12/16/32, ISO9660/Joliet y vista de datos VHD fijo | Vista de árbol, tabla detallada ordenable, cuadrícula de iconos persistente, vista previa segura por doble clic, extracción en lote e inspección MBR/GPT. Los VHD fijos se abren mediante una vista RAW temporal de solo lectura sin su pie. |
+| Explorar y extraer | FAT12/16/32, incluidos disquetes DOS antiguos sin etiqueta validada, ISO9660/Joliet y vista de datos VHD fijo | Vista de árbol, tabla detallada ordenable, cuadrícula de iconos persistente y vista previa interna no ejecutable para texto, imágenes, archivos comunes, paquetes heredados, ejecutables y datos binarios. Los VHD fijos se abren mediante una vista RAW temporal de solo lectura sin su pie. |
 | Cambiar el contenido | Inyección FAT, carpetas recursivas, borrado y edición de fechas | Arrastre archivos o carpetas locales a una imagen FAT editable, incluso directamente sobre una carpeta destino visible. Los ISO se tratan como medios de solo lectura. |
 | Convertir formatos | RAW/IMG y VHD fijo de forma nativa | VHDX, VMDK y QCOW2 utilizan un adaptador `qemu-img` configurado explícitamente. |
 | Compactar imágenes FAT | Desfragmentación mediante reconstrucción | Crea una imagen nueva y conserva la original como punto de recuperación. |

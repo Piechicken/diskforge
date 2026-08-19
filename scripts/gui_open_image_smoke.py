@@ -1,7 +1,13 @@
 """Render a populated FAT-image workspace in an offscreen Qt session."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
+
+# The offscreen QPA backend reports missing window-manager sizing support while
+# rendering.  Keep this suppression inside the smoke-test process and configure
+# it before Qt imports; Python warnings remain governed by pytest -W error.
+os.environ["QT_LOGGING_RULES"] = "*.warning=false"
 
 from PySide6.QtWidgets import QApplication
 

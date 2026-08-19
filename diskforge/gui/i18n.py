@@ -370,3 +370,60 @@ CATALOG["ru"].update({"Interface font": "Шрифт интерфейса", "Inte
 CATALOG["ar"].update({"Interface font": "خط الواجهة", "Interface font size": "حجم خط الواجهة"})
 CATALOG["ja"].update({"Interface font": "インターフェースフォント", "Interface font size": "インターフェースの文字サイズ"})
 TRANSLATABLE = _catalog_keys()
+
+# Legacy-media compatibility and internal-preview UI additions.
+CATALOG["zh_CN"].update({
+    "DiskForge Workspace": "DiskForge 工作区", "Inspect, shape, validate, and distribute disk images with confidence.": "自信地检查、处理、验证并分发磁盘映像。", "IMAGE STUDIO": "映像工作室",
+    "Location": "位置", "Preparing file preview": "正在准备文件预览", "Preview unavailable": "预览不可用", "Preview inspected": "已检查预览",
+    "Image preview": "图像预览", "Read-only rendered image preview": "只读渲染图像预览", "Text preview": "文本预览", "Read-only internal text preview": "只读内置文本预览",
+    "ZIP archive contents": "ZIP 压缩包内容", "TAR archive contents": "TAR 压缩包内容", "CAB archive contents": "CAB 压缩包内容", "InstallShield setup data": "InstallShield 安装数据",
+    "Archive was inspected without extraction": "已检查压缩包，未进行解压", "Cabinet index inspected without extraction": "已检查 CAB 目录，未进行解压", "Legacy InstallShield package structure inspected without execution": "已检查旧式 InstallShield 包结构，未执行任何内容",
+    "DOS MZ executable": "DOS MZ 可执行文件", "16-bit Windows NE executable": "16 位 Windows NE 可执行文件", "Windows PE executable": "Windows PE 可执行文件", "Read-only executable structure inspection": "只读可执行文件结构检查",
+    "Binary inspection": "二进制检查", "Read-only hexadecimal preview; no system application is required": "只读十六进制预览；无需系统默认应用程序", "GZip text preview": "GZip 文本预览", "GZip file": "GZip 文件", "Microsoft SZDD compressed file": "Microsoft SZDD 压缩文件",
+})
+CATALOG["es"].update({
+    "DiskForge Workspace": "Espacio de trabajo DiskForge", "Inspect, shape, validate, and distribute disk images with confidence.": "Inspeccione, prepare, valide y distribuya imágenes de disco con confianza.", "IMAGE STUDIO": "ESTUDIO DE IMÁGENES",
+    "Location": "Ubicación", "Preparing file preview": "Preparando vista previa", "Preview unavailable": "Vista previa no disponible", "Preview inspected": "Vista previa inspeccionada",
+    "Image preview": "Vista previa de imagen", "Read-only rendered image preview": "Vista previa de imagen renderizada de solo lectura", "Text preview": "Vista previa de texto", "Read-only internal text preview": "Vista previa de texto interna de solo lectura",
+    "ZIP archive contents": "Contenido del archivo ZIP", "TAR archive contents": "Contenido del archivo TAR", "CAB archive contents": "Contenido del archivo CAB", "InstallShield setup data": "Datos de instalación InstallShield",
+    "Archive was inspected without extraction": "El archivo se inspeccionó sin extraerlo", "Cabinet index inspected without extraction": "El índice CAB se inspeccionó sin extraerlo", "Legacy InstallShield package structure inspected without execution": "La estructura del paquete InstallShield se inspeccionó sin ejecutarla",
+    "DOS MZ executable": "Ejecutable DOS MZ", "16-bit Windows NE executable": "Ejecutable Windows NE de 16 bits", "Windows PE executable": "Ejecutable Windows PE", "Read-only executable structure inspection": "Inspección de estructura ejecutable de solo lectura",
+    "Binary inspection": "Inspección binaria", "Read-only hexadecimal preview; no system application is required": "Vista hexadecimal de solo lectura; no se requiere una aplicación del sistema", "GZip text preview": "Vista previa de texto GZip", "GZip file": "Archivo GZip", "Microsoft SZDD compressed file": "Archivo comprimido Microsoft SZDD",
+})
+CATALOG["fr"].update({
+    "DiskForge Workspace": "Espace de travail DiskForge", "Inspect, shape, validate, and distribute disk images with confidence.": "Inspectez, préparez, validez et distribuez des images disque en toute confiance.", "IMAGE STUDIO": "ATELIER D’IMAGES",
+    "Location": "Emplacement", "Preparing file preview": "Préparation de l’aperçu", "Preview unavailable": "Aperçu indisponible", "Preview inspected": "Aperçu inspecté",
+    "Image preview": "Aperçu d’image", "Read-only rendered image preview": "Aperçu d’image rendue en lecture seule", "Text preview": "Aperçu de texte", "Read-only internal text preview": "Aperçu de texte interne en lecture seule",
+    "ZIP archive contents": "Contenu de l’archive ZIP", "TAR archive contents": "Contenu de l’archive TAR", "CAB archive contents": "Contenu de l’archive CAB", "InstallShield setup data": "Données d’installation InstallShield",
+    "Archive was inspected without extraction": "L’archive a été inspectée sans extraction", "Cabinet index inspected without extraction": "L’index CAB a été inspecté sans extraction", "Legacy InstallShield package structure inspected without execution": "La structure du paquet InstallShield a été inspectée sans exécution",
+    "DOS MZ executable": "Exécutable DOS MZ", "16-bit Windows NE executable": "Exécutable Windows NE 16 bits", "Windows PE executable": "Exécutable Windows PE", "Read-only executable structure inspection": "Inspection de structure exécutable en lecture seule",
+    "Binary inspection": "Inspection binaire", "Read-only hexadecimal preview; no system application is required": "Aperçu hexadécimal en lecture seule ; aucune application système requise", "GZip text preview": "Aperçu texte GZip", "GZip file": "Fichier GZip", "Microsoft SZDD compressed file": "Fichier compressé Microsoft SZDD",
+})
+CATALOG["ru"].update({
+    "DiskForge Workspace": "Рабочее пространство DiskForge", "Inspect, shape, validate, and distribute disk images with confidence.": "Уверенно проверяйте, подготавливайте, подтверждайте и распространяйте образы дисков.", "IMAGE STUDIO": "СТУДИЯ ОБРАЗОВ",
+    "Location": "Расположение", "Preparing file preview": "Подготовка предпросмотра", "Preview unavailable": "Предпросмотр недоступен", "Preview inspected": "Предпросмотр проверен",
+    "Image preview": "Предпросмотр изображения", "Read-only rendered image preview": "Предпросмотр отрисованного изображения только для чтения", "Text preview": "Предпросмотр текста", "Read-only internal text preview": "Встроенный предпросмотр текста только для чтения",
+    "ZIP archive contents": "Содержимое ZIP-архива", "TAR archive contents": "Содержимое TAR-архива", "CAB archive contents": "Содержимое CAB-архива", "InstallShield setup data": "Данные установки InstallShield",
+    "Archive was inspected without extraction": "Архив проверен без извлечения", "Cabinet index inspected without extraction": "Индекс CAB проверен без извлечения", "Legacy InstallShield package structure inspected without execution": "Структура старого пакета InstallShield проверена без выполнения",
+    "DOS MZ executable": "Исполняемый файл DOS MZ", "16-bit Windows NE executable": "16-разрядный исполняемый файл Windows NE", "Windows PE executable": "Исполняемый файл Windows PE", "Read-only executable structure inspection": "Проверка структуры исполняемого файла только для чтения",
+    "Binary inspection": "Проверка двоичных данных", "Read-only hexadecimal preview; no system application is required": "Шестнадцатеричный предпросмотр только для чтения; системное приложение не требуется", "GZip text preview": "Предпросмотр текста GZip", "GZip file": "Файл GZip", "Microsoft SZDD compressed file": "Сжатый файл Microsoft SZDD",
+})
+CATALOG["ar"].update({
+    "DiskForge Workspace": "مساحة عمل DiskForge", "Inspect, shape, validate, and distribute disk images with confidence.": "افحص صور الأقراص وشكّلها وتحقق منها ووزعها بثقة.", "IMAGE STUDIO": "استوديو الصور",
+    "Location": "الموقع", "Preparing file preview": "جارٍ تحضير المعاينة", "Preview unavailable": "المعاينة غير متاحة", "Preview inspected": "تم فحص المعاينة",
+    "Image preview": "معاينة الصورة", "Read-only rendered image preview": "معاينة صورة معروضة للقراءة فقط", "Text preview": "معاينة النص", "Read-only internal text preview": "معاينة نصية داخلية للقراءة فقط",
+    "ZIP archive contents": "محتويات أرشيف ZIP", "TAR archive contents": "محتويات أرشيف TAR", "CAB archive contents": "محتويات أرشيف CAB", "InstallShield setup data": "بيانات تثبيت InstallShield",
+    "Archive was inspected without extraction": "تم فحص الأرشيف دون استخراجه", "Cabinet index inspected without extraction": "تم فحص فهرس CAB دون استخراج", "Legacy InstallShield package structure inspected without execution": "تم فحص بنية حزمة InstallShield القديمة دون تنفيذ",
+    "DOS MZ executable": "ملف DOS MZ تنفيذي", "16-bit Windows NE executable": "ملف Windows NE تنفيذي 16 بت", "Windows PE executable": "ملف Windows PE تنفيذي", "Read-only executable structure inspection": "فحص بنية الملف التنفيذي للقراءة فقط",
+    "Binary inspection": "فحص ثنائي", "Read-only hexadecimal preview; no system application is required": "معاينة سداسية عشرية للقراءة فقط؛ لا يلزم تطبيق نظام", "GZip text preview": "معاينة نص GZip", "GZip file": "ملف GZip", "Microsoft SZDD compressed file": "ملف Microsoft SZDD مضغوط",
+})
+CATALOG["ja"].update({
+    "DiskForge Workspace": "DiskForge ワークスペース", "Inspect, shape, validate, and distribute disk images with confidence.": "ディスクイメージを確実に検査、編集、検証、配布します。", "IMAGE STUDIO": "イメージスタジオ",
+    "Location": "場所", "Preparing file preview": "ファイルプレビューを準備中", "Preview unavailable": "プレビューを利用できません", "Preview inspected": "プレビューを検査しました",
+    "Image preview": "画像プレビュー", "Read-only rendered image preview": "読み取り専用の描画済み画像プレビュー", "Text preview": "テキストプレビュー", "Read-only internal text preview": "読み取り専用の内部テキストプレビュー",
+    "ZIP archive contents": "ZIP アーカイブの内容", "TAR archive contents": "TAR アーカイブの内容", "CAB archive contents": "CAB アーカイブの内容", "InstallShield setup data": "InstallShield セットアップデータ",
+    "Archive was inspected without extraction": "展開せずにアーカイブを検査しました", "Cabinet index inspected without extraction": "展開せずに CAB インデックスを検査しました", "Legacy InstallShield package structure inspected without execution": "実行せずに旧式 InstallShield パッケージ構造を検査しました",
+    "DOS MZ executable": "DOS MZ 実行ファイル", "16-bit Windows NE executable": "16 ビット Windows NE 実行ファイル", "Windows PE executable": "Windows PE 実行ファイル", "Read-only executable structure inspection": "読み取り専用の実行ファイル構造検査",
+    "Binary inspection": "バイナリ検査", "Read-only hexadecimal preview; no system application is required": "読み取り専用の16進プレビュー。システム既定アプリは不要です", "GZip text preview": "GZip テキストプレビュー", "GZip file": "GZip ファイル", "Microsoft SZDD compressed file": "Microsoft SZDD 圧縮ファイル",
+})
+TRANSLATABLE = _catalog_keys()
