@@ -46,6 +46,7 @@ def test_release_workflow_uses_immutable_tag_only_publication() -> None:
     assert "Verify tag matches project version" in workflow
     assert "already exists; versioned release assets are immutable" in workflow
     assert "--clobber" not in workflow
+    assert "apt-get" not in workflow
 
 
 def test_package_and_project_versions_match() -> None:
