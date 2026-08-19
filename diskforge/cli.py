@@ -271,9 +271,16 @@ def parser() -> argparse.ArgumentParser:
     format_removable.add_argument("--label", default="DISKFORGE")
     format_removable.add_argument("--confirm", required=True, help="Must be FORMAT")
     floppy_status = commands.add_parser("floppy-format-status", help="Show controller-level floppy format capability")
+    usb_floppy_status = commands.add_parser("usb-floppy-format-status", help="Show guarded UFI USB floppy format capability")
+    usb_floppy_discover = commands.add_parser("discover-ufi-floppy", help="Discover UFI USB floppy capacities from a generic-SCSI device snapshot")
+    usb_floppy_discover.add_argument("manifest", type=Path)
     floppy_format = commands.add_parser("format-floppy-controller", help="Low-level format one standard controller floppy from a device snapshot")
     floppy_format.add_argument("manifest", type=Path)
     floppy_format.add_argument("--confirm", required=True, help="Must be FORMAT_FLOPPY")
+    usb_floppy_format = commands.add_parser("format-ufi-floppy", help="Low-level format a discovered UFI USB floppy with explicit capacity")
+    usb_floppy_format.add_argument("manifest", type=Path)
+    usb_floppy_format.add_argument("--capacity", type=int, required=True, help="One capacity reported by discover-ufi-floppy")
+    usb_floppy_format.add_argument("--confirm", required=True, help="Must be FORMAT_FLOPPY")
 
     bundle = commands.add_parser("bundle", help="Create a DiskForge multi-image bundle")
     bundle.add_argument("output", type=Path)
@@ -657,8 +664,16 @@ def main(argv: list[str] | None = None) -> int:
             _emit(args, result.__dict__)
         elif args.command == "floppy-format-status":
             _emit(args, FloppyControllerFormatter().capability_report().as_mapping())
+        elif args.command == "usb-floppy-format-status":
+            _emit(args, FloppyControllerFormatter().usb_capability_report().as_mapping())
+        elif args.command == "discover-ufi-floppy":
+            discovery = FloppyControllerFormatter().discover_usb(_device_from_manifest(args.manifest))
+            _emit(args, {"identifier": discovery.identifier, "supported_capacities": list(discovery.supported_capacities)})
         elif args.command == "format-floppy-controller":
             result = FloppyControllerFormatter().format(_device_from_manifest(args.manifest), args.confirm)
+            _emit(args, result.__dict__)
+        elif args.command == "format-ufi-floppy":
+            result = FloppyControllerFormatter().format_usb(_device_from_manifest(args.manifest), args.capacity, args.confirm)
             _emit(args, result.__dict__)
         elif args.command == "bundle":
             info = create_bundle(args.images, args.output, password=_password_from_stdin(args.password_stdin),

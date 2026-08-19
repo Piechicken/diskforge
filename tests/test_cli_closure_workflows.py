@@ -126,3 +126,40 @@ def test_cli_floppy_format_status_reports_capability_without_executing(capsys) -
     assert main(["--json", "floppy-format-status"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert {"platform", "available", "reason"} <= set(payload)
+
+
+def test_cli_ufi_floppy_commands_use_explicit_snapshot_and_capacity(monkeypatch, tmp_path: Path, capsys) -> None:  # type: ignore[no-untyped-def]
+    import diskforge.cli as cli
+
+    calls: list[tuple[str, object]] = []
+
+    class Formatter:
+        def usb_capability_report(self):  # type: ignore[no-untyped-def]
+            return type("Report", (), {"as_mapping": lambda self: {"platform": "Linux", "available": True, "reason": "test"}})()
+
+        def discover_usb(self, device):  # type: ignore[no-untyped-def]
+            calls.append(("discover", device.identifier))
+            return type("Discovery", (), {"identifier": device.identifier, "supported_capacities": (1474560,)})()
+
+        def format_usb(self, device, capacity, confirm):  # type: ignore[no-untyped-def]
+            calls.append(("format", (device.identifier, capacity, confirm)))
+
+            class Result:
+                def __init__(self) -> None:
+                    self.identifier = device.identifier
+                    self.backend = "ufiformat"
+                    self.verified = True
+
+            return Result()
+
+    monkeypatch.setattr(cli, "FloppyControllerFormatter", Formatter)
+    device = tmp_path / "sg4"
+    device.write_bytes(b"\0" * 1024)
+    manifest = _manifest(tmp_path / "ufi.json", device)
+    assert main(["--json", "usb-floppy-format-status"]) == 0
+    assert json.loads(capsys.readouterr().out)["available"] is True
+    assert main(["--json", "discover-ufi-floppy", str(manifest)]) == 0
+    assert json.loads(capsys.readouterr().out)["supported_capacities"] == [1474560]
+    assert main(["--json", "format-ufi-floppy", str(manifest), "--capacity", "1474560", "--confirm", "FORMAT_FLOPPY"]) == 0
+    assert json.loads(capsys.readouterr().out)["backend"] == "ufiformat"
+    assert calls == [("discover", str(device)), ("format", (str(device), 1474560, "FORMAT_FLOPPY"))]
