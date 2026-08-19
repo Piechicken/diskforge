@@ -22,6 +22,7 @@ classifiers = [
   "Topic :: System :: Filesystems",
 ]
 dependencies = [
+  "Pillow>=10.0",
   "PySide6>=6.6",
   "pyfatfs>=1.1.0",
   "pycdlib>=1.14.0",

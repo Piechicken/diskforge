@@ -49,12 +49,14 @@ def test_release_workflow_uses_immutable_tag_only_publication() -> None:
 
 
 def test_package_and_project_versions_match() -> None:
-    import tomllib
-
     root = Path(__file__).resolve().parents[1]
-    metadata = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    project_text = (root / "pyproject.toml").read_text(encoding="utf-8")
     namespace: dict[str, str] = {}
     exec((root / "diskforge" / "__init__.py").read_text(encoding="utf-8"), namespace)
 
-    assert metadata["project"]["version"] == "0.7.5"
-    assert namespace["__version__"] == metadata["project"]["version"]
+    project_version = next(
+        line.split('"', 2)[1] for line in project_text.splitlines()
+        if line.startswith("version = ")
+    )
+    assert project_version == "0.7.5"
+    assert namespace["__version__"] == project_version
