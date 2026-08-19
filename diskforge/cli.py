@@ -24,6 +24,8 @@ from .core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_image, cr
                            create_editable_fixed_vhd_copy, create_legacy_zip_image, extract_legacy_zip_image,
                            inspect_image)
 from .core.mbr import backup_mbr, reset_mbr_to_neutral, restore_mbr
+from .core.legacy_floppy import (LEGACY_FLOPPY_PROFILES, LegacyFloppyGeometry,
+                                  create_legacy_fat_floppy, create_legacy_fat_floppy_profile)
 from .core.media import create_dmf_image, trim_zero_tail, wrap_fat_image_in_mbr
 from .core.mounts import ImageMountManager, ImageMountSession
 from .core.metadata import load_image_metadata, save_image_comment
@@ -106,6 +108,18 @@ def parser() -> argparse.ArgumentParser:
     dmf = commands.add_parser("create-dmf", help="Create an 80x2x21 FAT12 DMF-layout image file")
     dmf.add_argument("image", type=Path)
     dmf.add_argument("--label", default="DISKFORGE")
+
+    legacy_floppy = commands.add_parser(
+        "create-legacy-floppy", help="Create a verified FAT12 IMG/IMA legacy floppy with explicit geometry",
+    )
+    legacy_floppy.add_argument("image", type=Path)
+    legacy_floppy.add_argument("--profile", choices=[profile.identifier for profile in LEGACY_FLOPPY_PROFILES])
+    legacy_floppy.add_argument("--cylinders", type=int)
+    legacy_floppy.add_argument("--heads", type=int)
+    legacy_floppy.add_argument("--sectors-per-track", type=int)
+    legacy_floppy.add_argument("--sector-size", type=int, default=512)
+    legacy_floppy.add_argument("--format", choices=[ImageFormat.IMG.value, ImageFormat.IMA.value], default=ImageFormat.IMA.value)
+    legacy_floppy.add_argument("--label", default="DISKFORGE")
 
     layout = commands.add_parser("fat-layout", help="Inspect a reproducible FAT BPB layout")
     layout.add_argument("image", type=Path)
@@ -475,6 +489,27 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "create-dmf":
             created = create_dmf_image(args.image, args.label)
             _emit(args, {"path": str(created), "layout": "80x2x21", "bytes": created.stat().st_size}, str(created))
+        elif args.command == "create-legacy-floppy":
+            output_format = ImageFormat(args.format)
+            if args.profile:
+                if any(value is not None for value in (args.cylinders, args.heads, args.sectors_per_track)):
+                    raise DiskForgeError("Choose either a legacy floppy profile or custom geometry, not both.")
+                created = create_legacy_fat_floppy_profile(args.image, args.profile, image_format=output_format, label=args.label)
+                geometry = next(profile.geometry for profile in LEGACY_FLOPPY_PROFILES if profile.identifier == args.profile)
+                profile_id = args.profile
+            else:
+                values = (args.cylinders, args.heads, args.sectors_per_track)
+                if any(value is None for value in values):
+                    raise DiskForgeError("Custom legacy floppy creation requires --cylinders, --heads, and --sectors-per-track.")
+                geometry = LegacyFloppyGeometry(args.cylinders, args.heads, args.sectors_per_track, args.sector_size)
+                created = create_legacy_fat_floppy(args.image, geometry, image_format=output_format, label=args.label)
+                profile_id = None
+            _emit(args, {
+                "path": str(created), "format": output_format.value, "profile": profile_id,
+                "bytes": created.stat().st_size, "kib": created.stat().st_size // 1024,
+                "geometry": {"cylinders": geometry.cylinders, "heads": geometry.heads,
+                             "sectors_per_track": geometry.sectors_per_track, "sector_size": geometry.sector_size},
+            }, str(created))
         elif args.command == "fat-layout":
             layout = FatImageLayout.from_image(args.image)
             _emit(args, layout.as_mapping())
@@ -531,8 +566,8 @@ def main(argv: list[str] | None = None) -> int:
                   str(result.destination))
         elif args.command == "iso-boot-info":
             catalog = inspect_eltorito(args.image)
-            payload = {"catalog_lba": catalog.catalog_lba, "images": [
-                {"index": image.index, "bootable": image.bootable, "media_type": image.media_type,
+            payload = {"catalog_lba": catalog.catalog_lba, "has_sections": catalog.has_sections, "images": [
+                {"index": image.index, "platform_id": image.platform_id, "bootable": image.bootable, "media_type": image.media_type,
                  "load_segment": image.load_segment, "system_type": image.system_type,
                  "sectors_512": image.sector_count_512, "lba": image.lba, "bytes": image.byte_count}
                 for image in catalog.images

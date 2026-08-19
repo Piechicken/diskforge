@@ -21,6 +21,7 @@ class ImageFormat(str, Enum):
 
     RAW = "raw"
     IMG = "img"
+    IMA = "ima"
     ISO = "iso"
     VHD = "vhd"
     VHDX = "vhdx"
@@ -34,7 +35,7 @@ class ImageFormat(str, Enum):
     @classmethod
     def from_path(cls, path: Path | str) -> "ImageFormat":
         suffix = Path(path).suffix.lower().lstrip(".")
-        aliases = {"ima": cls.IMG, "bin": cls.RAW, "dd": cls.RAW}
+        aliases = {"bin": cls.RAW, "dd": cls.RAW}
         alias = aliases.get(suffix)
         if alias is not None:
             return alias

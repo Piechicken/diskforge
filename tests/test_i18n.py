@@ -316,3 +316,51 @@ def test_controller_floppy_format_workflow_is_translated_in_every_non_english_lo
         translated = CATALOG[language.code]
         assert required <= set(translated)
         assert all(translated[source] != source for source in required)
+
+
+
+def test_safe_iso_content_editing_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Edit ISO content safely…",
+        "Edit ISO content safely",
+        "Add local file…",
+        "Add local folder…",
+        "Delete selected ISO entries",
+        "Create ISO directory…",
+        "Rebuilding ISO into a new image",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+
+def test_legacy_img_ima_floppy_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Legacy FAT floppy image (IMG/IMA)",
+        "Legacy floppy profile",
+        "Legacy image format",
+        "Use custom legacy geometry",
+        "Custom CHS geometry",
+        "Bytes/sector",
+        "IMA floppy image (.ima)",
+        "IMG raw image (.img)",
+        "Raw IMG image (.img)",
+        "Creates an editable FAT12 IMG or IMA with an explicit legacy floppy profile or custom geometry. The size is shown in KiB; no physical device is formatted.",
+        "Create legacy floppy image",
+        "Creating legacy FAT floppy image",
+        "Creating custom legacy FAT floppy image",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)

@@ -147,7 +147,7 @@ class BatchDesignerDialog(QDialog):
         editor.addRow("Existing files", self.conflict_choice)
 
         self.format_choice = QComboBox()
-        for image_format in (ImageFormat.RAW, ImageFormat.IMG, ImageFormat.ISO, ImageFormat.VHD,
+        for image_format in (ImageFormat.RAW, ImageFormat.IMG, ImageFormat.IMA, ImageFormat.ISO, ImageFormat.VHD,
                              ImageFormat.VHDX, ImageFormat.VMDK, ImageFormat.QCOW2, ImageFormat.DMG):
             self.format_choice.addItem(image_format.value.upper(), image_format.value)
         self.sha256 = QLineEdit()
@@ -416,7 +416,7 @@ class BatchDesignerDialog(QDialog):
             combo.setCurrentIndex(index)
 
     def load_recipe(self, recipe: dict[str, Any]) -> None:
-        if recipe.get("schema") not in {"diskforge.batch/v1", "diskforge.batch/v2", "diskforge.batch/v3"}:
+        if recipe.get("schema") not in {"diskforge.batch/v1", "diskforge.batch/v2", "diskforge.batch/v3", "diskforge.batch/v4"}:
             raise DiskForgeError("Unsupported batch schema.")
         operations = recipe.get("operations")
         if not isinstance(operations, list) or not all(isinstance(item, dict) for item in operations):
@@ -429,7 +429,7 @@ class BatchDesignerDialog(QDialog):
 
     def recipe(self) -> dict[str, Any]:
         operations = self._operations or [self._current_operation()]
-        return {"schema": "diskforge.batch/v3", "operations": operations}
+        return {"schema": "diskforge.batch/v4", "operations": operations}
 
     def write_recipe(self, path: Path) -> Path:
         path.parent.mkdir(parents=True, exist_ok=True)

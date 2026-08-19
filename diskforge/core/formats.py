@@ -161,7 +161,7 @@ class QemuImgConverter:
     def convert(self, source: Path, destination: Path, destination_format: ImageFormat,
                 progress: ProgressCallback | None = None,
                 token: CancellationToken | None = None) -> None:
-        qemu_format = {ImageFormat.RAW: "raw", ImageFormat.IMG: "raw", ImageFormat.ISO: "raw",
+        qemu_format = {ImageFormat.RAW: "raw", ImageFormat.IMG: "raw", ImageFormat.IMA: "raw", ImageFormat.ISO: "raw",
                        ImageFormat.VHD: "vpc", ImageFormat.VHDX: "vhdx", ImageFormat.VMDK: "vmdk",
                        ImageFormat.QCOW2: "qcow2"}.get(destination_format)
         if not qemu_format:
@@ -592,11 +592,11 @@ def convert_image(source: Path | str, destination: Path | str, destination_forma
     """Perform native simple conversions or route virtual formats to qemu-img."""
     source_path, destination_path = Path(source), Path(destination)
     source_info = inspect_image(source_path, converter)
-    if destination_format in {ImageFormat.RAW, ImageFormat.IMG}:
+    if destination_format in {ImageFormat.RAW, ImageFormat.IMG, ImageFormat.IMA}:
         source_limit = source_info.virtual_size if source_info.image_format == ImageFormat.VHD else None
         stream_copy(source_path, destination_path, OperationKind.CONVERT, limit=source_limit,
                     progress=progress, token=token, overwrite=overwrite)
-    elif destination_format == ImageFormat.VHD and source_info.image_format in {ImageFormat.RAW, ImageFormat.IMG}:
+    elif destination_format == ImageFormat.VHD and source_info.image_format in {ImageFormat.RAW, ImageFormat.IMG, ImageFormat.IMA}:
         create_fixed_vhd(source_path, destination_path, progress, token, overwrite)
     elif converter and converter.available:
         if destination_path.exists() and not overwrite:

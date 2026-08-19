@@ -51,13 +51,13 @@ DiskForge brings the most useful image-management workflows into one original, a
 
 | Workflow | Native capability | Notes |
 |---|---|---|
-| Create images | RAW/IMG, FAT12, FAT16, FAT32, DMF-layout FAT12, FAT templates, ISO9660/Joliet | Create editable FAT images from standard presets or a validated FAT BPB template, documented 80×2×21-sector DMF-layout image files, ordinary ISO media, or El Torito ISO media from a local directory and an optional local boot image. |
+| Create images | RAW/IMG/IMA, FAT12, FAT16, FAT32, verified legacy FAT12 floppy profiles, DMF-layout FAT12, FAT templates, ISO9660/Joliet/Rock Ridge/UDF | Create editable FAT images from standard presets, a validated FAT BPB template, or explicit IMG/IMA legacy floppy profiles. The legacy directory covers conventional PC-compatible 160 KiB through 2.88 MiB layouts and custom supported CHS geometry. ISO media can be created from a local directory with optional El Torito boot media. |
 | Browse and extract | FAT12/16/32—including validated unlabeled legacy DOS floppy media—ISO9660/Joliet, fixed VHD data views, and optional NTFS/EXT2/EXT3 read-only backend | Deterministic paged trees and sortable tables avoid unbounded directory rendering. Double-click opens a non-executing document workspace for text, images, common archives, legacy setup packages, executables, and binary data. Text documents can be found, saved as a copy, and—only for writable FAT entries—edited and saved back. Fixed VHD normally opens through a temporary read-only RAW data view; a validated independent fixed-VHD copy may be reopened as a writable FAT session. |
-| Change image contents | FAT injection, recursive folders, deletion, rename, timestamps, DOS attributes, and volume labels | Drag local files or folders into writable FAT images, including directly onto a displayed target folder. ISO, NTFS and EXT are deliberately exposed through read-only paths. |
-| Convert formats | RAW/IMG and fixed VHD natively | VHDX, VMDK, and QCOW2 use an explicitly configured `qemu-img` adapter with visible capability reporting and cancellation. A separately configured `dmg2img` adapter can only create a new raw output from DMG; DiskForge does not mount or write DMG files. |
+| Change image contents | FAT injection, recursive folders, deletion, rename, timestamps, DOS attributes, and volume labels; safe rebuild-based ISO edits | Valid FAT payloads inside IMG and IMA share the same editable path. ISO changes always write a separate rebuilt image and verify staged content. Rock Ridge/UDF profiles are preserved; only a verified single-entry El Torito catalog is rebuilt, while multi-boot, hybrid, and ambiguous boot layouts are rejected. NTFS and EXT remain read-only. |
+| Convert formats | RAW/IMG/IMA and fixed VHD natively | IMG and IMA preserve their explicitly selected raw-image extension during conversion. VHDX, VMDK, and QCOW2 use an explicitly configured `qemu-img` adapter with visible capability reporting and cancellation. A separately configured `dmg2img` adapter can only create a new raw output from DMG; DiskForge does not mount or write DMG files. |
 | Compact FAT images | Rebuild-based defragmentation | Writes a new image, preserving the original image as the recovery point. |
 | Inspect and repair structures | 512-byte hex viewer/editor, validated FAT boot properties, original neutral/message templates, neutral MBR wrapping and deployment planning for FAT superfloppy images, trailing-zero-sector copy trimming, MBR backup/restore/neutral reset, and GPT CRC diagnostics | Full image or MBR backups are created before protected structural changes. Templates preserve BPB fields and use no imported boot program; wrapping, deployment preparation, and trimming always write a new file. |
-| Verify and automate | SHA-256, byte-for-byte compare, graphical batch recipe studio, preflight plans, per-item result review, and versioned JSON recipes | The designer creates, reopens, and edits safe conversion, validation, comparison, resize, injection, extraction, and container recipes. Every recipe can be reviewed through `--dry-run` before execution and deliberately rejects raw-device writes. Comparisons can optionally report only full trailing zero sectors as ignored. |
+| Verify and automate | SHA-256, byte-for-byte compare, graphical batch recipe studio, preflight plans, per-item result review, and versioned JSON recipes | Schema v4 adds declarative `iso_edit`; all recipe writes can be previewed before execution and raw-device writes remain rejected. The visual designer covers conversion—including IMA target selection—validation, comparison, resize, injection, extraction, and container recipes. Comparisons can optionally report only full trailing zero sectors as ignored. |
 | Annotate and resize | Non-invasive image comments and safe new-file RAW/FAT resize | Raw images refuse shrinking if non-zero tail bytes would be discarded. |
 | Build redistributable bundles | Authenticated multi-image `.dfb` containers and SHA-256-verified multi-image self-extracting `.pyz` archives | `.dfb` supports optional scrypt-derived AES-256-GCM encryption, compression, comments, and per-file verification. Each native platform package also includes a separate `DiskForgeExtractor` that verifies and extracts `.pyz` payloads without requiring the recipient to pre-install Python. |
 | Read and write physical media | Streamed device imaging and restoration | Rejects system disks, mounted targets, and capacity mismatches; typed confirmation is required. Detected optical media are read-only and export to ISO by default. |
@@ -91,7 +91,10 @@ diskforge-cli list demo.img
 diskforge-cli bundle demo.dfb demo.img --comment "lab media"
 diskforge-cli compare demo.img restored.img
 diskforge-cli create-dmf demo.dmf
+diskforge-cli create-legacy-floppy win16-disk --profile pc525_dsdd_360 --format ima
+diskforge-cli create-legacy-floppy custom-disk --format img --cylinders 80 --heads 2 --sectors-per-track 9
 diskforge-cli create-iso folder bootable.iso --boot-image boot.img --boot-media noemul
+diskforge-cli edit-iso bootable.iso revised.iso --add README.TXT --mkdir /DOCS
 diskforge-cli iso-boot-info bootable.iso
 diskforge-cli export-boot-image bootable.iso boot.img
 diskforge-cli boot-templates
@@ -112,17 +115,17 @@ Build on each target operating system to create that platform’s native applica
 
 | Format or filesystem | Inspect | Browse / modify | Create / convert |
 |---|---:|---:|---:|
-| RAW / IMG / IMA / BIN | Yes | FAT payloads | Yes |
+| RAW / IMG / IMA / BIN | Yes | Valid FAT payloads in IMG/IMA are editable, previewable, extractable, and hashable | Native RAW/IMG/IMA copy conversion; explicit IMG/IMA legacy FAT12 profiles and supported custom CHS creation |
 | FAT12 / FAT16 / FAT32 | Yes | Yes | Yes |
-| ISO9660 / Joliet | Yes | Read and extract | Create from folder |
+| ISO9660 / Joliet / Rock Ridge / UDF | Yes | Read/extract; safely rebuild into a separate edited image | Create from folder; Rock Ridge/UDF profile creation |
 | Fixed VHD | Yes | Temporary read-only data view and conversion | Yes |
 | VHDX / VMDK / QCOW2 | With adapter | Temporary read-only RAW view after configured conversion | With adapter |
 | NTFS / EXT2 / EXT3 | Signature or partition hint | Read/list/extract with the optional Sleuth Kit backend; never modified | Use a compatible external workflow for writes. |
 | DiskForge bundle (`.dfb`) | Header and authenticated manifest | Extract and verify; optional AES-256-GCM password protection | Create from one or more local images. |
-| El Torito boot catalog | Inspect | Read-only boot-image export | Create new bootable ISO media from a directory and optional local boot image; existing ISO content is never modified. |
+| El Torito boot catalog | Inspect | Export boot image; safely preserve one verified initial entry during ISO rebuild | Create new bootable ISO media from a directory and optional local boot image. Multi-section/multi-boot, hybrid-system-area, or ambiguous mappings are rejected during rebuild. |
 | DMG | Signature hint | Not natively modified | Use a compatible external workflow. |
 
-DiskForge exposes unsupported editing paths honestly instead of attempting unsafe writes. Configure `qemu-img` through **Tools → Preferences** when virtual-disk conversion is needed. NTFS/EXT read-only browsing requires locally installed Sleuth Kit `fls` and `icat` executables; the application never downloads, mounts, or runs an external converter silently.
+DiskForge exposes unsupported editing paths honestly instead of attempting unsafe writes. Legacy profile creation is intentionally limited to flat, FAT-compatible sectors of 512, 1024, 2048, or 4096 bytes; 128/256-byte-sector media, GCR or variable-sector encodings, hard-sectored disks, non-FAT filesystems, copy-protected tracks, and flux/bitcell captures remain raw preservation/inspection workflows. Configure `qemu-img` through **Tools → Preferences** when virtual-disk conversion is needed. NTFS/EXT read-only browsing requires locally installed Sleuth Kit `fls` and `icat` executables; the application never downloads, mounts, or runs an external converter silently.
 
 ## Engineering quality
 

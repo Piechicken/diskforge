@@ -1,6 +1,6 @@
 # DiskForge Python API
 
-**DiskForge v0.9.0** exposes **SDK API 1.1**, a typed file-image API through `diskforge.api`. The public facade is deliberately narrower than the desktop application: it supports inspection, checksums, comparison, FAT creation, conversion, validated partition inspection, managed filesystem sessions, extraction, FAT injection, safe ISO replacement, and controlled read-only mounting. It does **not** expose unattended physical-device writes, MBR changes, or device formatting.
+**DiskForge v0.10.0.dev0** exposes **SDK API 1.1**, a typed file-image API through `diskforge.api`. The public facade is deliberately narrower than the desktop application: it supports inspection, checksums, comparison, FAT creation, conversion, validated partition inspection, managed filesystem sessions, extraction, FAT injection, safe ISO replacement, and controlled read-only mounting. It does **not** expose unattended physical-device writes, MBR changes, device formatting, or the desktop/CLI ISO rebuild editor.
 
 > Physical devices are a foreground desktop workflow. Capacity, mount state, system-disk protection, and the exact `ERASE` confirmation remain outside the unattended API by design.
 
@@ -29,8 +29,8 @@ print(result.destination)
 | `client.inspect(image)` | Return recognized format, filesystem, size, and metadata. | Never writes the image. |
 | `client.sha256(image)` | Return a streaming SHA-256 digest. | Never writes the image. |
 | `client.compare(left, right, ignore_trailing_zero_sectors=False)` | Stream-compare two file images. | The optional zero-tail mode only changes the report; both sources remain unchanged. |
-| `client.create_fat(...)` | Create a new FAT12/16/32 image. | Creates the requested output file. |
-| `client.convert(...)` | Convert a file image, optionally with a configured converter. | Requires an explicit destination; source remains unchanged. |
+| `client.create_fat(...)` | Create a new FAT12/16/32 image. | Creates the requested output file; an explicit `.ima` path remains a flat, writable IMA sector image. |
+| `client.convert(...)` | Convert a file image, optionally with a configured converter. | Requires an explicit destination; source remains unchanged. Native RAW/IMG/IMA conversions preserve the caller-selected target format. |
 | `client.partitions(image)` | Return validated MBR/GPT partition entries. | Never opens or writes a partition. |
 | `client.filesystem(..., partition_index=N)` | Open an explicitly selected FAT MBR/GPT partition in a context manager. | Never silently selects a different FAT volume; resources are always closed. |
 | `client.replace_iso_file(source, iso_path, replacement, destination)` | Replace one existing equal-size ISO9660 file into a newly written ISO. | Source ISO and replacement source stay unchanged; output is reopened and verified. |
@@ -68,7 +68,10 @@ with client.filesystem("disk.img", partition_index=2, writable=False) as filesys
 
 `replace_iso_file()` is intentionally narrower than generic ISO authoring. It only replaces one existing normal ISO file whose replacement has exactly the original logical size; it creates a different output file and verifies the reopened result. Rock Ridge and UDF ISO images are rejected by this safe first implementation.
 
-ZIP-compatible legacy compressed images with `.imz` or `.wlz` extensions are recognized as **single-payload containers** only. DiskForge rejects encrypted, unsafe, non-Deflate/non-Stored, or multi-payload archives; a valid payload is materialized to a caller-owned temporary raw image for read-only browsing. The GUI and CLI can create or extract the same constrained container shape, but this does not claim support for undocumented proprietary extensions beyond that ZIP-compatible profile.
+A valid FAT IMA can be opened through `client.filesystem(..., writable=True)` just like a FAT IMG and can therefore be listed, extracted, injected, renamed, and otherwise edited through the same managed FAT session. The verified named legacy-floppy profile directory and custom-geometry validation are deliberately exposed by the desktop, CLI `create-legacy-floppy`, and `diskforge.core.legacy_floppy` service during this SDK version; they are not yet advertised as a stable `DiskForgeClient` method.
+
+ZIP-compatible legacy compressed images with `.imz` or `.wlz` extensions are recognized as **single-payload containers** only.
+ DiskForge rejects encrypted, unsafe, non-Deflate/non-Stored, or multi-payload archives; a valid payload is materialized to a caller-owned temporary raw image for read-only browsing. The GUI and CLI can create or extract the same constrained container shape, but this does not claim support for undocumented proprietary extensions beyond that ZIP-compatible profile.
 
 ## Read-only mount sessions
 

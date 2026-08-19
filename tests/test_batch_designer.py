@@ -13,7 +13,7 @@ def _application() -> QApplication:
     return QApplication.instance() or QApplication([])
 
 
-def test_batch_designer_generates_safe_v3_sequence_recipe(tmp_path: Path) -> None:
+def test_batch_designer_generates_safe_v4_sequence_recipe(tmp_path: Path) -> None:
     _application()
     first = tmp_path / "first.img"
     second = tmp_path / "second.img"
@@ -26,7 +26,7 @@ def test_batch_designer_generates_safe_v3_sequence_recipe(tmp_path: Path) -> Non
     dialog.width.setValue(4)
     recipe = dialog.recipe()
     operation = recipe["operations"][0]
-    assert recipe["schema"] == "diskforge.batch/v3"
+    assert recipe["schema"] == "diskforge.batch/v4"
     assert operation["sources"] == [str(first), str(second)]
     assert operation["sequence"] == {"prefix": "archive-", "start": 1, "width": 4, "step": 1, "suffix": ""}
 
@@ -57,7 +57,26 @@ def test_batch_designer_reopens_multi_operation_recipe(tmp_path: Path) -> None:
     }
     dialog = BatchDesignerDialog(recipe=recipe)
     assert dialog.operations_table.rowCount() == 5
-    assert dialog.recipe() == recipe
+    assert dialog.recipe() == {**recipe, "schema": "diskforge.batch/v4"}
+
+
+def test_batch_designer_offers_ima_as_a_conversion_target(tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "source.img"
+    source.write_bytes(b"source")
+    destination = tmp_path / "target.ima"
+    dialog = BatchDesignerDialog()
+    convert_index = dialog.kind_choice.findData("convert")
+    ima_index = dialog.format_choice.findData("ima")
+    assert convert_index >= 0 and ima_index >= 0
+    dialog.kind_choice.setCurrentIndex(convert_index)
+    dialog.source.setText(str(source))
+    dialog.destination.setText(str(destination))
+    dialog.format_choice.setCurrentIndex(ima_index)
+
+    operation = dialog.recipe()["operations"][0]
+    assert operation["kind"] == "convert"
+    assert operation["format"] == "ima"
 
 
 def test_batch_designer_rejects_raw_device_recipe() -> None:

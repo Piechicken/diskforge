@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from diskforge.cli import main
 from diskforge.core.filesystems import FatImageFilesystem, create_fat_image, create_iso_from_directory
 from diskforge.core.models import FileSystemType
@@ -184,3 +186,38 @@ def test_cli_rebuilds_standard_iso_after_explicit_edits(tmp_path: Path, capsys) 
     assert payload["files_added"] == ["/FOLDER/ADDED.TXT"]
     assert payload["paths_deleted"] == ["/folder/OLD.TXT"]
     assert payload["directories_created"] == ["/empty"]
+
+
+@pytest.mark.parametrize(("rock_ridge", "udf"), [(False, False), (True, True)])
+def test_cli_rebuilds_single_boot_eltorito_iso_and_reports_catalog_metadata(
+    tmp_path: Path, capsys, rock_ridge: bool, udf: bool,
+) -> None:  # type: ignore[no-untyped-def]
+    source_tree = tmp_path / "boot-source"
+    (source_tree / "folder").mkdir(parents=True)
+    (source_tree / "folder" / "OLD.TXT").write_text("old", encoding="utf-8")
+    boot = source_tree / "boot.img"
+    boot.write_bytes(b"BOOT" * 512)
+    source = create_iso_from_directory(
+        source_tree, tmp_path / "bootable.iso", boot_image=boot, boot_platform_id=0xEF,
+        boot_load_segment=0x7C0, rock_ridge=rock_ridge, udf=udf,
+    )
+    added = tmp_path / "ADDED.TXT"
+    added.write_text("added", encoding="utf-8")
+    destination = tmp_path / "bootable-edited.iso"
+
+    assert main([
+        "--json", "edit-iso", str(source), str(destination), "--add", str(added),
+        "--target-directory", "/folder",
+    ]) == 0
+    edited = json.loads(capsys.readouterr().out)
+    assert edited["destination"] == str(destination)
+    assert edited["files_added"][0].casefold() == "/folder/added.txt"
+
+    assert main(["--json", "iso-boot-info", str(destination)]) == 0
+    catalog = json.loads(capsys.readouterr().out)
+    assert catalog["has_sections"] is False
+    assert catalog["images"] == [{
+        "index": 0, "platform_id": 0xEF, "bootable": True, "media_type": 0,
+        "load_segment": 0x7C0, "system_type": 0, "sectors_512": 4,
+        "lba": catalog["images"][0]["lba"], "bytes": 2048,
+    }]

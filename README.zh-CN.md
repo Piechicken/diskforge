@@ -40,16 +40,24 @@ v0.8.0 在保留可编辑文档式工作区的基础上，新增了从经过验�
 
 外部适配器均明确标示：`qemu-img` 是用于 VHDX、VMDK 和 QCOW2 的可选适配器，提供能力报告和可取消进程；可选的 `dmg2img` 只能将 DMG 转换为新的原始 HFS+ 输出，DiskForge 不会挂载或写入 DMG。新的采集队列只读取所选可移动或光学介质、创建独立文件并记录 SHA-256 审计，完全不包含设备写入选项。上述新增路径与既有文档工作区均已覆盖联合国六种工作语言和日语。发布工作流只接受 `v*` 标签，强制校验标签与项目版本相同；若 Release 已存在则直接失败，绝不覆盖任何版本资产。
 
+## v0.10.0.dev0：安全 ISO 重建与 IMG/IMA 老式软盘
+
+当前开发版本将 **IMA** 作为独立的一等原始映像格式，而不是仅作为 IMG 的文件名别名。桌面程序、命令行、图形批处理设计器和批处理执行器均可明确选择 `.ima` 或 `.img` 输出。新建映像提供经过重开验证的 FAT12 老式软盘预设：覆盖常见 PC 兼容 5.25 英寸与 3.5 英寸的 160 KiB 至 2.88 MiB 布局，包括 DMF 和 82 磁道布局；也可在明确输入柱面、磁头、每磁道扇区和受支持扇区大小后创建自定义几何。有效 FAT IMA 与 FAT IMG 具有相同的浏览、内置预览、注入、删除、改名、属性、提取、哈希与转换能力。
+
+ISO 内容编辑采用单独输出的重建方式。它会核验暂存文件哈希并保留 Rock Ridge/UDF profile；经验证的单初始 El Torito 启动条目也能保留。多节/多启动目录、混合系统区或无法唯一映射的启动目录会被明确拒绝，绝不冒险重写。批处理 v4 的 `iso_edit` 使用同一安全核心。
+
+> 对于 128/256 字节扇区、GCR 或变速扇区、硬分区、非 FAT、复制保护轨道及 flux/bitcell 捕获等历史格式，DiskForge 仅承诺原始字节保存、检查、校验与比较；不会将其虚报为可安全文件级编辑的 FAT 映像。
+
 ## 核心能力
 
 DiskForge 将专业映像管理流程整合到统一界面。主窗口包含映像资源树、目录表格、映像信息面板、活动日志以及可取消进度区；破坏性操作会与常规浏览操作分开呈现。
 
 | 工作流 | 原生能力 | 说明 |
 |---|---|---|
-| 创建映像 | RAW/IMG、FAT12、FAT16、FAT32、DMF 布局 FAT12、ISO9660/Joliet | 创建可编辑 FAT 映像、采用 80×2×21 扇区已知几何布局的 DMF 映像、普通 ISO，或从本地目录和可选启动映像制作 El Torito ISO。 |
+| 创建映像 | RAW/IMG/IMA、FAT12、FAT16、FAT32、经过验证的老式 FAT12 软盘预设、DMF 布局 FAT12、ISO9660/Joliet/Rock Ridge/UDF | 可创建标准可编辑 FAT 映像、明确的 IMG/IMA 老式软盘预设或受支持自定义 CHS 几何、DMF 映像，以及含可选 El Torito 启动介质的 ISO。 |
 | 浏览与提取 | FAT12/16/32（包含经过验证的无显示标签旧式 DOS 软盘）、ISO9660/Joliet、固定 VHD 数据视图，以及可选 NTFS/EXT 只读后端 | 目录树和表格采用确定性分页与排序缓存，不会无界加载大目录。双击会打开无需系统默认程序的文档式工作区：文本可查找、另存副本，且仅在可写 FAT 条目中可编辑后保存回映像；图像、常见压缩包、传统安装包、可执行文件和二进制数据均以安全、不执行的方式检查。固定 VHD 以排除尾部元数据的临时 RAW 只读视图打开。 |
-| 修改映像内容 | FAT 文件/目录注入、删除、时间属性编辑 | 可将本地文件或目录直接拖入可编辑 FAT 映像，也可投放到当前显示的目标目录；ISO 按只读介质处理。 |
-| 格式转换 | 原生 RAW/IMG 与固定 VHD | VHDX、VMDK、QCOW2 通过显式配置的 `qemu-img` 适配器处理。 |
+| 修改映像内容 | FAT 文件/目录注入、删除、时间属性编辑；安全的 ISO 重建编辑 | FAT IMG 与 IMA 共享完整可编辑工作流。ISO 编辑始终输出新的重建映像并核验暂存内容，保留 Rock Ridge/UDF；仅可保留已验证的单初始 El Torito 条目，多启动、混合或歧义启动布局会被拒绝。 |
+| 格式转换 | 原生 RAW/IMG/IMA 与固定 VHD | IMG 与 IMA 转换会保留用户明确选择的原始映像扩展名；VHDX、VMDK、QCOW2 通过显式配置的 `qemu-img` 适配器处理。 |
 | FAT 紧凑整理 | 基于重建的碎片整理 | 输出新映像，原映像保留作为恢复点。 |
 | 结构与启动检查 | 512 字节十六进制查看/编辑、FAT BPB 属性、原创启动模板、中性 MBR FAT 封装与部署规划、尾部零扇区裁剪、El Torito 引导目录 | 模板保留 BPB 且不使用导入的启动程序；结构修改先备份，封装、部署预处理和裁剪均输出新文件。 |
 | 校验与自动化 | SHA-256、图形全操作配方编辑器、预演计划、逐项结果审阅、JSON 批处理、可审计日志 | 图形设计器可新建、重新打开和编辑转换、校验、比较、缩放、注入、提取和容器操作配方；`--dry-run` 可在不改动任何文件或设备前审阅操作，无人值守批处理会明确拒绝物理设备写入。 |
@@ -82,7 +90,10 @@ diskforge
 diskforge-cli create-fat demo.img --size-mib 32 --fat 16
 diskforge-cli info demo.img
 diskforge-cli list demo.img
+diskforge-cli create-legacy-floppy win16-disk --profile pc525_dsdd_360 --format ima
+diskforge-cli create-legacy-floppy custom-disk --format img --cylinders 80 --heads 2 --sectors-per-track 9
 diskforge-cli create-iso folder bootable.iso --boot-image boot.img --boot-media noemul
+diskforge-cli edit-iso bootable.iso revised.iso --add README.TXT --mkdir /DOCS
 diskforge-cli boot-templates
 diskforge-cli prepare-fat-deployment demo.img demo-deploy.img
 diskforge-cli batch recipe.json --dry-run

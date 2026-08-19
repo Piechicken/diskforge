@@ -13,7 +13,8 @@ from typing import Any, Callable
 
 from .bundle import create_bundle, extract_bundle
 from .compare import compare_streams
-from .filesystems import FatImageFilesystem, IsoImageFilesystem, replace_iso_file_safely
+from .filesystems import (FatImageFilesystem, IsoImageFilesystem, rebuild_iso_with_changes,
+                          replace_iso_file_safely)
 from .formats import (QemuImgConverter, convert_image, create_legacy_zip_image,
                       extract_legacy_zip_image, inspect_image)
 from .models import (BatchItemResult, BatchResult, ConflictPolicy, ExtractionLayout,
@@ -67,6 +68,7 @@ class BatchRunner:
             OperationKind.LEGACY_COMPRESS: ("source", "destination", "format"),
             OperationKind.LEGACY_EXTRACT: ("source", "destination"),
             OperationKind.ISO_REPLACE: ("source", "destination", "iso_path", "replacement"),
+            OperationKind.ISO_EDIT: ("source", "destination"),
         }
         for position, raw in enumerate(spec["operations"]):
             item = raw if isinstance(raw, dict) else {}
@@ -84,6 +86,12 @@ class BatchRunner:
                 absent = [key for key in required[kind] if key not in item]
                 if absent:
                     raise DiskForgeError(f"Batch {kind.value} operation is missing: {', '.join(absent)}.")
+            if kind == OperationKind.ISO_EDIT:
+                additions, delete_paths, create_directories, target_directory = self._iso_edit_values(item)
+                if not additions and not delete_paths and not create_directories:
+                    raise DiskForgeError("Batch iso_edit requires additions, delete_paths, or create_directories.")
+                if not isinstance(target_directory, str):
+                    raise DiskForgeError("Batch ISO edit target_directory must be a string.")
             if kind == OperationKind.CONVERT:
                 try:
                     ImageFormat(str(item["format"]))
@@ -100,7 +108,7 @@ class BatchRunner:
                 "will_write": kind in {OperationKind.CONVERT, OperationKind.RESIZE, OperationKind.INJECT,
                                          OperationKind.BUNDLE, OperationKind.UNBUNDLE, OperationKind.EXTRACT,
                                          OperationKind.LEGACY_COMPRESS, OperationKind.LEGACY_EXTRACT,
-                                         OperationKind.ISO_REPLACE},
+                                         OperationKind.ISO_REPLACE, OperationKind.ISO_EDIT},
             })
         return preview
 
@@ -146,6 +154,20 @@ class BatchRunner:
             raise DiskForgeError("Extraction layout or conflict policy is invalid.") from exc
 
     @staticmethod
+    def _iso_edit_values(item: dict[str, Any]) -> tuple[list[str], list[str], list[str], str]:
+        """Validate the declarative ISO rebuild edit parameters before any image is opened."""
+        raw_additions = item.get("additions", [])
+        raw_delete_paths = item.get("delete_paths", [])
+        raw_directories = item.get("create_directories", [])
+        target_directory = item.get("target_directory", "/")
+        values = (raw_additions, raw_delete_paths, raw_directories)
+        if not all(isinstance(value, list) and all(isinstance(path, str) for path in value) for value in values):
+            raise DiskForgeError("Batch ISO edit additions, delete_paths, and create_directories must be string lists.")
+        if not isinstance(target_directory, str):
+            raise DiskForgeError("Batch ISO edit target_directory must be a string.")
+        return raw_additions, raw_delete_paths, raw_directories, target_directory
+
+    @staticmethod
     def _filesystem(source: Path):
         info = inspect_image(source)
         if info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
@@ -178,6 +200,16 @@ class BatchRunner:
         if kind == OperationKind.ISO_REPLACE:
             result = replace_iso_file_safely(item["source"], str(item["iso_path"]), item["replacement"],
                                              item["destination"], overwrite=bool(item.get("overwrite", False)))
+            return str(result.destination)
+        if kind == OperationKind.ISO_EDIT:
+            additions, delete_paths, create_directories, target_directory = self._iso_edit_values(item)
+            if not additions and not delete_paths and not create_directories:
+                raise DiskForgeError("Batch iso_edit requires additions, delete_paths, or create_directories.")
+            result = rebuild_iso_with_changes(
+                item["source"], item["destination"], additions=additions, delete_paths=delete_paths,
+                create_directories=create_directories, target_directory=target_directory,
+                volume_label=item.get("volume_label"), overwrite=bool(item.get("overwrite", False)),
+            )
             return str(result.destination)
         if kind == OperationKind.LEGACY_COMPRESS:
             result = create_legacy_zip_image(item["source"], item["destination"], ImageFormat(str(item["format"])),
@@ -249,7 +281,7 @@ class BatchRunner:
 
 def example_batch() -> dict[str, Any]:
     return {
-        "schema": "diskforge.batch/v3",
+        "schema": "diskforge.batch/v4",
         "operations": [
             {
                 "name": "Convert archival IMG to fixed VHD",

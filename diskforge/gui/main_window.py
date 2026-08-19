@@ -47,6 +47,9 @@ from diskforge.core.filesystems import (FatImageFilesystem, ImageFilesystem, Iso
 from diskforge.core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_image, create_dynamic_vhd_from_raw,
                                      create_editable_fixed_vhd_copy, create_legacy_zip_image, inspect_image,
                                      validate_fixed_vhd_fat)
+from diskforge.core.legacy_floppy import (LEGACY_FLOPPY_PROFILES, LegacyFloppyGeometry,
+                                           create_legacy_fat_floppy,
+                                           create_legacy_fat_floppy_profile)
 from diskforge.core.media import create_dmf_image, trim_zero_tail, wrap_fat_image_in_mbr
 from diskforge.core.mounts import ImageMountManager, ImageMountSession
 from diskforge.core.metadata import load_image_metadata, save_image_comment
@@ -77,13 +80,14 @@ class NewImageDialog(QDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("New image")
-        self.setMinimumWidth(400)
+        self.setMinimumWidth(560)
         layout = QVBoxLayout(self)
         form = QFormLayout()
         self.kind = QComboBox()
         self.kind.addItem("FAT image (editable)", "fat")
         self.kind.addItem("FAT image from template layout", "fat_layout")
         self.kind.addItem("Raw/IMG image", "raw")
+        self.kind.addItem("Legacy FAT floppy image (IMG/IMA)", "legacy_floppy")
         self.kind.addItem("DMF 1.68 MB FAT12 image", "dmf")
         self.kind.addItem("ISO9660/Joliet from directory", "iso")
         self.size = QSpinBox()
@@ -103,6 +107,43 @@ class NewImageDialog(QDialog):
         form.addRow("Size", self.size)
         form.addRow("FAT variant", self.fat)
         form.addRow("Volume label", self.label)
+        self.legacy_profile_label = QLabel("Legacy floppy profile")
+        self.legacy_profile = QComboBox()
+        for profile in LEGACY_FLOPPY_PROFILES:
+            self.legacy_profile.addItem(profile.description, profile.identifier)
+        self.legacy_format_label = QLabel("Legacy image format")
+        self.legacy_format = QComboBox()
+        self.legacy_format.addItem("IMA floppy image (.ima)", ImageFormat.IMA)
+        self.legacy_format.addItem("IMG raw image (.img)", ImageFormat.IMG)
+        self.legacy_custom = QCheckBox("Use custom legacy geometry")
+        self.legacy_cylinders = QSpinBox()
+        self.legacy_cylinders.setRange(1, 0xFFFF)
+        self.legacy_cylinders.setValue(80)
+        self.legacy_heads = QSpinBox()
+        self.legacy_heads.setRange(1, 0xFFFF)
+        self.legacy_heads.setValue(2)
+        self.legacy_sectors = QSpinBox()
+        self.legacy_sectors.setRange(1, 0xFFFF)
+        self.legacy_sectors.setValue(9)
+        self.legacy_sector_size = QComboBox()
+        for value in (512, 1024, 2048, 4096):
+            self.legacy_sector_size.addItem(f"{value} bytes", value)
+        custom_geometry = QHBoxLayout()
+        custom_geometry.addWidget(QLabel("C"))
+        custom_geometry.addWidget(self.legacy_cylinders)
+        custom_geometry.addWidget(QLabel("H"))
+        custom_geometry.addWidget(self.legacy_heads)
+        custom_geometry.addWidget(QLabel("S"))
+        custom_geometry.addWidget(self.legacy_sectors)
+        custom_geometry.addWidget(QLabel("Bytes/sector"))
+        custom_geometry.addWidget(self.legacy_sector_size)
+        self.legacy_geometry_label = QLabel("Custom CHS geometry")
+        self.legacy_geometry_widget = QWidget()
+        self.legacy_geometry_widget.setLayout(custom_geometry)
+        form.addRow(self.legacy_profile_label, self.legacy_profile)
+        form.addRow(self.legacy_format_label, self.legacy_format)
+        form.addRow("", self.legacy_custom)
+        form.addRow(self.legacy_geometry_label, self.legacy_geometry_widget)
         self.source_label = QLabel("ISO source folder")
         form.addRow(self.source_label, source_row)
         self.boot_image = QLineEdit()
@@ -132,6 +173,7 @@ class NewImageDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
         self.kind.currentIndexChanged.connect(self._update_controls)
+        self.legacy_custom.toggled.connect(self._update_controls)
         self._update_controls()
 
     @staticmethod
@@ -164,8 +206,15 @@ class NewImageDialog(QDialog):
         mode = self.kind.currentData()
         is_iso = mode == "iso"
         is_layout = mode == "fat_layout"
-        self.size.setEnabled(mode not in {"iso", "dmf", "fat_layout"})
+        is_legacy = mode == "legacy_floppy"
+        self.size.setEnabled(mode not in {"iso", "dmf", "fat_layout", "legacy_floppy"})
         self.fat.setEnabled(mode == "fat")
+        for widget in (self.legacy_profile_label, self.legacy_profile, self.legacy_format_label, self.legacy_format,
+                       self.legacy_custom, self.legacy_geometry_label, self.legacy_geometry_widget):
+            widget.setVisible(is_legacy)
+        custom_legacy = is_legacy and self.legacy_custom.isChecked()
+        self.legacy_profile.setEnabled(is_legacy and not custom_legacy)
+        self.legacy_geometry_widget.setEnabled(custom_legacy)
         self.source.setEnabled(is_iso or is_layout)
         self.source_button.setEnabled(is_iso or is_layout)
         self._set_translatable_label(self.source_label, "FAT layout template" if is_layout else "ISO source folder")
@@ -178,6 +227,8 @@ class NewImageDialog(QDialog):
             self._set_translatable_label(self.help, "ISO files are authored from a local directory and are read-only after creation.")
         elif mode == "raw":
             self._set_translatable_label(self.help, "Raw images are sparse zero-filled files; format them externally or write sectors manually.")
+        elif mode == "legacy_floppy":
+            self._set_translatable_label(self.help, "Creates an editable FAT12 IMG or IMA with an explicit legacy floppy profile or custom geometry. The size is shown in KiB; no physical device is formatted.")
         elif mode == "dmf":
             self._set_translatable_label(self.help, "Creates an 80×2×21-sector FAT12 image file. Physical floppy formatting is not performed.")
         elif mode == "fat_layout":
@@ -193,12 +244,13 @@ class ConvertDialog(QDialog):
         self.setWindowTitle("Convert image")
         form = QFormLayout(self)
         self.format = QComboBox()
-        self.format.addItem("Raw binary (.img)", ImageFormat.IMG)
+        self.format.addItem("Raw IMG image (.img)", ImageFormat.IMG)
+        self.format.addItem("IMA floppy image (.ima)", ImageFormat.IMA)
         self.format.addItem("Fixed VHD (.vhd)", ImageFormat.VHD)
         self.format.addItem("VHDX (.vhdx, requires qemu-img)", ImageFormat.VHDX)
         self.format.addItem("VMware VMDK (.vmdk, requires qemu-img)", ImageFormat.VMDK)
         self.format.addItem("QEMU QCOW2 (.qcow2, requires qemu-img)", ImageFormat.QCOW2)
-        self.destination = QLineEdit(str(source.with_suffix(".vhd")))
+        self.destination = QLineEdit(str(source.with_suffix(".img")))
         browse = QPushButton("Browse…")
         browse.clicked.connect(self._choose_destination)
         row = QHBoxLayout()
@@ -215,7 +267,7 @@ class ConvertDialog(QDialog):
         self.format.currentIndexChanged.connect(self._suggest_extension)
 
     def _suggest_extension(self) -> None:
-        value: ImageFormat = self.format.currentData()
+        value = ImageFormat(str(self.format.currentData()))
         suffix = ".img" if value == ImageFormat.IMG else f".{value.value}"
         self.destination.setText(str(self.source.with_suffix(suffix)))
 
@@ -577,7 +629,7 @@ class MainWindow(QMainWindow):
         self.action_trim_zero_tail = self._action("Trim trailing zero sectors…", None, self.trim_current_zero_tail)
         self.action_iso_boot = self._action("Inspect / export ISO boot image…", None, self.inspect_iso_boot)
         self.action_replace_iso = self._action("Safely replace ISO file…", None, self.replace_iso_file)
-        self.action_edit_iso = self._action("Edit standard ISO content…", None, self.edit_standard_iso)
+        self.action_edit_iso = self._action("Edit ISO content safely…", None, self.edit_standard_iso)
         self.action_editable_vhd = self._action("Create editable fixed VHD copy…", None, self.create_editable_vhd_copy)
         self.action_dynamic_vhd = self._action("Create dynamic VHD from FAT work image…", None, self.create_dynamic_vhd)
         self.action_convert_dmg = self._action("Convert DMG to raw image…", None, self.convert_dmg_image)
@@ -1002,13 +1054,32 @@ class MainWindow(QMainWindow):
                 )
             self._run_worker("Creating bootable ISO image" if boot_image else "Creating ISO image", create_iso, on_result=lambda result: self._open_path(Path(result)))
             return
-        suffix = ".img"
-        output, _ = QFileDialog.getSaveFileName(self, "Create image", f"untitled{suffix}", "Disk image (*.img)")
+        is_legacy_floppy = kind == "legacy_floppy"
+        legacy_format = ImageFormat(str(dialog.legacy_format.currentData())) if is_legacy_floppy else None
+        suffix = f".{legacy_format.value}" if legacy_format is not None else ".img"
+        image_filter = "Legacy floppy image (*.ima *.img)" if is_legacy_floppy else "Disk image (*.img *.ima)"
+        output, _ = QFileDialog.getSaveFileName(self, "Create legacy floppy image" if is_legacy_floppy else "Create image", f"untitled{suffix}", image_filter)
         if not output:
             return
         target = Path(output)
         size = dialog.size.value() * 1024 * 1024
-        if kind == "dmf":
+        if is_legacy_floppy:
+            assert legacy_format is not None
+            if dialog.legacy_custom.isChecked():
+                geometry = LegacyFloppyGeometry(
+                    dialog.legacy_cylinders.value(), dialog.legacy_heads.value(), dialog.legacy_sectors.value(),
+                    int(dialog.legacy_sector_size.currentData()),
+                )
+                def create_legacy(progress=None, token=None):
+                    return create_legacy_fat_floppy(target, geometry, image_format=legacy_format, label=dialog.label.text())
+                title = "Creating custom legacy FAT floppy image"
+            else:
+                profile_id = str(dialog.legacy_profile.currentData())
+                def create_legacy(progress=None, token=None):
+                    return create_legacy_fat_floppy_profile(target, profile_id, image_format=legacy_format, label=dialog.label.text())
+                title = "Creating legacy FAT floppy image"
+            self._run_worker(title, create_legacy, on_result=lambda result: self._open_path(Path(result)))
+        elif kind == "dmf":
             target = target.with_suffix(".dmf") if target.suffix.lower() not in {".dmf", ".img", ".ima"} else target
             def create_dmf(progress=None, token=None):
                 return create_dmf_image(target, dialog.label.text())
@@ -1162,13 +1233,13 @@ class MainWindow(QMainWindow):
                          on_result=lambda result: self._open_path(Path(result.destination)))
 
     def edit_standard_iso(self) -> None:
-        """Rebuild a supported standard ISO after one explicit content edit."""
+        """Rebuild a supported ISO after one explicit content edit."""
         if not self.current_path or not isinstance(self.current_fs, IsoImageFilesystem):
             return
         choices = [
             "Add local file…", "Add local folder…", "Delete selected ISO entries", "Create ISO directory…",
         ]
-        operation, accepted = QInputDialog.getItem(self, "Edit standard ISO content", "Operation", choices, 0, False)
+        operation, accepted = QInputDialog.getItem(self, "Edit ISO content safely", "Operation", choices, 0, False)
         if not accepted:
             return
         additions: list[Path] = []
@@ -1214,7 +1285,7 @@ class MainWindow(QMainWindow):
                 create_directories=directories, target_directory=target_directory,
                 progress=progress, token=token,
             )
-        self._run_worker("Rebuilding standard ISO into a new image", rebuild,
+        self._run_worker("Rebuilding ISO into a new image", rebuild,
                          on_result=lambda result: self._open_path(Path(result.destination)))
 
     def _open_path(self, path: Path, *, editable_fixed_vhd: bool = False,

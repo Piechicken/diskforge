@@ -15,6 +15,7 @@ ISO_BLOCK_SIZE = 2048
 @dataclass(frozen=True)
 class ElToritoBootImage:
     index: int
+    platform_id: int
     bootable: bool
     media_type: int
     load_segment: int
@@ -32,6 +33,7 @@ class ElToritoCatalog:
     iso_path: Path
     catalog_lba: int
     images: tuple[ElToritoBootImage, ...]
+    has_sections: bool
 
 
 def _read_block(handle, lba: int) -> bytes:
@@ -56,17 +58,19 @@ def _boot_catalog_lba(path: Path) -> int:
     raise DiskForgeError("ISO image does not contain an El Torito boot record.")
 
 
-def _catalog_entries(data: bytes) -> tuple[ElToritoBootImage, ...]:
+def _catalog_entries(data: bytes) -> tuple[tuple[ElToritoBootImage, ...], bool]:
     if data[0] not in {0x01, 0x00} or data[30:32] != b"\x55\xaa":
         raise DiskForgeError("El Torito boot catalog validation entry is invalid.")
     entries: list[ElToritoBootImage] = []
     platform = data[1] if data[0] == 0x01 else 0
+    has_sections = False
     index = 0
     position = 32
     while position + 32 <= len(data):
         entry = data[position:position + 32]
         indicator = entry[0]
         if indicator in {0x90, 0x91}:  # section header, with or without final flag
+            has_sections = True
             platform = entry[1]
             position += 32
             continue
@@ -78,6 +82,7 @@ def _catalog_entries(data: bytes) -> tuple[ElToritoBootImage, ...]:
                 break
             entries.append(ElToritoBootImage(
                 index=index,
+                platform_id=platform,
                 bootable=indicator == 0x88,
                 media_type=entry[1],
                 load_segment=int.from_bytes(entry[2:4], "little"),
@@ -89,7 +94,7 @@ def _catalog_entries(data: bytes) -> tuple[ElToritoBootImage, ...]:
         position += 32
     if not entries:
         raise DiskForgeError("El Torito boot catalog does not contain a boot image entry.")
-    return tuple(entries)
+    return tuple(entries), has_sections
 
 
 def inspect_eltorito(path: Path | str) -> ElToritoCatalog:
@@ -99,8 +104,8 @@ def inspect_eltorito(path: Path | str) -> ElToritoCatalog:
         raise FileNotFoundError(source)
     catalog_lba = _boot_catalog_lba(source)
     with source.open("rb") as handle:
-        entries = _catalog_entries(_read_block(handle, catalog_lba))
-    return ElToritoCatalog(source, catalog_lba, entries)
+        entries, has_sections = _catalog_entries(_read_block(handle, catalog_lba))
+    return ElToritoCatalog(source, catalog_lba, entries, has_sections)
 
 
 def export_boot_image(path: Path | str, destination: Path | str, *, index: int = 0,

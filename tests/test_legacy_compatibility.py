@@ -42,8 +42,10 @@ def test_unlabelled_legacy_fat12_superfloppy_is_browsable(tmp_path: Path) -> Non
         filesystem.close()
 
 
-def test_ima_extension_is_a_raw_image_alias() -> None:
-    assert ImageFormat.from_path("mouse-driver.IMA") == ImageFormat.IMG
+def test_ima_extension_is_a_distinct_raw_image_format() -> None:
+    # IMA remains a flat raw sector image but preserves the user-selected suffix
+    # so creation and conversion can explicitly target legacy IMA workflows.
+    assert ImageFormat.from_path("mouse-driver.IMA") == ImageFormat.IMA
 
 
 def test_safe_preview_handles_text_zip_and_dos_executable(tmp_path: Path) -> None:

@@ -33,7 +33,7 @@ with warnings.catch_warnings():
     from pyfatfs.PyFat import PyFat
     from pyfatfs.PyFatFS import PyFatFS
 
-from .eltorito import inspect_eltorito
+from .eltorito import ElToritoBootImage, inspect_eltorito
 from .formats import inspect_image
 from .models import (ConflictPolicy, ExtractionLayout, ExtractionPolicy, FileSystemType,
                      ImageEntry, OperationKind, Progress, ProgressCallback, iter_parent_paths)
@@ -552,7 +552,7 @@ def replace_iso_file_safely(source_iso: Path | str, iso_path: str, replacement: 
 
 @dataclass(frozen=True)
 class IsoRebuildResult:
-    """Verified result of standard ISO9660/Joliet content editing into a new file."""
+    """Verified result of ISO content editing into a separately rebuilt image."""
 
     source: Path
     destination: Path
@@ -561,6 +561,21 @@ class IsoRebuildResult:
     directories_created: tuple[str, ...]
     source_sha256: str
     output_sha256: str
+
+
+@dataclass(frozen=True)
+class _ElToritoRebuildSpec:
+    """The strictly reproducible part of one initial El Torito boot entry."""
+
+    boot_path: str
+    catalog_path: str
+    platform_id: int
+    bootable: bool
+    media_name: str
+    boot_load_size: int | None
+    boot_load_segment: int
+    expected_system_type: int
+    expected_sector_count_512: int
 
 
 def _iso_workspace_path(root: Path, path: str, *, allow_root: bool = False) -> tuple[str, Path]:
@@ -603,6 +618,104 @@ def _iso_has_eltorito(source: Path) -> bool:
     return True
 
 
+def _eltorito_paths_at_lba(filesystem: "IsoImageFilesystem", entries: Sequence[ImageEntry], lba: int) -> list[ImageEntry]:
+    """Return ordinary files backed by one contiguous extent starting at *lba*."""
+    expected_offset = lba * 2048
+    matches: list[ImageEntry] = []
+    for entry in entries:
+        if entry.is_dir:
+            continue
+        try:
+            extents = filesystem.iso.get_file_byte_extents(**filesystem._lookup(entry.path))
+        except Exception:
+            continue
+        if len(extents) == 1 and extents[0][0] == expected_offset:
+            matches.append(entry)
+    return matches
+
+
+def _eltorito_media_parameters(image: ElToritoBootImage, boot_size: int) -> tuple[str, int | None]:
+    """Translate only pycdlib-reproducible catalog fields to creator parameters."""
+    if image.media_type == 0:
+        if image.system_type != 0 or not 0 < image.sector_count_512 <= 0xFFFF:
+            raise DiskForgeError("El Torito no-emulation metadata is unsupported for safe rebuilding.")
+        if image.byte_count > boot_size:
+            raise DiskForgeError("El Torito boot entry reads beyond its referenced file.")
+        return "noemul", image.sector_count_512
+    if image.media_type in {1, 2, 3}:
+        expected_size = {1: 1200 * 1024, 2: 1440 * 1024, 3: 2880 * 1024}[image.media_type]
+        if image.system_type != 0 or image.sector_count_512 != 1 or boot_size != expected_size:
+            raise DiskForgeError("El Torito floppy-emulation metadata is unsupported for safe rebuilding.")
+        return "floppy", None
+    if image.media_type == 4:
+        if image.sector_count_512 != 1 or boot_size < 512:
+            raise DiskForgeError("El Torito hard-disk-emulation metadata is unsupported for safe rebuilding.")
+        return "hdemul", None
+    raise DiskForgeError("El Torito media type is unsupported for safe rebuilding.")
+
+
+def _eltorito_rebuild_spec(source: Path, filesystem: "IsoImageFilesystem", entries: Sequence[ImageEntry]) -> _ElToritoRebuildSpec:
+    """Inspect one reproducible boot entry and reject ambiguous/hybrid source images."""
+    catalog = inspect_eltorito(source)
+    if catalog.has_sections or len(catalog.images) != 1:
+        raise DiskForgeError("ISO rebuilding supports only a single initial El Torito boot entry.")
+    with source.open("rb") as handle:
+        if any(handle.read(32768)):
+            raise DiskForgeError("ISO rebuilding refuses hybrid or nonstandard system-area boot metadata.")
+    image = catalog.images[0]
+    boot_matches = _eltorito_paths_at_lba(filesystem, entries, image.lba)
+    if len(boot_matches) != 1:
+        raise DiskForgeError("El Torito boot image cannot be mapped uniquely to an ISO file.")
+    # pycdlib exposes the catalog as a synthetic zero-inode directory record, so
+    # it has no ordinary file extent (notably on UDF).  The raw catalog LBA was
+    # already validated by inspect_eltorito(); constrain its visible companion to
+    # the canonical root path created by add_eltorito instead of extracting it.
+    catalog_matches = [entry for entry in entries if not entry.is_dir and entry.path.casefold() == "/boot.cat"]
+    if len(catalog_matches) != 1:
+        raise DiskForgeError("ISO rebuilding supports only the conventional root El Torito boot catalog name.")
+    boot_entry, catalog_entry = boot_matches[0], catalog_matches[0]
+    if boot_entry.path.casefold() == catalog_entry.path.casefold():
+        raise DiskForgeError("El Torito boot image and boot catalog must be separate files.")
+    media_name, boot_load_size = _eltorito_media_parameters(image, boot_entry.size)
+    return _ElToritoRebuildSpec(
+        boot_path=boot_entry.path,
+        catalog_path=catalog_entry.path,
+        platform_id=image.platform_id,
+        bootable=image.bootable,
+        media_name=media_name,
+        boot_load_size=boot_load_size,
+        boot_load_segment=image.load_segment,
+        expected_system_type=image.system_type,
+        expected_sector_count_512=image.sector_count_512,
+    )
+
+
+def _verify_eltorito_rebuild(destination: Path, spec: _ElToritoRebuildSpec) -> None:
+    """Reopen a rebuilt bootable ISO and prove its boot catalog still targets the expected file."""
+    catalog = inspect_eltorito(destination)
+    if catalog.has_sections or len(catalog.images) != 1:
+        raise DiskForgeError("Rebuilt ISO did not retain a single initial El Torito boot entry.")
+    image = catalog.images[0]
+    expected = (spec.platform_id, spec.bootable, spec.media_name, spec.boot_load_segment,
+                spec.expected_system_type, spec.expected_sector_count_512)
+    actual_media = {0: "noemul", 1: "floppy", 2: "floppy", 3: "floppy", 4: "hdemul"}.get(image.media_type)
+    actual = (image.platform_id, image.bootable, actual_media, image.load_segment,
+              image.system_type, image.sector_count_512)
+    if actual != expected:
+        raise DiskForgeError("Rebuilt ISO El Torito metadata does not match the verified source entry.")
+    filesystem = IsoImageFilesystem(destination)
+    try:
+        entries = list(filesystem._walk("/"))
+        boot_matches = _eltorito_paths_at_lba(filesystem, entries, image.lba)
+        catalog_matches = [entry for entry in entries if not entry.is_dir and entry.path.casefold() == "/boot.cat"]
+    finally:
+        filesystem.close()
+    if len(boot_matches) != 1 or boot_matches[0].path.casefold() != spec.boot_path.casefold():
+        raise DiskForgeError("Rebuilt ISO El Torito boot entry no longer targets the expected file.")
+    if len(catalog_matches) != 1 or catalog_matches[0].path.casefold() != spec.catalog_path.casefold():
+        raise DiskForgeError("Rebuilt ISO El Torito boot catalog does not have the expected path.")
+
+
 def rebuild_iso_with_changes(source_iso: Path | str, destination_iso: Path | str, *,
                              additions: Iterable[Path | str] = (), delete_paths: Iterable[str] = (),
                              create_directories: Iterable[str] = (), target_directory: str = "/",
@@ -615,8 +728,9 @@ def rebuild_iso_with_changes(source_iso: Path | str, destination_iso: Path | str
     workspace.  Changes are applied only in that workspace, then a separate ISO
     is authored and reopened for a complete file-by-file SHA-256 verification.
     Rock Ridge and UDF profiles are recreated from their user-visible directory
-    context; El Torito remains deliberately refused because this path does not yet
-    preserve every boot-catalog variant.
+    context. A single, initial El Torito entry is also recreated only after a
+    strict catalog, system-area, file-range, and output verification; multi-entry,
+    sectioned, hybrid, and otherwise ambiguous boot layouts are refused.
     """
     source, destination = Path(source_iso), Path(destination_iso)
     if not source.is_file():
@@ -639,8 +753,7 @@ def rebuild_iso_with_changes(source_iso: Path | str, destination_iso: Path | str
         probe.open(str(source))
         rock_ridge = probe.has_rock_ridge()
         udf = probe.has_udf()
-        if _iso_has_eltorito(source):
-            raise DiskForgeError("ISO rebuilding refuses El Torito images to preserve boot catalog metadata.")
+        has_eltorito = _iso_has_eltorito(source)
         label_value = (volume_label or probe.pvd.volume_identifier.decode("ascii", errors="ignore").strip() or "DISKFORGE")[:32]
     finally:
         probe.close()
@@ -649,11 +762,17 @@ def rebuild_iso_with_changes(source_iso: Path | str, destination_iso: Path | str
     changed_additions: list[str] = []
     changed_deletions: list[str] = []
     created_directories: list[str] = []
+    eltorito_spec: _ElToritoRebuildSpec | None = None
     try:
         source_fs = IsoImageFilesystem(source)
         try:
             source_entries = list(source_fs._walk("/"))
-            file_entries = [entry for entry in source_entries if not entry.is_dir]
+            if has_eltorito:
+                eltorito_spec = _eltorito_rebuild_spec(source, source_fs, source_entries)
+            file_entries = [
+                entry for entry in source_entries
+                if not entry.is_dir and (not eltorito_spec or entry.path.casefold() != eltorito_spec.catalog_path.casefold())
+            ]
             for directory in sorted((entry for entry in source_entries if entry.is_dir), key=lambda entry: entry.path.count("/")):
                 _, target = _iso_workspace_path(workspace, directory.path)
                 target.mkdir(parents=True, exist_ok=True)
@@ -668,6 +787,9 @@ def rebuild_iso_with_changes(source_iso: Path | str, destination_iso: Path | str
         finally:
             source_fs.close()
         for value in deletions:
+            requested = _normal(value)
+            if eltorito_spec and requested.casefold() in {eltorito_spec.boot_path.casefold(), eltorito_spec.catalog_path.casefold()}:
+                raise DiskForgeError("El Torito boot files and boot catalog cannot be deleted during safe rebuilding.")
             normalized, target = _existing_iso_workspace_path(workspace, value)
             if target.is_dir():
                 shutil.rmtree(target)
@@ -696,6 +818,9 @@ def rebuild_iso_with_changes(source_iso: Path | str, destination_iso: Path | str
             else:
                 targets.append((item, target_root / item.name))
             for candidate, target in targets:
+                candidate_path = "/" + target.relative_to(workspace).as_posix()
+                if eltorito_spec and candidate_path.casefold() == eltorito_spec.catalog_path.casefold():
+                    raise DiskForgeError("El Torito boot catalog is managed automatically during safe rebuilding.")
                 if target.exists():
                     raise FileExistsError(target)
                 target.parent.mkdir(parents=True, exist_ok=True)
@@ -704,7 +829,18 @@ def rebuild_iso_with_changes(source_iso: Path | str, destination_iso: Path | str
         if token:
             token.raise_if_cancelled()
         destination.parent.mkdir(parents=True, exist_ok=True)
-        create_iso_from_directory(workspace, destination, label_value, rock_ridge=rock_ridge, udf=udf)
+        creator_options: dict[str, object] = {"rock_ridge": rock_ridge, "udf": udf}
+        if eltorito_spec:
+            _, boot_file = _existing_iso_workspace_path(workspace, eltorito_spec.boot_path)
+            creator_options.update({
+                "boot_image": boot_file,
+                "boot_platform_id": eltorito_spec.platform_id,
+                "boot_media": eltorito_spec.media_name,
+                "boot_load_size": eltorito_spec.boot_load_size,
+                "boot_load_segment": eltorito_spec.boot_load_segment,
+                "bootable": eltorito_spec.bootable,
+            })
+        create_iso_from_directory(workspace, destination, label_value, **creator_options)
         verifier = IsoImageFilesystem(destination)
         try:
             expected_files = sorted(item for item in workspace.rglob("*") if item.is_file())
@@ -720,6 +856,8 @@ def rebuild_iso_with_changes(source_iso: Path | str, destination_iso: Path | str
                     progress(Progress(OperationKind.ISO_EDIT, index, len(expected_files) or 1, f"Verifying {expected.name}"))
         finally:
             verifier.close()
+        if eltorito_spec:
+            _verify_eltorito_rebuild(destination, eltorito_spec)
         if sha256_file(source) != source_hash:
             raise DiskForgeError("The source ISO changed during rebuilding.")
         return IsoRebuildResult(source, destination, tuple(sorted(changed_additions)), tuple(sorted(changed_deletions)),
@@ -963,7 +1101,9 @@ def create_iso_from_directory(source_directory: Path | str, destination: Path | 
                               boot_platform_id: int = 0,
                               boot_media: str = "noemul",
                               boot_info_table: bool = False,
+                              boot_load_size: int | None = None,
                               boot_load_segment: int = 0,
+                              bootable: bool = True,
                               rock_ridge: bool = False,
                               udf: bool = False) -> Path:
     """Build an ISO9660/Joliet image, optionally with a validated El Torito entry.
@@ -980,6 +1120,8 @@ def create_iso_from_directory(source_directory: Path | str, destination: Path | 
         raise DiskForgeError("El Torito boot media must be noemul, floppy, or hdemul.")
     if not 0 <= boot_platform_id <= 0xFF:
         raise DiskForgeError("El Torito platform ID must be an unsigned byte.")
+    if boot_load_size is not None and not 0 < boot_load_size <= 0xFFFF:
+        raise DiskForgeError("El Torito load sector count must fit in an unsigned 16-bit field.")
     if not 0 <= boot_load_segment <= 0xFFFF:
         raise DiskForgeError("El Torito load segment must fit in 16 bits.")
     selected_boot = Path(boot_image).resolve() if boot_image is not None else None
@@ -1034,7 +1176,8 @@ def create_iso_from_directory(source_directory: Path | str, destination: Path | 
         if boot_iso_path is not None:
             eltorito_kwargs: dict[str, object] = {
                 "platform_id": boot_platform_id, "media_name": boot_media,
-                "boot_info_table": boot_info_table, "boot_load_seg": boot_load_segment,
+                "boot_info_table": boot_info_table, "boot_load_size": boot_load_size,
+                "boot_load_seg": boot_load_segment, "bootable": bootable,
                 "joliet_bootcatfile": "/boot.cat",
             }
             if rock_ridge:
