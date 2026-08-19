@@ -8,7 +8,7 @@ from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "assets" / "icons" / "diskforge-icon-transparent.png"
+SOURCE = ROOT / "assets" / "icons" / "diskforge-v075-source.png"
 TARGET = ROOT / "assets" / "icons"
 SIZES = (16, 20, 24, 32, 40, 48, 64, 128, 256, 512, 1024)
 

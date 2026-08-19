@@ -75,12 +75,25 @@ def _macos_devices() -> list[DeviceInfo]:
         identifier = item.get("DeviceIdentifier", "")
         if not identifier:
             continue
-        result.append(DeviceInfo(f"/dev/{identifier}", item.get("VolumeName") or identifier,
-                                 0, DeviceKind.DISK, model=item.get("Content", "")))
+        try:
+            import plistlib
+            info_payload = subprocess.run(["diskutil", "info", "-plist", f"/dev/{identifier}"], check=False,
+                                          capture_output=True).stdout
+            info = plistlib.loads(info_payload) if info_payload else {}
+        except Exception:
+            info = {}
+        probe = " ".join(str(info.get(key, "")) for key in ("Content", "MediaType", "DeviceProtocol", "BusProtocol")).lower()
+        is_optical = any(token in probe for token in ("cd", "dvd", "optical", "bd"))
+        result.append(DeviceInfo(
+            f"/dev/{identifier}", item.get("VolumeName") or info.get("VolumeName") or identifier,
+            int(info.get("TotalSize") or item.get("Size") or 0), DeviceKind.OPTICAL if is_optical else DeviceKind.DISK,
+            removable=bool(info.get("RemovableMediaOrExternalDevice")), mounted=bool(info.get("Mounted")),
+            model=str(info.get("MediaName") or item.get("Content") or ""),
+        ))
         for child in item.get("Partitions", []) or []:
             child_id = child.get("DeviceIdentifier", "")
             result.append(DeviceInfo(f"/dev/{child_id}", child.get("VolumeName") or child_id,
-                                     0, DeviceKind.PARTITION))
+                                     int(child.get("Size") or 0), DeviceKind.PARTITION))
     return result
 
 
@@ -100,11 +113,12 @@ def _windows_devices() -> list[DeviceInfo]:
         number = int(item.get("Number", -1))
         if number < 0:
             continue
+        bus_type = str(item.get("BusType", "")).upper()
         result.append(DeviceInfo(
             identifier=f"\\\\.\\PhysicalDrive{number}",
             display_name=item.get("FriendlyName") or f"PhysicalDrive{number}",
-            size=int(item.get("Size") or 0), kind=DeviceKind.DISK,
-            removable=str(item.get("BusType", "")).upper() == "USB",
+            size=int(item.get("Size") or 0), kind=DeviceKind.OPTICAL if bus_type in {"CDROM", "CD-ROM", "OPTICAL"} else DeviceKind.DISK,
+            removable=bus_type == "USB" or bus_type in {"CDROM", "CD-ROM", "OPTICAL"},
             model=item.get("FriendlyName") or "",
             system_disk=bool(item.get("IsBoot")) or bool(item.get("IsSystem")),
         ))

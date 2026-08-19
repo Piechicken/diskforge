@@ -65,3 +65,27 @@ def test_safe_preview_handles_text_zip_and_dos_executable(tmp_path: Path) -> Non
     executable_preview = inspect_file_preview(executable)
     assert executable_preview.kind == "executable"
     assert any("Execution is disabled" in detail for detail in executable_preview.details)
+
+
+def test_text_preview_is_editable_and_binary_zero_runs_are_collapsed(tmp_path: Path) -> None:
+    text = tmp_path / "README.TXT"
+    text.write_text("DiskForge editable text preview\n", encoding="utf-8")
+    text_preview = inspect_file_preview(text)
+    assert text_preview.kind == "text"
+    assert text_preview.editable
+    assert "editable" in text_preview.summary.lower()
+
+    binary = tmp_path / "sparse.bin"
+    binary.write_bytes(b"MZ" + b"\0" * 4096)
+    binary_preview = inspect_file_preview(binary)
+    assert "zero-filled bytes collapsed" in binary_preview.text
+
+
+def test_office_container_preview_extracts_readable_text(tmp_path: Path) -> None:
+    document = tmp_path / "notes.docx"
+    with zipfile.ZipFile(document, "w") as archive:
+        archive.writestr("word/document.xml", '<w:document xmlns:w="urn:test"><w:body><w:t>Readable office note</w:t></w:body></w:document>')
+    preview = inspect_file_preview(document)
+
+    assert preview.kind == "office"
+    assert "Readable office note" in preview.text

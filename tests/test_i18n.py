@@ -55,6 +55,12 @@ def test_workspace_and_preview_labels_are_translated_in_every_non_english_locale
         "InstallShield setup data",
         "DOS MZ executable",
         "Binary inspection",
+        "Find in document",
+        "Save copy…",
+        "Save back to image",
+        "Document details",
+        "Editable text: save a copy or write back to a writable FAT image.",
+        "Sleuth Kit browsing is available only for NTFS and EXT filesystems.",
     }
     for language in LANGUAGES:
         if language.code == "en":

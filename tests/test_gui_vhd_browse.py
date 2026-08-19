@@ -34,3 +34,26 @@ def test_main_window_browses_fixed_vhd_through_temporary_session(tmp_path: Path)
     assert any(entry.name == "inside.txt" for entry in window.current_entries)
     window.close_image()
     assert temporary is not None and not temporary.exists()
+
+
+def test_vhd_fat_reopens_the_active_browse_session_filesystem(tmp_path: Path) -> None:
+    _application()
+    raw = create_fat_image(tmp_path / "source.img", 32 * 1024 * 1024, FileSystemType.FAT16, "VHD")
+    host_file = tmp_path / "inside.txt"
+    host_file.write_text("route through FAT", encoding="utf-8")
+    filesystem = FatImageFilesystem(raw)
+    try:
+        filesystem.inject([host_file])
+    finally:
+        filesystem.close()
+    vhd = tmp_path / "source.vhd"
+    create_fixed_vhd(raw, vhd)
+    window = MainWindow()
+    window._open_path(vhd)
+    reopened = window._readonly_current_filesystem()
+    try:
+        assert isinstance(reopened, FatImageFilesystem)
+        assert any(entry.name == "inside.txt" for entry in reopened.list_entries("/"))
+    finally:
+        reopened.close()
+        window.close_image()

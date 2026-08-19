@@ -6,6 +6,7 @@ labeled.  All large work is performed through ``FunctionWorker``.
 """
 from __future__ import annotations
 
+import html
 import os
 import shutil
 import tempfile
@@ -49,6 +50,7 @@ from diskforge.core.resize import resize_image
 from diskforge.core.selfextract import create_self_extractor
 from diskforge.core.storage import DiskForgeError, sha256_file
 from diskforge.gui.batch_designer import BatchDesignerDialog
+from diskforge.gui.batch_results import BatchResultDialog
 from diskforge.gui.dragdrop import ImageEntryList, ImageEntryTable
 from diskforge.gui.i18n import LANGUAGES, language_manager
 from diskforge.gui.preview import FilePreviewDialog
@@ -364,9 +366,14 @@ class MainWindow(QMainWindow):
         self.current_browse_session: BrowsableImageSession | None = None
         self.current_directory = "/"
         self.current_entries: list[ImageEntry] = []
+        self._directory_page_size = 250
+        self._directory_total = 0
+        self._directory_sort_by = "name"
+        self._directory_sort_ascending = True
         self.current_worker: FunctionWorker | None = None
         self._task_items: dict[int, QTreeWidgetItem] = {}
         self._preview_directories: list[Path] = []
+        self._active_preview_entry_path: str | None = None
         self.setWindowTitle("DiskForge — Disk Image Studio")
         self.resize(1280, 790)
         self._build_actions()
@@ -406,7 +413,8 @@ class MainWindow(QMainWindow):
         self.action_boot = self._action("Edit boot sector…", None, self.edit_boot_sector)
         self.action_devices = self._action("Read / write physical drive…", None, self.physical_drive)
         self.action_batch = self._action("Run batch recipe…", None, self.run_batch)
-        self.action_batch_designer = self._action("Design batch extraction…", None, self.design_batch)
+        self.action_batch_designer = self._action("Design batch workflow…", None, self.design_batch)
+        self.action_batch_edit = self._action("Edit batch recipe…", None, self.edit_batch)
         self.action_sfx = self._action("Create self-extracting bundle…", None, self.create_sfx)
         self.action_preview = self._action("Preview selected file", "Return", self.preview_selected)
         self.action_view_details = self._action("Details view", None, lambda: self.set_view_mode("details"))
@@ -446,7 +454,7 @@ class MainWindow(QMainWindow):
         menu_view = self.menuBar().addMenu("&View")
         menu_view.addActions([self.action_view_details, self.action_view_icons])
         menu_tools = self.menuBar().addMenu("&Tools")
-        menu_tools.addActions([self.action_devices, self.action_batch_designer, self.action_batch, self.action_preferences])
+        menu_tools.addActions([self.action_devices, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
         menu_language = menu_tools.addMenu("&Language")
         self.language_actions: list[QAction] = []
         try:
@@ -555,6 +563,13 @@ class MainWindow(QMainWindow):
         self.view_stack.addWidget(self.table)
         self.view_stack.addWidget(self.icon_view)
         right_layout.addWidget(self.view_stack, 1)
+        page_row = QHBoxLayout()
+        self.directory_page_label = QLabel()
+        self.load_more_button = QPushButton("Load more")
+        self.load_more_button.clicked.connect(self.load_more_entries)
+        page_row.addWidget(self.directory_page_label, 1)
+        page_row.addWidget(self.load_more_button)
+        right_layout.addLayout(page_row)
         splitter.addWidget(right)
         splitter.setStretchFactor(1, 1)
         dock_tabs = QTabWidget()
@@ -900,35 +915,69 @@ class MainWindow(QMainWindow):
             if target:
                 self._populate_table(str(target))
 
+    def _render_directory_entries(self, entries: Sequence[ImageEntry], *, reset: bool) -> None:
+        self.table.setSortingEnabled(False)
+        if reset:
+            self.table.setRowCount(0)
+            self.icon_view.clear()
+        start = self.table.rowCount()
+        self.table.setRowCount(start + len(entries))
+        for row, entry in enumerate(entries, start):
+            icon_kind = QStyle.StandardPixmap.SP_DirIcon if entry.is_dir else QStyle.StandardPixmap.SP_FileIcon
+            icon_item = QListWidgetItem(self.style().standardIcon(icon_kind), entry.name)
+            icon_item.setData(Qt.ItemDataRole.UserRole, entry.path)
+            icon_item.setData(Qt.ItemDataRole.UserRole + 1, entry.is_dir)
+            icon_item.setToolTip(entry.path)
+            self.icon_view.addItem(icon_item)
+            name = QTableWidgetItem(entry.name)
+            name.setData(Qt.ItemDataRole.UserRole, entry.path)
+            name.setToolTip(entry.path)
+            self.table.setItem(row, 0, name)
+            self.table.setItem(row, 1, QTableWidgetItem("Folder" if entry.is_dir else "File"))
+            self.table.setItem(row, 2, QTableWidgetItem("—" if entry.is_dir else human_bytes(entry.size)))
+            self.table.setItem(row, 3, QTableWidgetItem(entry.modified.strftime("%Y-%m-%d %H:%M:%S") if entry.modified else ""))
+            self.table.setItem(row, 4, QTableWidgetItem(entry.attributes))
+            self.table.setItem(row, 5, QTableWidgetItem(entry.path))
+        self.table.setSortingEnabled(True)
+
+    def _update_directory_page_controls(self) -> None:
+        shown = len(self.current_entries)
+        total = self._directory_total
+        self.directory_page_label.setText(f"Showing {shown} of {total} item(s)" if total else "")
+        self.load_more_button.setVisible(total > self._directory_page_size)
+        self.load_more_button.setEnabled(shown < total)
+        self.load_more_button.setText("Load more" if shown < total else "All items loaded")
+
+    def _load_directory_page(self, *, reset: bool) -> None:
+        if not self.current_fs:
+            return
+        offset = 0 if reset else len(self.current_entries)
+        try:
+            page = self.current_fs.list_entries_page(
+                self.current_directory, offset=offset, limit=self._directory_page_size,
+                sort_by=self._directory_sort_by, ascending=self._directory_sort_ascending,
+            )
+            if reset:
+                self.current_entries = []
+            self.current_entries.extend(page.entries)
+            self._directory_total = page.total
+            self._render_directory_entries(page.entries, reset=reset)
+            self._update_directory_page_controls()
+        except Exception as exc:
+            self.log(f"Unable to list {self.current_directory}: {exc}")
+
+    def load_more_entries(self) -> None:
+        if self.current_fs and len(self.current_entries) < self._directory_total:
+            self._load_directory_page(reset=False)
+            self._update_action_state()
+
     def _populate_table(self, path: str) -> None:
         self.current_directory = path
         self.path_label.setText(path)
-        self.table.setSortingEnabled(False)
-        self.table.setRowCount(0)
         self.current_entries = []
+        self._directory_total = 0
         if self.current_fs:
-            try:
-                self.current_entries = self.current_fs.list_entries(path)
-                self.table.setRowCount(len(self.current_entries))
-                self.icon_view.clear()
-                for row, entry in enumerate(self.current_entries):
-                    icon_kind = QStyle.StandardPixmap.SP_DirIcon if entry.is_dir else QStyle.StandardPixmap.SP_FileIcon
-                    icon_item = QListWidgetItem(self.style().standardIcon(icon_kind), entry.name)
-                    icon_item.setData(Qt.ItemDataRole.UserRole, entry.path)
-                    icon_item.setData(Qt.ItemDataRole.UserRole + 1, entry.is_dir)
-                    icon_item.setToolTip(entry.path)
-                    self.icon_view.addItem(icon_item)
-                    name = QTableWidgetItem(entry.name)
-                    name.setData(Qt.ItemDataRole.UserRole, entry.path)
-                    name.setToolTip(entry.path)
-                    self.table.setItem(row, 0, name)
-                    self.table.setItem(row, 1, QTableWidgetItem("Folder" if entry.is_dir else "File"))
-                    self.table.setItem(row, 2, QTableWidgetItem("—" if entry.is_dir else human_bytes(entry.size)))
-                    self.table.setItem(row, 3, QTableWidgetItem(entry.modified.strftime("%Y-%m-%d %H:%M:%S") if entry.modified else ""))
-                    self.table.setItem(row, 4, QTableWidgetItem(entry.attributes))
-                    self.table.setItem(row, 5, QTableWidgetItem(entry.path))
-            except Exception as exc:
-                self.log(f"Unable to list {path}: {exc}")
+            self._load_directory_page(reset=True)
         elif self.current_path:
             self.icon_view.clear()
             item = QTableWidgetItem("Filesystem browsing is not available for this format. Inspect metadata, partitions, convert to RAW, or install qemu-img for virtual-disk conversion.")
@@ -936,7 +985,7 @@ class MainWindow(QMainWindow):
             self.table.setRowCount(1)
             self.table.setSpan(0, 0, 1, 6)
             self.table.setItem(0, 0, item)
-        self.table.setSortingEnabled(True)
+            self._update_directory_page_controls()
         self._update_action_state()
 
     def _selected_paths(self) -> list[str]:
@@ -1005,6 +1054,24 @@ class MainWindow(QMainWindow):
         table = "".join(f"<tr><th align='left'>{key}</th><td>{value}</td></tr>" for key, value in rows)
         self.info_view.setHtml(f"<h3>{info.path.name}</h3><table>{table}</table><h4>Inspection notes</h4><ul>{notes}</ul><p><i>DiskForge does not mount images automatically. Physical device writes remain separately protected.</i></p>")
 
+    def _readonly_current_filesystem(self) -> ImageFilesystem:
+        """Reopen the filesystem actually used by the active browse session.
+
+        Virtual-disk sessions can browse a temporary RAW view even though the
+        original file's outer format is VHD/VHDX/VMDK/QCOW2.  Re-detecting from
+        the outer file routed these valid sessions to the NTFS/EXT-only adapter.
+        """
+        if self.current_fs is None or self.current_path is None:
+            raise DiskForgeError("The current image has no browsable filesystem.")
+        source = self.current_browse_session.image if self.current_browse_session else self.current_path
+        if isinstance(self.current_fs, FatImageFilesystem):
+            return FatImageFilesystem(source, read_only=True)
+        if isinstance(self.current_fs, IsoImageFilesystem):
+            return IsoImageFilesystem(source)
+        if isinstance(self.current_fs, SleuthKitImageFilesystem):
+            return SleuthKitImageFilesystem(source, self.current_fs.filesystem, offset=self.current_fs.offset)
+        raise DiskForgeError("The current image format can be inspected but has no file-level browser.")
+
     def _choose_extraction_policy(self) -> ExtractionPolicy | None:
         dialog = QDialog(self)
         dialog.setWindowTitle("Extraction options")
@@ -1041,15 +1108,8 @@ class MainWindow(QMainWindow):
         destination = QFileDialog.getExistingDirectory(self, "Extract to directory")
         if not destination:
             return
-        source = self.current_path
-        fs_type = self.current_info.filesystem if self.current_info else FileSystemType.UNKNOWN
         def job(progress=None, token=None):
-            if fs_type in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
-                fs = FatImageFilesystem(source, read_only=True)
-            elif fs_type == FileSystemType.ISO9660:
-                fs = IsoImageFilesystem(source)
-            else:
-                fs = SleuthKitImageFilesystem(source, fs_type)
+            fs = self._readonly_current_filesystem()
             try:
                 return fs.extract(paths, Path(destination), progress, token, policy)
             finally:
@@ -1093,16 +1153,11 @@ class MainWindow(QMainWindow):
         entry = next((candidate for candidate in self.current_entries if candidate.path in paths and not candidate.is_dir), None)
         if len(paths) != 1 or entry is None:
             return
-        source, fs_type = self.current_path, self.current_info.filesystem if self.current_info else FileSystemType.UNKNOWN
         target = Path(tempfile.mkdtemp(prefix="diskforge-preview-"))
         self._preview_directories.append(target)
+        self._active_preview_entry_path = entry.path
         def job(progress=None, token=None):
-            if fs_type in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
-                fs: ImageFilesystem = FatImageFilesystem(source, read_only=True)
-            elif fs_type == FileSystemType.ISO9660:
-                fs = IsoImageFilesystem(source)
-            else:
-                fs = SleuthKitImageFilesystem(source, fs_type)
+            fs = self._readonly_current_filesystem()
             try:
                 outputs = fs.extract([entry.path], target, progress, token, ExtractionPolicy())
                 if not outputs:
@@ -1112,14 +1167,46 @@ class MainWindow(QMainWindow):
                 fs.close()
         self._run_worker("Preparing file preview", job, on_result=self._show_preview)
 
+    def _save_preview_back(self, entry_path: str, text: str, encoding: str) -> None:
+        if not isinstance(self.current_fs, FatImageFilesystem) or getattr(self.current_fs, "read_only", False) or not self.current_path:
+            QMessageBox.warning(self, "Save unavailable", "Only files in a writable FAT image can be saved back to the image.")
+            return
+        stage = Path(tempfile.mkdtemp(prefix="diskforge-edit-"))
+        self._preview_directories.append(stage)
+        local = stage / Path(entry_path).name
+        try:
+            local.write_text(text, encoding=encoding)
+        except (OSError, UnicodeError) as exc:
+            self._cleanup_preview(stage)
+            QMessageBox.warning(self, "Save unavailable", str(exc))
+            return
+        image = self.current_path
+        parent_directory = str(Path(entry_path).parent).replace("\\", "/")
+        if parent_directory in {"", "."}:
+            parent_directory = "/"
+        def job(progress=None, token=None):
+            filesystem = FatImageFilesystem(image)
+            try:
+                return filesystem.inject([local], parent_directory, progress, token)
+            finally:
+                filesystem.close()
+        self._run_worker(
+            "Saving edited text to FAT image", job,
+            on_result=lambda values: (self._cleanup_preview(stage), self._after_fs_change(f"Saved edited file: {values[0]}")),
+        )
+
     def _show_preview(self, path: Path) -> None:
         try:
             document = inspect_file_preview(path)
-            FilePreviewDialog(document, self).exec()
+            entry_path = self._active_preview_entry_path
+            can_save_back = isinstance(self.current_fs, FatImageFilesystem) and not getattr(self.current_fs, "read_only", False) and entry_path is not None
+            callback = (lambda text, encoding: self._save_preview_back(entry_path, text, encoding)) if can_save_back and entry_path else None
+            FilePreviewDialog(document, source_path=path, save_back=callback, parent=self).exec()
             self.log(f"Preview inspected: {path.name} ({document.kind})")
         except Exception as exc:
             QMessageBox.warning(self, "Preview unavailable", str(exc))
         finally:
+            self._active_preview_entry_path = None
             self._cleanup_preview(path.parent)
 
     def _cleanup_preview(self, directory: Path) -> None:
@@ -1134,15 +1221,9 @@ class MainWindow(QMainWindow):
         paths = self._selected_paths()
         if not paths:
             return
-        fs_type = self.current_info.filesystem if self.current_info else FileSystemType.UNKNOWN
         temporary = Path(tempfile.mkdtemp(prefix="diskforge-drag-"))
         try:
-            if fs_type in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
-                fs: ImageFilesystem = FatImageFilesystem(self.current_path, read_only=True)
-            elif fs_type == FileSystemType.ISO9660:
-                fs = IsoImageFilesystem(self.current_path)
-            else:
-                fs = SleuthKitImageFilesystem(self.current_path, fs_type)
+            fs = self._readonly_current_filesystem()
             try:
                 outputs = fs.extract(paths, temporary, policy=ExtractionPolicy(ExtractionLayout.PRESERVE_PATHS, ConflictPolicy.ERROR))
             finally:
@@ -1511,17 +1592,31 @@ class MainWindow(QMainWindow):
             return
         self._run_worker("Defragmenting FAT image", defragment_fat_image, self.current_path, Path(output), on_result=lambda result: self._open_path(Path(result)))
 
+    @staticmethod
+    def _listing_html(entries: Sequence[ImageEntry], source: Path) -> str:
+        rows = "".join(
+            f"<tr><td>{html.escape(entry.path)}</td><td>{'Directory' if entry.is_dir else 'File'}</td>"
+            f"<td>{entry.size}</td><td>{html.escape(entry.modified.strftime('%Y-%m-%d %H:%M:%S') if entry.modified else '')}</td></tr>"
+            for entry in entries
+        )
+        return (
+            f"<h2>DiskForge directory listing</h2><p>{html.escape(str(source))}</p>"
+            "<table border='1' cellspacing='0' cellpadding='4'><tr><th>Path</th><th>Type</th><th>Bytes</th><th>Modified</th></tr>"
+            f"{rows}</table>"
+        )
+
+    def _complete_listing_entries(self, token=None) -> list[ImageEntry]:
+        if not self.current_fs:
+            raise DiskForgeError("The current image has no browsable filesystem.")
+        return list(self.current_fs.walk_entries("/", token=token))
+
     def print_listing(self) -> None:
         if not self.current_fs or not self.current_path:
             return
         try:
-            if isinstance(self.current_fs, FatImageFilesystem):
-                entries = self.current_fs.all_entries()
-            else:
-                entries = list(self.current_fs._walk("/"))  # ISO facade exposes a read-only walker.
-            rows = "".join(f"<tr><td>{entry.path}</td><td>{'Directory' if entry.is_dir else 'File'}</td><td>{entry.size}</td></tr>" for entry in entries)
+            entries = self._complete_listing_entries()
             document = QTextDocument()
-            document.setHtml(f"<h2>DiskForge directory listing</h2><p>{self.current_path}</p><table border='1' cellspacing='0' cellpadding='4'><tr><th>Path</th><th>Type</th><th>Bytes</th></tr>{rows}</table>")
+            document.setHtml(self._listing_html(entries, self.current_path))
             printer = QPrinter(QPrinter.PrinterMode.HighResolution)
             dialog = QPrintDialog(printer, self)
             if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -1554,20 +1649,28 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "SHA-256 verified", digest)
 
     def export_listing(self) -> None:
-        if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
-            QMessageBox.information(self, "Listing unavailable", "Directory export is currently supported for FAT images.")
+        if not self.current_fs or not self.current_path:
+            QMessageBox.information(self, "Listing unavailable", "Open a browsable FAT, ISO, NTFS, or EXT image first.")
             return
         output, selected = QFileDialog.getSaveFileName(self, "Export image listing", f"{self.current_path.stem}-listing.html", "HTML (*.html);;Text (*.txt)")
         if not output:
             return
-        html = output.lower().endswith((".html", ".htm"))
+        html_output = output.lower().endswith((".html", ".htm"))
         source = self.current_path
         def job(progress=None, token=None):
-            fs = FatImageFilesystem(source, read_only=True)
-            try:
-                return fs.export_listing(Path(output), html)
-            finally:
-                fs.close()
+            entries = self._complete_listing_entries(token)
+            target = Path(output)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if html_output:
+                target.write_text(self._listing_html(entries, source), encoding="utf-8")
+            else:
+                lines = [f"DiskForge directory listing: {source}", "Path\tType\tBytes\tModified"]
+                lines.extend(
+                    f"{entry.path}\t{'Directory' if entry.is_dir else 'File'}\t{entry.size}\t{entry.modified.isoformat() if entry.modified else ''}"
+                    for entry in entries
+                )
+                target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            return target
         self._run_worker("Exporting directory listing", job, on_result=lambda path: self.log(f"Exported listing: {path}"))
 
     def edit_boot_sector(self) -> None:
@@ -1611,8 +1714,12 @@ class MainWindow(QMainWindow):
             _, device, image, phrase, verify = operation
             self._run_worker("Writing physical drive", write_image_to_device, image, device, phrase, on_result=lambda ok: QMessageBox.information(self, "Physical write complete", "The image was written and verified." if ok else "The image was written."), verify_after_write=verify)
 
-    def design_batch(self) -> None:
-        dialog = BatchDesignerDialog(self)
+    def design_batch(self, existing_recipe: Path | None = None) -> None:
+        try:
+            dialog = BatchDesignerDialog.from_path(existing_recipe, self) if existing_recipe else BatchDesignerDialog(self)
+        except DiskForgeError as exc:
+            QMessageBox.warning(self, "Batch recipe rejected", str(exc))
+            return
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         try:
@@ -1620,7 +1727,9 @@ class MainWindow(QMainWindow):
         except DiskForgeError as exc:
             QMessageBox.warning(self, "Batch recipe is incomplete", str(exc))
             return
-        output, _ = QFileDialog.getSaveFileName(self, "Save batch recipe", "diskforge-extract.json", "DiskForge batch (*.json)")
+        output = str(existing_recipe) if existing_recipe else ""
+        if not output:
+            output, _ = QFileDialog.getSaveFileName(self, "Save batch recipe", "diskforge-workflow.json", "DiskForge batch (*.json)")
         if not output:
             return
         try:
@@ -1662,7 +1771,12 @@ class MainWindow(QMainWindow):
             return
         def job(progress=None, token=None):
             return BatchRunner(QemuImgConverter(self.settings.value("qemu_img_path", "") or None)).run(path, self.log)
-        self._run_worker("Running batch recipe", job, on_result=lambda result: QMessageBox.information(self, "Batch complete", f"Succeeded: {result.succeeded}\nFailed: {result.failed}"))
+        self._run_worker("Running batch recipe", job, on_result=lambda result: BatchResultDialog(result, self).exec())
+
+    def edit_batch(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, "Edit batch recipe", "", "DiskForge batch (*.json);;All files (*)")
+        if path:
+            self.design_batch(Path(path))
 
     def run_batch(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "Run batch recipe", "", "DiskForge batch (*.json);;All files (*)")
@@ -1727,4 +1841,10 @@ class MainWindow(QMainWindow):
             self.log("Preferences saved")
 
     def about(self) -> None:
-        QMessageBox.about(self, "About DiskForge", "<h3>DiskForge</h3><p>Original cross-platform disk image studio built with Python and Qt.</p><p>Native workflows: raw/IMG, fixed VHD, FAT12/16/32, ISO9660/Joliet, MBR/GPT inspection, batch recipes, self-extracting bundles, and safeguarded physical-drive imaging.</p><p>Virtual machine formats VHDX, VMDK and QCOW2 are available when an explicitly configured qemu-img converter is installed.</p>")
+        try:
+            translate = language_manager().text
+        except RuntimeError:
+            translate = lambda value: value
+        overview = translate("DiskForge is a cross-platform workspace for opening, editing, checking and distributing disk images.")
+        workflow = translate("Work with FAT, ISO, RAW and virtual-disk images through explicit, safe workflows. Optional converters and read-only adapters are shown only when configured.")
+        QMessageBox.about(self, translate("About DiskForge"), f"<h2>DiskForge</h2><p>{overview}</p><p>{workflow}</p>")

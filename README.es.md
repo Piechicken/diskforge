@@ -29,14 +29,16 @@ La primera versión pública incluye cuatro paquetes nativos de escritorio. Desc
 
 | Plataforma | Paquete | Inicio |
 |---|---|---|
-| Windows x64 | `DiskForge-v0.7.0-windows-x64.zip` | Descomprima y ejecute `DiskForge.exe`. |
-| Linux x64 | `DiskForge-v0.7.0-linux-x64.zip` | Descomprima y ejecute `./DiskForge`. |
-| macOS Intel | `DiskForge-v0.7.0-macos-intel-x64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
-| macOS Apple Silicon | `DiskForge-v0.7.0-macos-arm64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
+| Windows x64 | `DiskForge-v0.7.5-windows-x64.zip` | Descomprima y ejecute `DiskForge.exe`. |
+| Linux x64 | `DiskForge-v0.7.5-linux-x64.zip` | Descomprima y ejecute `./DiskForge`. |
+| macOS Intel | `DiskForge-v0.7.5-macos-intel-x64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
+| macOS Apple Silicon | `DiskForge-v0.7.5-macos-arm64.zip` | Descomprima y mueva `DiskForge.app` a Aplicaciones. |
 
-## Novedades de v0.7.0
+## Novedades de v0.7.5
 
-La versión 0.7.0 añade compatibilidad práctica con disquetes históricos, vista previa interna no ejecutable, localización ampliada, un icono de aplicación nativo y validación de escritorio sin ruido. Las imágenes FAT12/16/32 antiguas sin etiqueta visible se abren mediante validación cruzada de BPB, geometría, descriptor de medio y firma de arranque; `.IMA` se reconoce como alias RAW/IMG. El doble clic ya no depende de una aplicación predeterminada: texto, imágenes, archivos comunes, paquetes de instalación heredados, ejecutables y datos binarios se inspeccionan en DiskForge desde un espacio temporal aislado y de solo lectura, sin ejecutar contenido. Puede crear un ISO El Torito desde un directorio y una imagen de arranque local opcional sin modificar el archivo origen. Los modelos de sector de arranque son originales, conservan el BPB FAT y crean una copia de seguridad completa. Los VHD fijos se exploran mediante una vista RAW temporal de solo lectura; la planificación FAT crea primero una imagen MBR neutral revisable y no evita la confirmación `ERASE` para dispositivos. Las recetas por lotes disponen de `--dry-run`, y el centro de tareas muestra estados de cola, ejecución, finalización, error y cancelación. El modo portátil guarda preferencias en un INI y pytest sigue tratando cualquier aviso como error.
+La versión 0.7.5 convierte la vista previa de archivos en un espacio documental realmente utilizable: el texto se presenta con una codificación legible y permite buscar y guardar una copia; únicamente las entradas de imágenes FAT escribibles pueden editarse y guardarse de vuelta en la imagen. Los contenedores Office y OpenDocument proporcionan texto seguro cuando está disponible; los ejecutables y datos binarios nunca se ejecutan, y las largas zonas de ceros se pliegan en lugar de llenar la pantalla de puntos. Las sesiones FAT, ISO y VHD fijo permanecen en sus adaptadores nativos; solo los sistemas de archivos NTFS/EXT reales usan la vía opcional de Sleuth Kit de solo lectura, por lo que las imágenes IMG/IMA antiguas dejan de rechazarse erróneamente. Los directorios grandes se presentan de forma paginada y con ordenación almacenada, mientras que la exportación e impresión recorren por completo FAT, ISO, NTFS y EXT.
+
+El diseñador gráfico ahora crea, reabre, edita y ejecuta recetas de conversión, validación, comparación, cambio de tamaño, inyección, extracción y contenedores, con revisión por elemento después de la ejecución; las operaciones sobre dispositivos físicos siguen prohibidas en recetas desatendidas. Un nuevo icono fuente transparente se derivó en PNG de ejecución, ICO de Windows e ICNS de macOS. Todos los controles del espacio documental, estados por lotes, indicaciones del sistema de archivos y el diálogo Acerca de están completos en los seis idiomas de trabajo de las Naciones Unidas y japonés. El flujo de publicación acepta solo etiquetas `v*`, exige coincidencia exacta con los metadatos del proyecto y falla si la Release ya existe: ningún recurso versionado puede sobrescribirse.
 
 ## Qué puede hacer
 
@@ -45,12 +47,12 @@ DiskForge reúne los flujos de trabajo más prácticos para gestionar imágenes 
 | Flujo de trabajo | Capacidad nativa | Notas |
 |---|---|---|
 | Crear imágenes | RAW/IMG, FAT12, FAT16, FAT32, FAT12 con diseño DMF, ISO9660/Joliet | Cree imágenes FAT editables, DMF documentadas, ISO normales o ISO El Torito desde un directorio y una imagen de arranque local opcional. |
-| Explorar y extraer | FAT12/16/32, incluidos disquetes DOS antiguos sin etiqueta validada, ISO9660/Joliet y vista de datos VHD fijo | Vista de árbol, tabla detallada ordenable, cuadrícula de iconos persistente y vista previa interna no ejecutable para texto, imágenes, archivos comunes, paquetes heredados, ejecutables y datos binarios. Los VHD fijos se abren mediante una vista RAW temporal de solo lectura sin su pie. |
+| Explorar y extraer | FAT12/16/32, incluidos disquetes DOS antiguos sin etiqueta validada, ISO9660/Joliet, vista de datos VHD fijo y backend NTFS/EXT opcional de solo lectura | El árbol y la tabla usan páginas deterministas y caché de ordenación para directorios grandes. El doble clic abre un espacio documental no ejecutable para texto, imágenes, archivos comunes, paquetes heredados, ejecutables y datos binarios. El texto permite buscar, guardar una copia y, solo en entradas FAT escribibles, editar y guardar de vuelta. Los VHD fijos se abren mediante una vista RAW temporal de solo lectura sin su pie. |
 | Cambiar el contenido | Inyección FAT, carpetas recursivas, borrado y edición de fechas | Arrastre archivos o carpetas locales a una imagen FAT editable, incluso directamente sobre una carpeta destino visible. Los ISO se tratan como medios de solo lectura. |
 | Convertir formatos | RAW/IMG y VHD fijo de forma nativa | VHDX, VMDK y QCOW2 utilizan un adaptador `qemu-img` configurado explícitamente. |
 | Compactar imágenes FAT | Desfragmentación mediante reconstrucción | Crea una imagen nueva y conserva la original como punto de recuperación. |
 | Inspeccionar estructuras y arranque | Visor/editor de 512 bytes, propiedades FAT BPB, modelos originales, MBR neutral y planificación de despliegue, recorte cero y catálogo El Torito | Los modelos conservan BPB y no importan código externo; las operaciones protegidas hacen copia de seguridad y las salidas se crean en archivos nuevos. |
-| Verificar y automatizar | SHA-256, diseñador gráfico, plan de preflight y recetas JSON | `--dry-run` permite revisar acciones sin cambios; las recetas no atendidas rechazan escrituras a dispositivos físicos. |
+| Verificar y automatizar | SHA-256, estudio gráfico de recetas completas, plan de preflight, revisión de resultados por elemento y recetas JSON | El diseñador crea, reabre y edita recetas de conversión, validación, comparación, cambio de tamaño, inyección, extracción y contenedores. `--dry-run` permite revisar acciones sin cambios; las recetas no atendidas rechazan escrituras a dispositivos físicos. |
 | Crear paquetes redistribuibles | Contenedores `.dfb` autenticados y archivos autoextraíbles `.pyz` multiimagen verificados con SHA-256 | Los contenedores admiten cifrado AES-256-GCM opcional, compresión, comentarios y verificación por archivo. |
 | Leer y escribir medios físicos | Lectura y restauración en flujo | Rechaza discos del sistema, destinos montados y tamaños incompatibles; requiere confirmación escrita. Los medios ópticos detectados son de solo lectura y se exportan a ISO por defecto. |
 
@@ -109,7 +111,7 @@ DiskForge expone con claridad las rutas de edición no compatibles en lugar de i
 
 ## Calidad de ingeniería
 
-El proyecto cubre con pruebas automatizadas creación y edición FAT, ISO arrancable y El Torito, preservación BPB y copias de los modelos originales, exploración temporal VHD, planificación de despliegue, informes de cola cero, arrastrar y soltar, diseño y preflight por lotes, API pública, configuración portátil, centro de tareas, fuentes, controles de escritura y compactación FAT. La interfaz también se valida fuera de pantalla. La integración continua ejecuta pruebas en Windows, Linux, macOS Intel y macOS Apple Silicon, y empaqueta cada destino nativo.
+El proyecto cubre con pruebas automatizadas creación y edición FAT, ISO arrancable y El Torito, preservación BPB y copias de los modelos originales, exploración temporal VHD, planificación de despliegue, informes de cola cero, arrastrar y soltar, edición completa de recetas y preflight por lotes, vista documental/búsqueda/guardado de vuelta, recorrido de directorios paginado, el espacio de trabajo completo en siete idiomas, API pública, configuración portátil, centro de tareas, fuentes, reconocimiento óptico multiplataforma, controles de escritura y compactación FAT. pytest usa configuración estricta y trata los avisos como errores; la interfaz también se valida fuera de pantalla. La integración continua ejecuta pruebas en Windows, Linux, macOS Intel y macOS Apple Silicon, y empaqueta cada destino nativo. Las etiquetas se verifican contra los metadatos y una Release preexistente detiene el flujo en vez de sobrescribir recursos.
 
 ```bash
 QT_QPA_PLATFORM=offscreen pytest

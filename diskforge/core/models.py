@@ -192,6 +192,7 @@ class BatchItemResult:
     operation: OperationKind
     success: bool
     message: str
+    name: str = ""
 
 
 @dataclass

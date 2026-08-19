@@ -32,7 +32,6 @@ def main() -> int:
     command = [
         sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--windowed", "--name", name,
         "--collect-all", "pyfatfs", "--collect-all", "pycdlib", "--collect-all", "fs",
-        "--collect-all", "setuptools", "--collect-all", "jaraco",
         "--add-data", f"{runtime_icon}{os.pathsep}assets/icons",
         "--paths", str(ROOT), str(ROOT / "diskforge" / "app.py"),
     ]

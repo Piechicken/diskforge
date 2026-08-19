@@ -22,6 +22,12 @@ QFrame#workspaceHeader { background: #101B35; border: 0; border-radius: 12px; ma
 QLabel#workspaceTitle { color: #FFFFFF; font-size: 19px; font-weight: 700; }
 QLabel#workspaceSubtitle { color: #B9C8E6; font-size: 11px; }
 QLabel#workspaceBadge { background: #2563EB; color: #FFFFFF; border-radius: 10px; font-weight: 600; padding: 4px 9px; }
+QFrame#documentPreviewHeader { background: #FFFFFF; border: 1px solid #D9E2F2; border-radius: 12px; padding: 12px; }
+QLabel#documentPreviewTitle { color: #172B4D; font-size: 22px; font-weight: 700; }
+QLabel#documentPreviewSubtitle { color: #52627D; font-size: 13px; }
+QPlainTextEdit#documentPreviewBody { background: #FFFFFF; color: #172033; border: 1px solid #C8D5E9; border-radius: 10px; padding: 14px; font-family: "JetBrains Mono", "SF Mono", "Consolas", monospace; font-size: 14px; selection-background-color: #BBD2FF; }
+QTextBrowser#documentPreviewDetails { background: #F8FAFE; color: #334155; border: 1px solid #D9E2F2; border-radius: 10px; padding: 12px; font-size: 13px; }
+QLabel#documentPreviewState { color: #52627D; font-size: 12px; padding: 3px 2px; }
 QTreeWidget, QTableWidget, QTextBrowser, QPlainTextEdit { background: #FFFFFF; alternate-background-color: #F7FAFF; border: 1px solid #D9E2F2; border-radius: 8px; gridline-color: #EAF0F8; selection-background-color: #DDEAFF; selection-color: #142B54; }
 QTreeWidget::item, QTableWidget::item { padding: 5px; border: 0; }
 QTreeWidget::item:hover, QTableWidget::item:hover { background: #F0F5FF; }
@@ -62,6 +68,12 @@ QFrame#workspaceHeader { background: #0B1730; border: 1px solid #25385C; border-
 QLabel#workspaceTitle { color: #FFFFFF; font-size: 19px; font-weight: 700; }
 QLabel#workspaceSubtitle { color: #AFC3E6; font-size: 11px; }
 QLabel#workspaceBadge { background: #2563EB; color: #FFFFFF; border-radius: 10px; font-weight: 600; padding: 4px 9px; }
+QFrame#documentPreviewHeader { background: #172137; border: 1px solid #31425F; border-radius: 12px; padding: 12px; }
+QLabel#documentPreviewTitle { color: #FFFFFF; font-size: 22px; font-weight: 700; }
+QLabel#documentPreviewSubtitle { color: #B9C8E6; font-size: 13px; }
+QPlainTextEdit#documentPreviewBody { background: #101827; color: #EAF1FF; border: 1px solid #3A4E73; border-radius: 10px; padding: 14px; font-family: "JetBrains Mono", "SF Mono", "Consolas", monospace; font-size: 14px; selection-background-color: #395FAD; }
+QTextBrowser#documentPreviewDetails { background: #162236; color: #C9D6EA; border: 1px solid #31425F; border-radius: 10px; padding: 12px; font-size: 13px; }
+QLabel#documentPreviewState { color: #AFC3E6; font-size: 12px; padding: 3px 2px; }
 QTreeWidget, QTableWidget, QTextBrowser, QPlainTextEdit { background: #172137; alternate-background-color: #1A2943; border: 1px solid #31425F; border-radius: 8px; gridline-color: #2A3B56; selection-background-color: #294E95; selection-color: #FFFFFF; }
 QTreeWidget::item, QTableWidget::item { padding: 5px; border: 0; }
 QTreeWidget::item:hover, QTableWidget::item:hover { background: #223658; }

@@ -107,18 +107,20 @@ class BatchRunner:
             try:
                 kind = self._operation_kind(item)
                 output = self._run_item(item, kind)
+                source_value = item.get("source") or (item.get("sources") or [""])[0]
                 result.items.append(BatchItemResult(
-                    Path(item.get("source", "")), Path(output) if output else None,
-                    kind, True, "Completed"
+                    Path(source_value), Path(output) if output else None,
+                    kind, True, "Completed", label
                 ))
             except Exception as exc:  # An individual error must remain auditable.
                 try:
                     kind = self._operation_kind(item)
                 except DiskForgeError:
                     kind = OperationKind.VERIFY
+                source_value = item.get("source") or (item.get("sources") or [""])[0]
                 result.items.append(BatchItemResult(
-                    Path(item.get("source", "")), Path(item["destination"]) if item.get("destination") else None,
-                    kind, False, str(exc)
+                    Path(source_value), Path(item["destination"]) if item.get("destination") else None,
+                    kind, False, str(exc), label
                 ))
                 if not item.get("continue_on_error", False):
                     break

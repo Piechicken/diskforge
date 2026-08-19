@@ -10,6 +10,7 @@ import os
 import posixpath
 import tempfile
 import warnings
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Iterator, Sequence
@@ -38,11 +39,87 @@ from .partitions import fat_partition_offset
 from .storage import CancellationToken, DiskForgeError
 
 
+@dataclass(frozen=True)
+class DirectoryPage:
+    """A deterministic, bounded directory slice returned to desktop consumers."""
+
+    entries: tuple[ImageEntry, ...]
+    total: int
+    offset: int
+    limit: int
+
+    @property
+    def has_more(self) -> bool:
+        return self.offset + len(self.entries) < self.total
+
+
 class ImageFilesystem:
-    """Common image filesystem facade."""
+    """Common image filesystem facade with cached, cancellable directory paging."""
 
     def list_entries(self, path: str = "/") -> list[ImageEntry]:
         raise NotImplementedError
+
+    @staticmethod
+    def _sort_entries(entries: Sequence[ImageEntry], sort_by: str, ascending: bool) -> tuple[ImageEntry, ...]:
+        keys = {
+            "name": lambda entry: (not entry.is_dir, entry.name.casefold()),
+            "type": lambda entry: (not entry.is_dir, entry.name.rsplit(".", 1)[-1].casefold() if "." in entry.name else ""),
+            "size": lambda entry: (not entry.is_dir, entry.size, entry.name.casefold()),
+            "modified": lambda entry: (not entry.is_dir, entry.modified.timestamp() if entry.modified else float("-inf"), entry.name.casefold()),
+        }
+        if sort_by not in keys:
+            raise DiskForgeError("Directory sort key is unsupported.")
+        return tuple(sorted(entries, key=keys[sort_by], reverse=not ascending))
+
+    def list_entries_page(self, path: str = "/", *, offset: int = 0, limit: int = 250,
+                          sort_by: str = "name", ascending: bool = True,
+                          token: CancellationToken | None = None) -> DirectoryPage:
+        """Return a bounded directory page and retain a sorted cache for revisits."""
+        if offset < 0 or limit <= 0:
+            raise DiskForgeError("Directory page offset and limit must be positive.")
+        if token:
+            token.raise_if_cancelled()
+        cache = getattr(self, "_directory_page_cache", None)
+        if cache is None:
+            cache = {}
+            setattr(self, "_directory_page_cache", cache)
+        normalized = _normal(path)
+        key = (normalized, sort_by, ascending)
+        entries = cache.get(key)
+        if entries is None:
+            source = self.list_entries(normalized)
+            if token:
+                token.raise_if_cancelled()
+            entries = self._sort_entries(source, sort_by, ascending)
+            cache[key] = entries
+        if token:
+            token.raise_if_cancelled()
+        return DirectoryPage(entries[offset:offset + limit], len(entries), offset, limit)
+
+    def clear_directory_cache(self) -> None:
+        cache = getattr(self, "_directory_page_cache", None)
+        if cache is not None:
+            cache.clear()
+
+    def walk_entries(self, path: str = "/", *, token: CancellationToken | None = None) -> Iterator[ImageEntry]:
+        """Yield a complete subtree through the paged directory interface."""
+        pending = [_normal(path)]
+        while pending:
+            directory = pending.pop()
+            offset = 0
+            while True:
+                if token:
+                    token.raise_if_cancelled()
+                page = self.list_entries_page(directory, offset=offset, limit=250, token=token)
+                for entry in page.entries:
+                    if token:
+                        token.raise_if_cancelled()
+                    yield entry
+                    if entry.is_dir:
+                        pending.append(entry.path)
+                offset += len(page.entries)
+                if not page.has_more:
+                    break
 
     def extract(self, paths: Sequence[str], destination: Path,
                 progress: ProgressCallback | None = None,
@@ -51,7 +128,7 @@ class ImageFilesystem:
         raise NotImplementedError
 
     def close(self) -> None:
-        return None
+        self.clear_directory_cache()
 
 
 def _normal(path: str) -> str:
@@ -130,6 +207,7 @@ class FatImageFilesystem(ImageFilesystem):
         self.read_only = read_only
 
     def close(self) -> None:
+        self.clear_directory_cache()
         self.fs.close()
 
     def list_entries(self, path: str = "/") -> list[ImageEntry]:

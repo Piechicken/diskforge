@@ -5,7 +5,7 @@ import sys
 import traceback
 from pathlib import Path
 
-from PySide6.QtCore import QCoreApplication, QSettings, Qt
+from PySide6.QtCore import QCoreApplication, QSettings, QtMsgType, qInstallMessageHandler
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -37,6 +37,19 @@ def _resource_path(relative: str) -> Path:
     return root / relative
 
 
+def _is_offscreen_platform() -> bool:
+    return QApplication.platformName() == "offscreen"
+
+
+def _qt_message_handler(message_type: QtMsgType, context, message: str) -> None:  # type: ignore[no-untyped-def]
+    """Keep an expected offscreen-plugin notice out of strict test/package logs."""
+    if (message == "This plugin does not support propagateSizeHints()"
+            and _is_offscreen_platform()):
+        return
+    category = context.category or "Qt"
+    print(f"{category}: {message}", file=sys.stderr)
+
+
 def _exception_hook(exc_type, exc_value, exc_traceback) -> None:  # type: ignore[no-untyped-def]
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
@@ -49,8 +62,8 @@ def _exception_hook(exc_type, exc_value, exc_traceback) -> None:  # type: ignore
 def main() -> int:
     QCoreApplication.setOrganizationName("DiskForge")
     QCoreApplication.setApplicationName("DiskForge")
-    QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps)
     app = QApplication(sys.argv)
+    qInstallMessageHandler(_qt_message_handler)
     app.setWindowIcon(QIcon(str(_resource_path("assets/icons/diskforge-icon.png"))))
     app.setStyle("Fusion")
     app.setStyleSheet(STYLE)

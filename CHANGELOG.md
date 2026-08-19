@@ -2,6 +2,26 @@
 
 All notable changes to DiskForge are documented in this file. The project uses semantic versioning for public releases.
 
+## v0.7.5 — Document Workspace, Scalable Browsing, and Immutable Releases
+
+DiskForge v0.7.5 completes the transition from a file-inspection dialog to a coherent image-document workspace. The release makes the supported FAT workflow genuinely editable, keeps ISO/NTFS/EXT paths correctly read-only, gives large directories bounded and repeatable navigation, and locks versioned release assets against accidental replacement.
+
+| Area | Additions in v0.7.5 |
+|---|---|
+| Correct filesystem routing | FAT, ISO9660, and supported fixed-VHD browsing sessions now remain in their native adapters. The optional Sleuth Kit path is selected only for actual NTFS or EXT filesystems, removing false “unsupported” errors while keeping NTFS/EXT read-only. |
+| Document-style internal preview | Preview is now an in-application document workspace with readable text layout, encoding-aware editing where allowed, find, save-copy, and explicit save-back into writable FAT images. Office and OpenDocument containers yield safe extracted text where available; executable and binary data stay non-executing. Long zero-filled binary spans are collapsed instead of rendered as pages of dots. |
+| Batch recipe studio | The graphical designer can now create, review, reopen, and run safe recipes for conversion, validation, comparison, resize, injection, extraction, and container operations. A result dialog presents every item’s status and detail. Physical-device actions remain deliberately rejected from unattended recipes. |
+| Scalable image browsing | Directory services now provide deterministic pages, full walks, and cache clearing. The desktop displays a controlled “load more” path and preserves sorting rather than attempting unbounded table population. Listing export and printing use the same complete traversal for FAT, ISO, NTFS, and EXT. |
+| Complete seven-language interface | All document-workspace controls, batch workflow states, filesystem guidance, and dynamically generated About content are covered in Simplified Chinese, English, Spanish, French, Russian, Arabic, and Japanese, with regression checks against English fallback. |
+| Native application identity | A new transparent source icon was authored for this release and regenerated as runtime PNG plus native Windows ICO and macOS ICNS assets. Bundled applications resolve the runtime PNG from the PyInstaller resource directory and have been startup-checked after packaging. |
+| Optical-media recognition | Windows and macOS optical devices now receive capacity, media type, and removable/read-only properties consistently with the existing safe-device model. |
+| Immutable publication | CI publishes only from `v*` tags, verifies that the tag exactly matches project metadata, and fails if a release already exists. No release command can overwrite a versioned asset. |
+| Clean release ergonomics | The obsolete Qt high-DPI attribute was removed. The expected offscreen-platform `propagateSizeHints` notice is filtered only in that platform’s message handler; all Python warnings remain strict errors and other Qt diagnostics remain visible. The native build no longer over-collects unused `jaraco` and full `setuptools` development trees. |
+
+### Validation
+
+The release candidate passes **102 tests** under strict pytest configuration with all warnings promoted to errors. Both user-supplied historical floppy samples were opened directly: the Windows setup disk exposes its expected drivers and setup files, while the mouse-driver image exposes its DOS/Windows folders, installer payload, and readable `README.TXT`. The packaged Linux application was then launched offscreen with its actual bundled icon and emitted no application startup diagnostics.
+
 ## v0.7.0 — Legacy Media Compatibility and Native Preview
 
 DiskForge v0.7.0 resolves the historical-media interoperability path with sample-led FAT detection and a non-executing desktop preview experience. The release keeps image bytes untouched during inspection, treats legacy media as a valid source rather than a recovery problem, and preserves the existing protection boundaries for all write operations.

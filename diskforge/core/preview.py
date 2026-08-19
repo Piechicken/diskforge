@@ -9,6 +9,7 @@ import gzip
 import struct
 import tarfile
 import zipfile
+import xml.etree.ElementTree as element_tree
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,7 +28,7 @@ _IMAGE_SIGNATURES = (
 
 @dataclass(frozen=True)
 class PreviewDocument:
-    """Bounded, read-only representation of an extracted image entry."""
+    """Bounded, non-executing representation of an extracted image entry."""
 
     kind: str
     title: str
@@ -35,6 +36,8 @@ class PreviewDocument:
     details: tuple[str, ...] = ()
     text: str = ""
     image_path: Path | None = None
+    editable: bool = False
+    encoding: str = ""
 
 
 def _human_bytes(value: int) -> str:
@@ -61,13 +64,13 @@ def _looks_like_text(data: bytes) -> bool:
     return printable / len(data) >= 0.88
 
 
-def _decode_text(data: bytes) -> str:
+def _decode_text(data: bytes) -> tuple[str, str]:
     for encoding in ("utf-8-sig", "utf-16", "cp437", "cp1252"):
         try:
-            return data.decode(encoding)
+            return data.decode(encoding), encoding
         except UnicodeDecodeError:
             continue
-    return data.decode("utf-8", errors="replace")
+    return data.decode("utf-8", errors="replace"), "utf-8"
 
 
 def _bounded_text(path: Path, size: int) -> PreviewDocument:
@@ -79,10 +82,11 @@ def _bounded_text(path: Path, size: int) -> PreviewDocument:
         mode = "Markup source"
     else:
         mode = "Text"
-    details = [f"Encoding: best-effort legacy text decoding", f"Shown: {_human_bytes(len(data))}"]
+    text, encoding = _decode_text(data)
+    details = [f"Encoding: {encoding}", f"Shown: {_human_bytes(len(data))}"]
     if size > len(data):
         details.append(f"Preview is limited to the first {_human_bytes(MAX_PREVIEW_BYTES)}")
-    return PreviewDocument("text", f"{mode} preview", "Read-only internal text preview", tuple(details), _decode_text(data))
+    return PreviewDocument("text", f"{mode} editor", "Editable text: save a copy or write back to a writable FAT image.", tuple(details), text, editable=size <= MAX_PREVIEW_BYTES, encoding=encoding)
 
 
 def _zip_preview(path: Path) -> PreviewDocument:
@@ -113,7 +117,8 @@ def _gzip_preview(path: Path, size: int) -> PreviewDocument:
         return PreviewDocument("binary", "GZip file", "Compressed data could not be read safely")
     details = [f"Compressed size: {_human_bytes(size)}", f"Shown after decompression: {_human_bytes(len(data))}"]
     if _looks_like_text(data):
-        return PreviewDocument("text", "GZip text preview", "Read-only decompressed preview", tuple(details), _decode_text(data))
+        text, encoding = _decode_text(data)
+        return PreviewDocument("text", "GZip text preview", "Read-only decompressed preview", tuple(details), text, encoding=encoding)
     return PreviewDocument("binary", "GZip file", "Compressed binary data inspected without writing output", tuple(details), _hex_preview(data))
 
 
@@ -193,13 +198,53 @@ def _dos_or_pe_preview(data: bytes) -> PreviewDocument | None:
 
 
 def _hex_preview(data: bytes, rows: int = 96) -> str:
+    """Render bounded hex while collapsing long zero-filled areas into one line."""
     lines: list[str] = []
-    for offset in range(0, min(len(data), rows * 16), 16):
+    end = min(len(data), rows * 16)
+    offset = 0
+    while offset < end:
         chunk = data[offset:offset + 16]
+        if chunk and not any(chunk):
+            start = offset
+            while offset < end and not any(data[offset:offset + 16]):
+                offset += 16
+            lines.append(f"{start:08X}  … {offset - start} zero-filled bytes collapsed …")
+            continue
         hex_part = " ".join(f"{value:02X}" for value in chunk)
-        text_part = "".join(chr(value) if 32 <= value < 127 else "." for value in chunk)
+        text_part = "".join(chr(value) if 32 <= value < 127 else "·" for value in chunk)
         lines.append(f"{offset:08X}  {hex_part:<47}  {text_part}")
+        offset += 16
     return "\n".join(lines)
+
+
+def _office_preview(path: Path, size: int) -> PreviewDocument | None:
+    """Extract bounded, readable text from common XML-based office containers."""
+    suffix = path.suffix.lower()
+    if suffix not in {".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp"} or not zipfile.is_zipfile(path):
+        return None
+    names: list[str]
+    if suffix == ".docx":
+        names = ["word/document.xml"]
+    elif suffix == ".xlsx":
+        names = ["xl/sharedStrings.xml", "xl/worksheets/sheet1.xml"]
+    elif suffix == ".pptx":
+        names = ["ppt/slides/slide1.xml"]
+    else:
+        names = ["content.xml"]
+    parts: list[str] = []
+    try:
+        with zipfile.ZipFile(path) as archive:
+            for name in names:
+                if name not in archive.namelist():
+                    continue
+                raw = archive.read(name)[:MAX_PREVIEW_BYTES]
+                root = element_tree.fromstring(raw)
+                parts.extend(node.text.strip() for node in root.iter() if node.text and node.text.strip())
+    except (OSError, zipfile.BadZipFile, element_tree.ParseError):
+        return PreviewDocument("office", "Office document", "The document container could not be read safely.")
+    text = "\n".join(parts)
+    details = (f"File size: {_human_bytes(size)}", "Text is extracted from the document container; layout and macros are not executed.")
+    return PreviewDocument("office", "Office document preview", "Readable document text extracted without executing embedded content.", details, text or "No readable text was found in the document.")
 
 
 def inspect_file_preview(path: Path | str) -> PreviewDocument:
@@ -210,6 +255,9 @@ def inspect_file_preview(path: Path | str) -> PreviewDocument:
     suffix = target.suffix.lower()
     if data.startswith(_IMAGE_SIGNATURES) or suffix in {".bmp", ".gif", ".ico", ".jpeg", ".jpg", ".png", ".webp"}:
         return PreviewDocument("image", "Image preview", "Read-only rendered image preview", (f"File size: {_human_bytes(size)}",), image_path=target)
+    office = _office_preview(target, size)
+    if office is not None:
+        return office
     if zipfile.is_zipfile(target):
         return _zip_preview(target)
     if tarfile.is_tarfile(target):

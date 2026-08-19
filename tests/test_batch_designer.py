@@ -38,3 +38,29 @@ def test_batch_designer_rejects_missing_sources(tmp_path: Path) -> None:
     dialog.destination_root.setText(str(tmp_path / "output"))
     with pytest.raises(DiskForgeError, match="must exist"):
         dialog.recipe()
+
+
+def test_batch_designer_reopens_multi_operation_recipe(tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "source.img"
+    source.write_bytes(b"source")
+    destination = tmp_path / "destination.img"
+    recipe = {
+        "schema": "diskforge.batch/v3",
+        "operations": [
+            {"name": "Archive conversion", "kind": "convert", "source": str(source), "destination": str(destination), "format": "raw"},
+            {"name": "Verify archive", "kind": "verify", "source": str(source), "sha256": "0" * 64},
+            {"name": "Read-only comparison", "kind": "compare", "source": str(source), "destination": str(destination)},
+            {"name": "Resize copy", "kind": "resize", "source": str(source), "destination": str(tmp_path / "resized.img"), "size_bytes": 4096},
+            {"name": "Create container", "kind": "bundle", "sources": [str(source)], "destination": str(tmp_path / "archive.dfb")},
+        ],
+    }
+    dialog = BatchDesignerDialog(recipe=recipe)
+    assert dialog.operations_table.rowCount() == 5
+    assert dialog.recipe() == recipe
+
+
+def test_batch_designer_rejects_raw_device_recipe() -> None:
+    _application()
+    with pytest.raises(DiskForgeError, match="Raw device"):
+        BatchDesignerDialog(recipe={"schema": "diskforge.batch/v3", "operations": [{"kind": "write_device"}]})

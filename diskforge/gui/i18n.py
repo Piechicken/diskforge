@@ -427,3 +427,144 @@ CATALOG["ja"].update({
     "Binary inspection": "バイナリ検査", "Read-only hexadecimal preview; no system application is required": "読み取り専用の16進プレビュー。システム既定アプリは不要です", "GZip text preview": "GZip テキストプレビュー", "GZip file": "GZip ファイル", "Microsoft SZDD compressed file": "Microsoft SZDD 圧縮ファイル",
 })
 TRANSLATABLE = _catalog_keys()
+
+# v0.7.5 route-recovery and visual-workflow additions.
+CATALOG["zh_CN"].update({
+    "Sleuth Kit browsing is available only for NTFS and EXT filesystems.": "Sleuth Kit 只读浏览仅适用于 NTFS 和 EXT 文件系统。",
+    "The current image has no browsable filesystem.": "当前映像没有可浏览的文件系统。",
+    "The current image format can be inspected but has no file-level browser.": "当前映像格式可以检查，但没有文件级浏览器。",
+    "Batch workflow designer": "批处理工作流设计器", "Design batch workflow…": "设计批处理工作流…", "Edit batch recipe…": "编辑批处理方案…",
+    "Batch workflow results": "批处理工作流结果", "Add operation": "添加操作", "Update selected": "更新所选项", "Remove selected": "移除所选项",
+    "Move up": "上移", "Move down": "下移", "Operation": "操作", "Operation name": "操作名称", "Source image / bundle": "源映像/容器",
+    "Destination image / folder": "目标映像/文件夹", "Succeeded": "成功", "Failed": "失败", "Detail": "详情",
+})
+CATALOG["es"].update({
+    "Sleuth Kit browsing is available only for NTFS and EXT filesystems.": "La exploración de Sleuth Kit solo está disponible para sistemas de archivos NTFS y EXT.",
+    "The current image has no browsable filesystem.": "La imagen actual no tiene un sistema de archivos explorable.",
+    "The current image format can be inspected but has no file-level browser.": "El formato de imagen actual se puede inspeccionar, pero no tiene explorador de archivos.",
+    "Batch workflow designer": "Diseñador de flujo por lotes", "Design batch workflow…": "Diseñar flujo por lotes…", "Edit batch recipe…": "Editar receta por lotes…",
+    "Batch workflow results": "Resultados del flujo por lotes", "Add operation": "Añadir operación", "Update selected": "Actualizar selección", "Remove selected": "Eliminar selección",
+    "Move up": "Subir", "Move down": "Bajar", "Operation": "Operación", "Operation name": "Nombre de la operación", "Source image / bundle": "Imagen o contenedor de origen",
+    "Destination image / folder": "Imagen o carpeta de destino", "Succeeded": "Correcto", "Failed": "Fallido", "Detail": "Detalle",
+})
+CATALOG["fr"].update({
+    "Sleuth Kit browsing is available only for NTFS and EXT filesystems.": "La navigation Sleuth Kit est disponible uniquement pour les systèmes de fichiers NTFS et EXT.",
+    "The current image has no browsable filesystem.": "L’image actuelle ne contient aucun système de fichiers navigable.",
+    "The current image format can be inspected but has no file-level browser.": "Le format de l’image actuelle peut être inspecté, mais ne dispose pas d’un explorateur de fichiers.",
+    "Batch workflow designer": "Concepteur de flux par lot", "Design batch workflow…": "Concevoir un flux par lot…", "Edit batch recipe…": "Modifier une recette par lot…",
+    "Batch workflow results": "Résultats du flux par lot", "Add operation": "Ajouter une opération", "Update selected": "Mettre à jour la sélection", "Remove selected": "Supprimer la sélection",
+    "Move up": "Monter", "Move down": "Descendre", "Operation": "Opération", "Operation name": "Nom de l’opération", "Source image / bundle": "Image ou conteneur source",
+    "Destination image / folder": "Image ou dossier de destination", "Succeeded": "Réussi", "Failed": "Échoué", "Detail": "Détail",
+})
+CATALOG["ru"].update({
+    "Sleuth Kit browsing is available only for NTFS and EXT filesystems.": "Просмотр через Sleuth Kit доступен только для файловых систем NTFS и EXT.",
+    "The current image has no browsable filesystem.": "В текущем образе нет доступной для просмотра файловой системы.",
+    "The current image format can be inspected but has no file-level browser.": "Текущий формат образа можно проверить, но файловый просмотр недоступен.",
+    "Batch workflow designer": "Конструктор пакетного процесса", "Design batch workflow…": "Создать пакетный процесс…", "Edit batch recipe…": "Изменить пакетный сценарий…",
+    "Batch workflow results": "Результаты пакетного процесса", "Add operation": "Добавить операцию", "Update selected": "Обновить выбранное", "Remove selected": "Удалить выбранное",
+    "Move up": "Переместить выше", "Move down": "Переместить ниже", "Operation": "Операция", "Operation name": "Название операции", "Source image / bundle": "Исходный образ/контейнер",
+    "Destination image / folder": "Целевой образ/папка", "Succeeded": "Успешно", "Failed": "Ошибка", "Detail": "Подробности",
+})
+CATALOG["ar"].update({
+    "Sleuth Kit browsing is available only for NTFS and EXT filesystems.": "يتوفر الاستعراض عبر Sleuth Kit لأنظمة الملفات NTFS وEXT فقط.",
+    "The current image has no browsable filesystem.": "لا تحتوي الصورة الحالية على نظام ملفات قابل للتصفح.",
+    "The current image format can be inspected but has no file-level browser.": "يمكن فحص تنسيق الصورة الحالية، لكنه لا يوفر مستعرض ملفات.",
+    "Batch workflow designer": "مصمم سير العمل الدفعي", "Design batch workflow…": "تصميم سير عمل دفعي…", "Edit batch recipe…": "تحرير وصفة الدفعة…",
+    "Batch workflow results": "نتائج سير العمل الدفعي", "Add operation": "إضافة عملية", "Update selected": "تحديث المحدد", "Remove selected": "إزالة المحدد",
+    "Move up": "نقل لأعلى", "Move down": "نقل لأسفل", "Operation": "العملية", "Operation name": "اسم العملية", "Source image / bundle": "صورة/حاوية المصدر",
+    "Destination image / folder": "صورة/مجلد الوجهة", "Succeeded": "نجح", "Failed": "فشل", "Detail": "التفاصيل",
+})
+CATALOG["ja"].update({
+    "Sleuth Kit browsing is available only for NTFS and EXT filesystems.": "Sleuth Kit による閲覧は NTFS と EXT ファイルシステムでのみ利用できます。",
+    "The current image has no browsable filesystem.": "現在のイメージには閲覧可能なファイルシステムがありません。",
+    "The current image format can be inspected but has no file-level browser.": "現在のイメージ形式は検査できますが、ファイルレベルのブラウザーはありません。",
+    "Batch workflow designer": "バッチワークフローデザイナー", "Design batch workflow…": "バッチワークフローを設計…", "Edit batch recipe…": "バッチレシピを編集…",
+    "Batch workflow results": "バッチワークフローの結果", "Add operation": "操作を追加", "Update selected": "選択項目を更新", "Remove selected": "選択項目を削除",
+    "Move up": "上へ移動", "Move down": "下へ移動", "Operation": "操作", "Operation name": "操作名", "Source image / bundle": "ソースイメージ/コンテナー",
+    "Destination image / folder": "出力イメージ/フォルダー", "Succeeded": "成功", "Failed": "失敗", "Detail": "詳細",
+})
+TRANSLATABLE = _catalog_keys()
+
+# Concise, user-facing about dialog copy.
+CATALOG["zh_CN"].update({
+    "DiskForge is a cross-platform workspace for opening, editing, checking and distributing disk images.": "DiskForge 是用于打开、编辑、检查和分发磁盘映像的跨平台工作区。",
+    "Work with FAT, ISO, RAW and virtual-disk images through explicit, safe workflows. Optional converters and read-only adapters are shown only when configured.": "通过明确、安全的工作流处理 FAT、ISO、RAW 和虚拟磁盘映像。可选转换器与只读适配器仅在已配置时显示。",
+})
+CATALOG["es"].update({
+    "DiskForge is a cross-platform workspace for opening, editing, checking and distributing disk images.": "DiskForge es un espacio de trabajo multiplataforma para abrir, editar, comprobar y distribuir imágenes de disco.",
+    "Work with FAT, ISO, RAW and virtual-disk images through explicit, safe workflows. Optional converters and read-only adapters are shown only when configured.": "Trabaje con imágenes FAT, ISO, RAW y de disco virtual mediante flujos explícitos y seguros. Los conversores y adaptadores de solo lectura opcionales solo se muestran cuando están configurados.",
+})
+CATALOG["fr"].update({
+    "DiskForge is a cross-platform workspace for opening, editing, checking and distributing disk images.": "DiskForge est un espace de travail multiplateforme pour ouvrir, modifier, vérifier et distribuer des images disque.",
+    "Work with FAT, ISO, RAW and virtual-disk images through explicit, safe workflows. Optional converters and read-only adapters are shown only when configured.": "Travaillez avec des images FAT, ISO, RAW et de disque virtuel au moyen de flux explicites et sûrs. Les convertisseurs et adaptateurs en lecture seule facultatifs ne sont affichés que lorsqu’ils sont configurés.",
+})
+CATALOG["ru"].update({
+    "DiskForge is a cross-platform workspace for opening, editing, checking and distributing disk images.": "DiskForge — кроссплатформенное рабочее пространство для открытия, редактирования, проверки и распространения образов дисков.",
+    "Work with FAT, ISO, RAW and virtual-disk images through explicit, safe workflows. Optional converters and read-only adapters are shown only when configured.": "Работайте с образами FAT, ISO, RAW и виртуальных дисков через явные безопасные процессы. Необязательные преобразователи и адаптеры только для чтения отображаются лишь после настройки.",
+})
+CATALOG["ar"].update({
+    "DiskForge is a cross-platform workspace for opening, editing, checking and distributing disk images.": "DiskForge مساحة عمل متعددة المنصات لفتح صور الأقراص وتحريرها وفحصها وتوزيعها.",
+    "Work with FAT, ISO, RAW and virtual-disk images through explicit, safe workflows. Optional converters and read-only adapters are shown only when configured.": "اعمل مع صور FAT وISO وRAW والأقراص الافتراضية عبر سير عمل واضح وآمن. لا تظهر المحولات والملحقات الاختيارية للقراءة فقط إلا بعد إعدادها.",
+})
+CATALOG["ja"].update({
+    "DiskForge is a cross-platform workspace for opening, editing, checking and distributing disk images.": "DiskForge はディスクイメージを開く、編集する、検査する、配布するためのクロスプラットフォーム作業領域です。",
+    "Work with FAT, ISO, RAW and virtual-disk images through explicit, safe workflows. Optional converters and read-only adapters are shown only when configured.": "FAT、ISO、RAW、仮想ディスクイメージを明示的で安全なワークフローで扱います。任意の変換器と読み取り専用アダプターは設定済みの場合にのみ表示されます。",
+})
+TRANSLATABLE = _catalog_keys()
+
+# Document workspace controls.
+CATALOG["zh_CN"].update({
+    "Find in document": "在文档中查找", "Find next": "查找下一个", "Save copy…": "另存为…", "Save back to image": "保存回映像",
+    "Unsaved changes": "未保存的更改", "Safe read-only preview": "安全只读预览", "Saving edited text back to the image…": "正在将编辑后的文本保存回映像…",
+    "Document details": "文档详情", "Mode:": "模式：", "Editable plain-text content": "可编辑纯文本内容", "Read-only safe inspection": "安全只读检查",
+    "No additional metadata.": "没有其他元数据。", "Save edited copy": "保存编辑后的副本", "Save unavailable": "无法保存",
+    "Only files in a writable FAT image can be saved back to the image.": "只有可写 FAT 映像中的文件可以保存回映像。",
+    "Text editor": "文本编辑器", "Rich Text source editor": "富文本源编辑器", "Markup source editor": "标记源编辑器", "Office document preview": "办公文档预览",
+    "Editable text: save a copy or write back to a writable FAT image.": "可编辑文本：可另存副本或写回可写 FAT 映像。",
+})
+CATALOG["es"].update({
+    "Find in document": "Buscar en el documento", "Find next": "Buscar siguiente", "Save copy…": "Guardar copia…", "Save back to image": "Guardar en la imagen",
+    "Unsaved changes": "Cambios sin guardar", "Safe read-only preview": "Vista previa segura de solo lectura", "Saving edited text back to the image…": "Guardando el texto editado en la imagen…",
+    "Document details": "Detalles del documento", "Mode:": "Modo:", "Editable plain-text content": "Contenido de texto sin formato editable", "Read-only safe inspection": "Inspección segura de solo lectura",
+    "No additional metadata.": "No hay metadatos adicionales.", "Save edited copy": "Guardar copia editada", "Save unavailable": "Guardado no disponible",
+    "Only files in a writable FAT image can be saved back to the image.": "Solo los archivos de una imagen FAT escribible se pueden guardar en la imagen.",
+    "Text editor": "Editor de texto", "Rich Text source editor": "Editor de origen de texto enriquecido", "Markup source editor": "Editor de origen de marcado", "Office document preview": "Vista previa de documento de oficina",
+    "Editable text: save a copy or write back to a writable FAT image.": "Texto editable: guarde una copia o escríbalo en una imagen FAT escribible.",
+})
+CATALOG["fr"].update({
+    "Find in document": "Rechercher dans le document", "Find next": "Rechercher le suivant", "Save copy…": "Enregistrer une copie…", "Save back to image": "Enregistrer dans l’image",
+    "Unsaved changes": "Modifications non enregistrées", "Safe read-only preview": "Aperçu sûr en lecture seule", "Saving edited text back to the image…": "Enregistrement du texte modifié dans l’image…",
+    "Document details": "Détails du document", "Mode:": "Mode :", "Editable plain-text content": "Contenu texte brut modifiable", "Read-only safe inspection": "Inspection sûre en lecture seule",
+    "No additional metadata.": "Aucune métadonnée supplémentaire.", "Save edited copy": "Enregistrer la copie modifiée", "Save unavailable": "Enregistrement indisponible",
+    "Only files in a writable FAT image can be saved back to the image.": "Seuls les fichiers d’une image FAT inscriptible peuvent être enregistrés dans l’image.",
+    "Text editor": "Éditeur de texte", "Rich Text source editor": "Éditeur de source texte enrichi", "Markup source editor": "Éditeur de source de balisage", "Office document preview": "Aperçu de document bureautique",
+    "Editable text: save a copy or write back to a writable FAT image.": "Texte modifiable : enregistrez une copie ou réécrivez-le dans une image FAT inscriptible.",
+})
+CATALOG["ru"].update({
+    "Find in document": "Найти в документе", "Find next": "Найти далее", "Save copy…": "Сохранить копию…", "Save back to image": "Сохранить в образ",
+    "Unsaved changes": "Несохранённые изменения", "Safe read-only preview": "Безопасный просмотр только для чтения", "Saving edited text back to the image…": "Сохранение изменённого текста в образ…",
+    "Document details": "Сведения о документе", "Mode:": "Режим:", "Editable plain-text content": "Редактируемое содержимое обычного текста", "Read-only safe inspection": "Безопасная проверка только для чтения",
+    "No additional metadata.": "Дополнительные метаданные отсутствуют.", "Save edited copy": "Сохранить изменённую копию", "Save unavailable": "Сохранение недоступно",
+    "Only files in a writable FAT image can be saved back to the image.": "В образ можно сохранить только файлы из доступного для записи FAT-образа.",
+    "Text editor": "Текстовый редактор", "Rich Text source editor": "Редактор исходного форматированного текста", "Markup source editor": "Редактор исходной разметки", "Office document preview": "Просмотр офисного документа",
+    "Editable text: save a copy or write back to a writable FAT image.": "Редактируемый текст: сохраните копию или запишите его обратно в доступный для записи FAT-образ.",
+})
+CATALOG["ar"].update({
+    "Find in document": "بحث في المستند", "Find next": "بحث عن التالي", "Save copy…": "حفظ نسخة…", "Save back to image": "حفظ في الصورة",
+    "Unsaved changes": "تغييرات غير محفوظة", "Safe read-only preview": "معاينة آمنة للقراءة فقط", "Saving edited text back to the image…": "جارٍ حفظ النص المحرر في الصورة…",
+    "Document details": "تفاصيل المستند", "Mode:": "الوضع:", "Editable plain-text content": "محتوى نص عادي قابل للتحرير", "Read-only safe inspection": "فحص آمن للقراءة فقط",
+    "No additional metadata.": "لا توجد بيانات وصفية إضافية.", "Save edited copy": "حفظ النسخة المحررة", "Save unavailable": "الحفظ غير متاح",
+    "Only files in a writable FAT image can be saved back to the image.": "لا يمكن حفظ الملفات في الصورة إلا من صورة FAT قابلة للكتابة.",
+    "Text editor": "محرر النص", "Rich Text source editor": "محرر مصدر النص المنسق", "Markup source editor": "محرر مصدر الترميز", "Office document preview": "معاينة مستند مكتبي",
+    "Editable text: save a copy or write back to a writable FAT image.": "نص قابل للتحرير: احفظ نسخة أو اكتب النص في صورة FAT قابلة للكتابة.",
+})
+CATALOG["ja"].update({
+    "Find in document": "文書内を検索", "Find next": "次を検索", "Save copy…": "コピーを保存…", "Save back to image": "イメージに保存",
+    "Unsaved changes": "未保存の変更", "Safe read-only preview": "安全な読み取り専用プレビュー", "Saving edited text back to the image…": "編集したテキストをイメージに保存しています…",
+    "Document details": "文書の詳細", "Mode:": "モード：", "Editable plain-text content": "編集可能なプレーンテキスト", "Read-only safe inspection": "安全な読み取り専用検査",
+    "No additional metadata.": "追加のメタデータはありません。", "Save edited copy": "編集したコピーを保存", "Save unavailable": "保存できません",
+    "Only files in a writable FAT image can be saved back to the image.": "書き込み可能な FAT イメージ内のファイルのみ、イメージに保存できます。",
+    "Text editor": "テキストエディター", "Rich Text source editor": "リッチテキストソースエディター", "Markup source editor": "マークアップソースエディター", "Office document preview": "Office 文書プレビュー",
+    "Editable text: save a copy or write back to a writable FAT image.": "編集可能なテキストです。コピーを保存するか、書き込み可能な FAT イメージに書き戻せます。",
+})
+TRANSLATABLE = _catalog_keys()

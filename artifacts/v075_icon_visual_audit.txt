@@ -1,0 +1,5 @@
+DiskForge v0.7.5 icon visual audit
+
+Reviewed assets/icons/diskforge-v075-source.png and assets/icons/diskforge-icon.png on 2026-08-19.
+
+The formal 512px runtime PNG presents a clear navy-and-silver disk with an amber forging spark on a transparent canvas. The derived asset retains crisp contrast at application-icon scale and has no checkerboard background. It is the asset packaged at runtime and is suitable for the v0.7.5 Linux, Windows, and macOS builds.
