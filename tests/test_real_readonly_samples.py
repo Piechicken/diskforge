@@ -40,6 +40,18 @@ def test_real_ntfs_lastaccess_sample_lists_and_extracts(tmp_path: Path) -> None:
     assert outputs[0].stat().st_size == 143
 
 
+def test_real_ext4_sample_lists_and_extracts(tmp_path: Path) -> None:
+    """MIT eribertomota/forensics-samples `fs.ext4`, EXT4 partition at LBA 2048."""
+    filesystem = SleuthKitImageFilesystem(_fixture("fs.ext4"), FileSystemType.EXT, offset=2048 * 512)
+    try:
+        assert any(entry.path == "/audio1" and entry.is_dir for entry in filesystem.list_entries("/"))
+        outputs = filesystem.extract(["/audio1/debian.mp3"], tmp_path)
+    finally:
+        filesystem.close()
+    assert len(outputs) == 1
+    assert outputs[0].stat().st_size == 69727
+
+
 def test_real_hfs_plus_journal_sample_lists_and_extracts(tmp_path: Path) -> None:
     """Public Digital Corpora NPS `image.gen1.dmg`, HFS+ journal sample."""
     filesystem = SleuthKitImageFilesystem(_fixture("nps-hfsj-image.gen1.dmg"), FileSystemType.HFS_PLUS)

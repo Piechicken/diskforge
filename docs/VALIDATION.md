@@ -9,7 +9,8 @@
 | 文件名 | 用途 | 来源与许可 | DiskForge 调用方式 |
 |---|---|---|---|
 | `ntfs-lastaccess.raw` | NTFS 分区级列举与 `/test/1.txt` 提取 | `msuhanov/ntfs-samples`，仓库标示 CC0-1.0。[1] | `FileSystemType.NTFS`，显式偏移 `128 * 512` 字节。 |
-| `nps-hfsj-image.gen1.dmg` | journaled HFS+ 根目录列举与 `/file1.txt` 数据 fork 提取 | Digital Corpora NPS 公共测试映像，目录为 10 MB。[2] [3] | `FileSystemType.HFS_PLUS`，偏移 0。 |
+| `fs.ext4` | EXT4 分区级列举与 `/audio1/debian.mp3` 提取 | `eribertomota/forensics-samples`，文件系统映像标示为 MIT 许可。[2] | `FileSystemType.EXT`，显式偏移 `2048 * 512` 字节。 |
+| `nps-hfsj-image.gen1.dmg` | journaled HFS+ 根目录列举与 `/file1.txt` 数据 fork 提取 | Digital Corpora NPS 公共测试映像，目录为 10 MB。[3] [4] | `FileSystemType.HFS_PLUS`，偏移 0。 |
 
 将文件放入一个**不受版本控制**的目录。不要将样本、从样本提取的个人数据或本地绝对路径提交到 DiskForge 仓库。
 
@@ -27,7 +28,7 @@ QT_QPA_PLATFORM=offscreen pytest -W error tests/test_real_readonly_samples.py
 
 ## UFI USB 软驱人工验收
 
-Linux 上的受控 UFI USB 软驱格式化要求 `ufiformat`、相应权限、真正的 UFI 兼容设备以及可丢弃介质。DiskForge 仅在 sysfs 将 `/dev/sgN` 显式关联到已发现的可移动块设备时显示候选项；随后必须由 `ufiformat -i` 报告设备与可用容量。操作者必须选择报告中的一个容量并输入 `FORMAT_FLOPPY`；执行命令固定包含 `-V` 验证，且不会使用跳过安全检查的 `-F` 选项。[4]
+Linux 上的受控 UFI USB 软驱格式化要求 `ufiformat`、相应权限、真正的 UFI 兼容设备以及可丢弃介质。DiskForge 仅在 sysfs 将 `/dev/sgN` 显式关联到已发现的可移动块设备时显示候选项；随后必须由 `ufiformat -i` 报告设备与可用容量。操作者必须选择报告中的一个容量并输入 `FORMAT_FLOPPY`；执行命令固定包含 `-V` 验证，且不会使用跳过安全检查的 `-F` 选项。[5]
 
 UFI 格式化完成后，创建 FAT 文件系统是**独立操作**，需要再次选择设备和确认。没有真实硬件读写回验前，任何环境都不应声称已验证特定 USB 软驱型号或控制器。
 
@@ -38,11 +39,13 @@ UFI 格式化完成后，创建 FAT 文件系统是**独立操作**，需要再�
 | 路径 | 后端 | 结果 |
 |---|---|---|
 | CC0 NTFS `ntfs-lastaccess.raw` | Sleuth Kit 4.12.1 | 在 LBA 128 处列举 `/test`，提取 `/test/1.txt`，143 字节。 |
+| MIT EXT4 `fs.ext4` | Sleuth Kit 4.12.1 | 在 LBA 2048 处列举 `/audio1`，提取 `/audio1/debian.mp3`，69,727 字节。 |
 | NPS journaled HFS+ `image.gen1.dmg` | Sleuth Kit 4.12.1 | 列举 `/file1.txt` 与 `/file2.txt`，提取 `/file1.txt`，28 字节。 |
 
 ## References
 
 [1]: https://github.com/msuhanov/ntfs-samples "msuhanov/ntfs-samples"
-[2]: https://digitalcorpora.org/corpora/disk-images/ "Digital Corpora Disk Images"
-[3]: https://downloads.digitalcorpora.org/corpora/drives/nps-2009-hfsjtest1/ "NPS HFS Journal Test Image Directory"
-[4]: https://manpages.ubuntu.com/manpages/jammy/man8/ufiformat.8.html "ufiformat manual"
+[2]: https://github.com/eribertomota/forensics-samples "eribertomota/forensics-samples"
+[3]: https://digitalcorpora.org/corpora/disk-images/ "Digital Corpora Disk Images"
+[4]: https://downloads.digitalcorpora.org/corpora/drives/nps-2009-hfsjtest1/ "NPS HFS Journal Test Image Directory"
+[5]: https://manpages.ubuntu.com/manpages/jammy/man8/ufiformat.8.html "ufiformat manual"
