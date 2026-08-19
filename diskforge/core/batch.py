@@ -14,7 +14,8 @@ from typing import Any, Callable
 from .bundle import create_bundle, extract_bundle
 from .compare import compare_streams
 from .filesystems import FatImageFilesystem, IsoImageFilesystem
-from .formats import QemuImgConverter, convert_image, inspect_image
+from .formats import (QemuImgConverter, convert_image, create_legacy_zip_image,
+                      extract_legacy_zip_image, inspect_image)
 from .models import (BatchItemResult, BatchResult, ConflictPolicy, ExtractionLayout,
                      ExtractionPolicy, FileSystemType, ImageFormat, OperationKind)
 from .readonly_fs import SleuthKitImageFilesystem
@@ -26,7 +27,7 @@ from .storage import DiskForgeError, sha256_file
 class BatchRunner:
     """Execute a deliberately safe JSON batch specification."""
 
-    _SCHEMAS = {"diskforge.batch/v1", "diskforge.batch/v2", "diskforge.batch/v3"}
+    _SCHEMAS = {"diskforge.batch/v1", "diskforge.batch/v2", "diskforge.batch/v3", "diskforge.batch/v4"}
 
     def __init__(self, converter: QemuImgConverter | None = None) -> None:
         self.converter = converter or QemuImgConverter()
@@ -63,6 +64,8 @@ class BatchRunner:
             OperationKind.INJECT: ("destination", "sources"),
             OperationKind.BUNDLE: ("sources", "destination"),
             OperationKind.UNBUNDLE: ("source", "destination"),
+            OperationKind.LEGACY_COMPRESS: ("source", "destination", "format"),
+            OperationKind.LEGACY_EXTRACT: ("source", "destination"),
         }
         for position, raw in enumerate(spec["operations"]):
             item = raw if isinstance(raw, dict) else {}
@@ -85,6 +88,8 @@ class BatchRunner:
                     ImageFormat(str(item["format"]))
                 except ValueError as exc:
                     raise DiskForgeError("Batch conversion format is unsupported.") from exc
+            if kind == OperationKind.LEGACY_COMPRESS and str(item["format"]) not in {ImageFormat.IMZ.value, ImageFormat.WLZ.value}:
+                raise DiskForgeError("Legacy compression format must be imz or wlz.")
             preview.append({
                 "index": position,
                 "name": str(item.get("name") or kind.value),
@@ -92,7 +97,8 @@ class BatchRunner:
                 "source": item.get("source"),
                 "destination": item.get("destination") or item.get("destination_root"),
                 "will_write": kind in {OperationKind.CONVERT, OperationKind.RESIZE, OperationKind.INJECT,
-                                         OperationKind.BUNDLE, OperationKind.UNBUNDLE, OperationKind.EXTRACT},
+                                         OperationKind.BUNDLE, OperationKind.UNBUNDLE, OperationKind.EXTRACT,
+                                         OperationKind.LEGACY_COMPRESS, OperationKind.LEGACY_EXTRACT},
             })
         return preview
 
@@ -167,6 +173,13 @@ class BatchRunner:
                 location = comparison.first_difference if comparison.first_difference is not None else "size"
                 raise DiskForgeError(f"Byte comparison failed at {location}: {comparison.reason}")
             return None
+        if kind == OperationKind.LEGACY_COMPRESS:
+            result = create_legacy_zip_image(item["source"], item["destination"], ImageFormat(str(item["format"])),
+                                             overwrite=bool(item.get("overwrite", False)))
+            return str(result.destination)
+        if kind == OperationKind.LEGACY_EXTRACT:
+            result = extract_legacy_zip_image(item["source"], item["destination"])
+            return str(result.destination)
         if kind == OperationKind.RESIZE:
             resized = resize_image(item["source"], item["destination"], int(item["size_bytes"]),
                                    overwrite=bool(item.get("overwrite", False)))

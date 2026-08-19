@@ -102,6 +102,8 @@ class OperationKind(str, Enum):
     COMPARE = "compare"
     BUNDLE = "bundle"
     UNBUNDLE = "unbundle"
+    LEGACY_COMPRESS = "legacy_compress"
+    LEGACY_EXTRACT = "legacy_extract"
 
 
 @dataclass(frozen=True)
