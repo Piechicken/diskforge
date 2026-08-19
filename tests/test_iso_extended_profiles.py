@@ -67,3 +67,38 @@ def test_create_profiled_bootable_iso_preserves_boot_catalog(tmp_path: Path) -> 
     catalog = inspect_eltorito(image)
     assert len(catalog.images) == 1
     assert catalog.images[0].bootable is True
+
+
+@pytest.mark.parametrize(("rock_ridge", "udf"), [(True, False), (False, True), (True, True)])
+def test_rebuild_iso_preserves_extended_profiles_and_original_paths(tmp_path: Path, rock_ridge: bool, udf: bool) -> None:
+    source = tmp_path / "source"
+    (source / "nested").mkdir(parents=True)
+    (source / "nested" / "Mixed Name.txt").write_text("old payload", encoding="utf-8")
+    original = create_iso_from_directory(source, tmp_path / "source.iso", rock_ridge=rock_ridge, udf=udf)
+    original_hash = original.read_bytes()
+    addition = tmp_path / "New File.txt"
+    addition.write_text("new payload", encoding="utf-8")
+    from diskforge.core.filesystems import rebuild_iso_with_changes
+
+    rebuilt = tmp_path / "rebuilt.iso"
+    rebuild_iso_with_changes(
+        original, rebuilt, additions=[addition], delete_paths=["/nested/Mixed Name.txt"],
+        create_directories=["/empty directory"], target_directory="/nested",
+    )
+
+    assert original.read_bytes() == original_hash
+    iso = pycdlib.PyCdlib()
+    iso.open(str(rebuilt))
+    try:
+        assert iso.has_rock_ridge() is rock_ridge
+        assert iso.has_udf() is udf
+    finally:
+        iso.close()
+    filesystem = IsoImageFilesystem(rebuilt)
+    try:
+        assert {entry.path for entry in filesystem.list_entries("/nested")} == {"/nested/New File.txt"}
+        assert {entry.path for entry in filesystem.list_entries("/")} >= {"/nested", "/empty directory"}
+        extracted = filesystem.extract(["/nested/New File.txt"], tmp_path / "extract-rebuilt")
+    finally:
+        filesystem.close()
+    assert extracted[0].read_text(encoding="utf-8") == "new payload"

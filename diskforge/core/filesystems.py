@@ -614,8 +614,9 @@ def rebuild_iso_with_changes(source_iso: Path | str, destination_iso: Path | str
     The source is always opened read-only and expanded inside a private temporary
     workspace.  Changes are applied only in that workspace, then a separate ISO
     is authored and reopened for a complete file-by-file SHA-256 verification.
-    Rock Ridge, UDF, and El Torito are deliberately refused because this standard
-    rebuild path would otherwise discard metadata that it cannot preserve.
+    Rock Ridge and UDF profiles are recreated from their user-visible directory
+    context; El Torito remains deliberately refused because this path does not yet
+    preserve every boot-catalog variant.
     """
     source, destination = Path(source_iso), Path(destination_iso)
     if not source.is_file():
@@ -636,8 +637,8 @@ def rebuild_iso_with_changes(source_iso: Path | str, destination_iso: Path | str
     probe = pycdlib.PyCdlib()
     try:
         probe.open(str(source))
-        if probe.has_rock_ridge() or probe.has_udf():
-            raise DiskForgeError("ISO rebuilding currently supports standard ISO9660/Joliet images only; Rock Ridge and UDF are refused.")
+        rock_ridge = probe.has_rock_ridge()
+        udf = probe.has_udf()
         if _iso_has_eltorito(source):
             raise DiskForgeError("ISO rebuilding refuses El Torito images to preserve boot catalog metadata.")
         label_value = (volume_label or probe.pvd.volume_identifier.decode("ascii", errors="ignore").strip() or "DISKFORGE")[:32]
@@ -703,7 +704,7 @@ def rebuild_iso_with_changes(source_iso: Path | str, destination_iso: Path | str
         if token:
             token.raise_if_cancelled()
         destination.parent.mkdir(parents=True, exist_ok=True)
-        create_iso_from_directory(workspace, destination, label_value)
+        create_iso_from_directory(workspace, destination, label_value, rock_ridge=rock_ridge, udf=udf)
         verifier = IsoImageFilesystem(destination)
         try:
             expected_files = sorted(item for item in workspace.rglob("*") if item.is_file())
