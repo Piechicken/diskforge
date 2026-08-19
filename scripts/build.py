@@ -40,7 +40,18 @@ def main() -> int:
     if platform.system() == "Darwin":
         command.extend(["--osx-bundle-identifier", "org.diskforge.app"])
     subprocess.run(command, cwd=ROOT, check=True)
+    # Build a separate console extractor rather than appending data to the
+    # desktop executable.  It uses only standard-library archive handling and
+    # can run on a recipient system without a pre-installed Python runtime.
+    extractor = [
+        sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile",
+        "--name", "DiskForgeExtractor", "--paths", str(ROOT), str(ROOT / "diskforge" / "extractor.py"),
+    ]
+    if platform.system() in {"Windows", "Darwin"}:
+        extractor.extend(["--icon", str(application_icon)])
+    subprocess.run(extractor, cwd=ROOT, check=True)
     print(f"Built native package: {ROOT / 'dist' / (name + ('.app' if platform.system() == 'Darwin' else ''))}")
+    print(f"Built verified bundle extractor: {ROOT / 'dist' / ('DiskForgeExtractor.exe' if platform.system() == 'Windows' else 'DiskForgeExtractor')}")
     return 0
 
 

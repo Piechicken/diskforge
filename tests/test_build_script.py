@@ -25,6 +25,8 @@ def test_linux_build_includes_runtime_icon_without_unsupported_icon_flag(monkeyp
     assert "--icon" not in captured
     assert "setuptools" not in captured
     assert "jaraco" not in captured
+    assert "DiskForgeExtractor" in captured
+    assert "--onefile" in captured
 
 
 def test_windows_and_macos_builds_select_native_icon(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -36,6 +38,8 @@ def test_windows_and_macos_builds_select_native_icon(monkeypatch) -> None:  # ty
         assert module.main() == 0
         icon = captured.index("--icon")
         assert captured[icon + 1].endswith(suffix)
+        assert "DiskForgeExtractor" in captured
+        assert "--onefile" in captured
 
 
 def test_release_workflow_uses_immutable_tag_only_publication() -> None:
