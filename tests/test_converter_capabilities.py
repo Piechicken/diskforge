@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 from diskforge.cli import main
@@ -27,22 +28,20 @@ def test_cli_emits_converter_capability_report(capsys) -> None:  # type: ignore[
 
 
 def test_configured_converter_process_is_terminated_when_cancelled(tmp_path: Path) -> None:
-    import os
     from threading import Timer
 
     import pytest
 
     from diskforge.core.storage import CancellationToken, OperationCancelled
 
-    executable = tmp_path / "slow-converter"
-    executable.write_text("#!/bin/sh\nexec sleep 30\n", encoding="utf-8")
-    executable.chmod(executable.stat().st_mode | os.stat_result((0,) * 10).st_mode | 0o111)
-    converter = QemuImgConverter(str(executable))
+    # Invoke the current interpreter directly so the cancellation contract is
+    # exercised with a real process on Windows, macOS, and Linux alike.
+    converter = QemuImgConverter(sys.executable)
     token = CancellationToken()
     timer = Timer(0.2, token.cancel)
     timer.start()
     try:
         with pytest.raises(OperationCancelled):
-            converter._run(["convert"], token)
+            converter._run(["-c", "import time; time.sleep(30)"], token)
     finally:
         timer.cancel()

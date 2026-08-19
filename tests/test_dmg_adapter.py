@@ -19,12 +19,27 @@ def test_missing_dmg_adapter_reports_a_read_only_controlled_boundary(tmp_path: P
 
 
 def test_explicit_dmg_adapter_writes_a_new_output_without_overwrite(tmp_path: Path) -> None:
-    executable = tmp_path / "dmg2img"
-    executable.write_text(
-        "#!/bin/sh\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = \"-o\" ]; then out=$2; shift 2; continue; fi\n  shift\ndone\nprintf converted > \"$out\"\n",
-        encoding="utf-8",
-    )
-    executable.chmod(executable.stat().st_mode | 0o111)
+    if os.name == "nt":
+        executable = tmp_path / "dmg2img.cmd"
+        executable.write_text(
+            "@echo off\r\n"
+            "setlocal\r\n"
+            ":loop\r\n"
+            "if \"%~1\"==\"\" goto done\r\n"
+            "if \"%~1\"==\"-o\" (set out=%~2 & shift)\r\n"
+            "shift\r\n"
+            "goto loop\r\n"
+            ":done\r\n"
+            "> \"%out%\" <nul set /p =converted\r\n",
+            encoding="utf-8",
+        )
+    else:
+        executable = tmp_path / "dmg2img"
+        executable.write_text(
+            "#!/bin/sh\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = \"-o\" ]; then out=$2; shift 2; continue; fi\n  shift\ndone\nprintf converted > \"$out\"\n",
+            encoding="utf-8",
+        )
+        executable.chmod(executable.stat().st_mode | 0o111)
     source = tmp_path / "sample.dmg"
     source.write_bytes(b"koly")
     destination = tmp_path / "sample.raw"
