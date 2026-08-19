@@ -737,6 +737,7 @@ class IsoImageFilesystem(ImageFilesystem):
         self.path = Path(image_path)
         self.iso = pycdlib.PyCdlib()
         self.iso.open(str(self.path))
+        self._name_context = "rr" if self.iso.has_rock_ridge() else "udf" if self.iso.has_udf() else "iso"
 
     def close(self) -> None:
         self.iso.close()
@@ -746,18 +747,38 @@ class IsoImageFilesystem(ImageFilesystem):
         normalized = _normal(path)
         return "/" if normalized == "/" else normalized.upper() + ";1"
 
+    def _lookup(self, path: str, *, directory: bool = False) -> dict[str, str]:
+        normalized = _normal(path)
+        if self._name_context == "rr":
+            return {"rr_path": normalized}
+        if self._name_context == "udf":
+            return {"udf_path": normalized}
+        return {"iso_path": "/" if normalized == "/" else normalized.upper() if directory else self._iso_path(normalized)}
+
     def list_entries(self, path: str = "/") -> list[ImageEntry]:
-        iso_path = "/" if _normal(path) == "/" else _normal(path).upper()
         entries: list[ImageEntry] = []
-        for record in self.iso.list_children(iso_path=iso_path):
+        for record in self.iso.list_children(**self._lookup(path, directory=True)):
+            if record is None:
+                continue
             raw = record.file_identifier()
             if raw in (b"\x00", b"\x01", b".", b".."):
                 continue
-            name = raw.decode("utf-8", errors="replace").rstrip(";1")
+            if self._name_context == "rr":
+                full_path = self.iso.full_path_from_dirrecord(record, rockridge=True)
+                name = Path(full_path).name
+            elif self._name_context == "udf":
+                full_path = self.iso.full_path_from_dirrecord(record)
+                name = raw.decode("utf-8", errors="replace")
+            else:
+                name = raw.decode("utf-8", errors="replace").rstrip(";1")
+                full_path = _normal(posixpath.join(path, name))
+            if full_path in {"/.", "/.."}:
+                continue
             is_dir = record.is_dir()
+            size = int(record.get_data_length()) if hasattr(record, "get_data_length") else int(record.data_length or 0)
             entries.append(ImageEntry(
-                path=_normal(posixpath.join(path, name)), name=name, is_dir=is_dir,
-                size=int(record.data_length or 0),
+                path=_normal(full_path), name=name, is_dir=is_dir,
+                size=size,
             ))
         return sorted(entries, key=lambda item: (not item.is_dir, item.name.lower()))
 
@@ -799,7 +820,7 @@ class IsoImageFilesystem(ImageFilesystem):
             if output is None:
                 continue
             output.parent.mkdir(parents=True, exist_ok=True)
-            self.iso.get_file_from_iso(str(output), iso_path=self._iso_path(entry.path))
+            self.iso.get_file_from_iso(str(output), **self._lookup(entry.path))
             complete += entry.size or 1
             if progress:
                 progress(Progress(OperationKind.EXTRACT, complete, total, f"Extracting {entry.name}"))
@@ -917,13 +938,33 @@ def defragment_fat_image(source_image: Path | str, destination_image: Path | str
     return destination
 
 
+def _iso9660_component(name: str, *, is_file: bool) -> str:
+    """Return a valid ISO9660 level-3 component without silently colliding names."""
+    normalized = name.upper()
+    allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+    if is_file and "." in normalized:
+        stem, extension = normalized.rsplit(".", 1)
+        stem = "".join(char if char in allowed else "_" for char in stem).strip("_") or "FILE"
+        extension = "".join(char if char in allowed else "_" for char in extension).strip("_")
+        return stem if not extension else f"{stem}.{extension}"
+    return "".join(char if char in allowed else "_" for char in normalized).strip("_") or "DIR"
+
+
+def _iso9660_path(relative: Path, *, is_file: bool) -> str:
+    components = [_iso9660_component(component, is_file=is_file and index == len(relative.parts) - 1)
+                  for index, component in enumerate(relative.parts)]
+    return "/" + "/".join(components) + (";1" if is_file else "")
+
+
 def create_iso_from_directory(source_directory: Path | str, destination: Path | str,
                               volume_label: str = "DISKFORGE", *,
                               boot_image: Path | str | None = None,
                               boot_platform_id: int = 0,
                               boot_media: str = "noemul",
                               boot_info_table: bool = False,
-                              boot_load_segment: int = 0) -> Path:
+                              boot_load_segment: int = 0,
+                              rock_ridge: bool = False,
+                              udf: bool = False) -> Path:
     """Build an ISO9660/Joliet image, optionally with a validated El Torito entry.
 
     A boot image may either be a file inside ``source_directory`` or an external
@@ -944,27 +985,62 @@ def create_iso_from_directory(source_directory: Path | str, destination: Path | 
     if selected_boot is not None and not selected_boot.is_file():
         raise FileNotFoundError(selected_boot)
     iso = pycdlib.PyCdlib()
-    iso.new(interchange_level=3, joliet=3, vol_ident=volume_label[:32])
+    profile: dict[str, str | int] = {"interchange_level": 3, "joliet": 3, "vol_ident": volume_label[:32]}
+    if rock_ridge:
+        profile["rock_ridge"] = "1.09"
+    if udf:
+        profile["udf"] = "2.60"
+    iso.new(**profile)
     try:
         directories = [item for item in source.rglob("*") if item.is_dir()]
+        files = [item for item in source.rglob("*") if item.is_file()]
+        normalized_paths: dict[str, str] = {}
+        for item in [*directories, *files]:
+            relative_path = item.relative_to(source)
+            iso_name = _iso9660_path(relative_path, is_file=item.is_file()).casefold()
+            original = relative_path.as_posix()
+            if iso_name in normalized_paths:
+                raise DiskForgeError(f"Local paths {normalized_paths[iso_name]!r} and {original!r} collide after ISO9660 name normalization.")
+            normalized_paths[iso_name] = original
         for directory in directories:
             relative = directory.relative_to(source).as_posix()
-            iso.add_directory(iso_path="/" + relative.upper(), joliet_path="/" + relative)
+            directory_kwargs: dict[str, object] = {"iso_path": _iso9660_path(directory.relative_to(source), is_file=False), "joliet_path": "/" + relative}
+            if rock_ridge:
+                directory_kwargs["rr_name"] = directory.name
+            if udf:
+                directory_kwargs["udf_path"] = "/" + relative
+            iso.add_directory(**directory_kwargs)
         boot_iso_path: str | None = None
-        for file_path in (item for item in source.rglob("*") if item.is_file()):
+        for file_path in files:
             relative = file_path.relative_to(source).as_posix()
-            iso_path = "/" + relative.upper() + ";1"
-            iso.add_file(str(file_path), iso_path=iso_path, joliet_path="/" + relative)
+            iso_path = _iso9660_path(file_path.relative_to(source), is_file=True)
+            file_kwargs: dict[str, object] = {"iso_path": iso_path, "joliet_path": "/" + relative}
+            if rock_ridge:
+                file_kwargs["rr_name"] = file_path.name
+            if udf:
+                file_kwargs["udf_path"] = "/" + relative
+            iso.add_file(str(file_path), **file_kwargs)
             if selected_boot is not None and file_path.resolve() == selected_boot:
                 boot_iso_path = iso_path
         if selected_boot is not None and boot_iso_path is None:
             boot_iso_path = "/BOOT.IMG;1"
-            iso.add_file(str(selected_boot), iso_path=boot_iso_path, joliet_path="/boot.img")
+            boot_kwargs: dict[str, object] = {"iso_path": boot_iso_path, "joliet_path": "/boot.img"}
+            if rock_ridge:
+                boot_kwargs["rr_name"] = "boot.img"
+            if udf:
+                boot_kwargs["udf_path"] = "/boot.img"
+            iso.add_file(str(selected_boot), **boot_kwargs)
         if boot_iso_path is not None:
-            iso.add_eltorito(
-                boot_iso_path, platform_id=boot_platform_id, media_name=boot_media,
-                boot_info_table=boot_info_table, boot_load_seg=boot_load_segment,
-            )
+            eltorito_kwargs: dict[str, object] = {
+                "platform_id": boot_platform_id, "media_name": boot_media,
+                "boot_info_table": boot_info_table, "boot_load_seg": boot_load_segment,
+                "joliet_bootcatfile": "/boot.cat",
+            }
+            if rock_ridge:
+                eltorito_kwargs["rr_bootcatname"] = "boot.cat"
+            if udf:
+                eltorito_kwargs["udf_bootcatfile"] = "/boot.cat"
+            iso.add_eltorito(boot_iso_path, **eltorito_kwargs)
         target.parent.mkdir(parents=True, exist_ok=True)
         iso.write(str(target))
     finally:

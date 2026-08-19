@@ -1121,3 +1121,13 @@ CATALOG["ja"].update({
     "Rebuilding standard ISO into a new image": "標準 ISO を新しいイメージとして再構築中",
 })
 TRANSLATABLE = _catalog_keys()
+
+
+# Extended ISO profile creation additions.
+CATALOG["zh_CN"].update({"Include Rock Ridge names": "包含 Rock Ridge 名称", "Include UDF bridge filesystem": "包含 UDF 桥接文件系统"})
+CATALOG["es"].update({"Include Rock Ridge names": "Incluir nombres Rock Ridge", "Include UDF bridge filesystem": "Incluir sistema de archivos puente UDF"})
+CATALOG["fr"].update({"Include Rock Ridge names": "Inclure les noms Rock Ridge", "Include UDF bridge filesystem": "Inclure le système de fichiers pont UDF"})
+CATALOG["ru"].update({"Include Rock Ridge names": "Включить имена Rock Ridge", "Include UDF bridge filesystem": "Включить мостовую файловую систему UDF"})
+CATALOG["ar"].update({"Include Rock Ridge names": "تضمين أسماء Rock Ridge", "Include UDF bridge filesystem": "تضمين نظام ملفات جسر UDF"})
+CATALOG["ja"].update({"Include Rock Ridge names": "Rock Ridge 名を含める", "Include UDF bridge filesystem": "UDF ブリッジファイルシステムを含める"})
+TRANSLATABLE = _catalog_keys()

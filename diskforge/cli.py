@@ -141,6 +141,8 @@ def parser() -> argparse.ArgumentParser:
     iso.add_argument("--boot-media", choices=["noemul", "floppy", "hdemul"], default="noemul")
     iso.add_argument("--boot-info-table", action="store_true", help="Write a boot info table into the ISO copy of the boot image")
     iso.add_argument("--boot-load-segment", type=lambda value: int(value, 0), default=0)
+    iso.add_argument("--rock-ridge", action="store_true", help="Add Rock Ridge 1.09 names and metadata")
+    iso.add_argument("--udf", action="store_true", help="Add a UDF 2.60 bridge filesystem")
 
     replace_iso = commands.add_parser("replace-iso-file", help="Safely replace one equal-size ISO9660 file into a new ISO")
     replace_iso.add_argument("source", type=Path)
@@ -503,10 +505,12 @@ def main(argv: list[str] | None = None) -> int:
                 args.directory, args.image, args.label, boot_image=args.boot_image,
                 boot_platform_id=args.boot_platform, boot_media=args.boot_media,
                 boot_info_table=args.boot_info_table, boot_load_segment=args.boot_load_segment,
+                rock_ridge=args.rock_ridge, udf=args.udf,
             )
             _emit(args, {"path": str(created), "boot_image": str(args.boot_image) if args.boot_image else None,
                          "boot_platform": args.boot_platform if args.boot_image else None,
-                         "boot_media": args.boot_media if args.boot_image else None}, str(created))
+                         "boot_media": args.boot_media if args.boot_image else None,
+                         "rock_ridge": args.rock_ridge, "udf": args.udf}, str(created))
         elif args.command == "replace-iso-file":
             result = replace_iso_file_safely(args.source, args.iso_path, args.replacement, args.destination,
                                              overwrite=args.overwrite)

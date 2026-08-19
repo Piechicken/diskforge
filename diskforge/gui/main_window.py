@@ -116,9 +116,13 @@ class NewImageDialog(QDialog):
         self.boot_media.addItem("Floppy emulation", "floppy")
         self.boot_media.addItem("Hard-disk emulation", "hdemul")
         self.boot_info_table = QCheckBox("Write boot info table into the ISO copy")
+        self.rock_ridge = QCheckBox("Include Rock Ridge names")
+        self.udf = QCheckBox("Include UDF bridge filesystem")
         form.addRow("Optional ISO boot image", boot_row)
         form.addRow("Boot media mode", self.boot_media)
         form.addRow("", self.boot_info_table)
+        form.addRow("", self.rock_ridge)
+        form.addRow("", self.udf)
         layout.addLayout(form)
         self.help = QLabel("FAT images can be browsed and modified immediately.")
         self.help.setWordWrap(True)
@@ -168,6 +172,8 @@ class NewImageDialog(QDialog):
         self.boot_image.setEnabled(is_iso)
         self.boot_media.setEnabled(is_iso)
         self.boot_info_table.setEnabled(is_iso)
+        self.rock_ridge.setEnabled(is_iso)
+        self.udf.setEnabled(is_iso)
         if mode == "iso":
             self._set_translatable_label(self.help, "ISO files are authored from a local directory and are read-only after creation.")
         elif mode == "raw":
@@ -986,10 +992,13 @@ class MainWindow(QMainWindow):
                 return
             boot_media = str(dialog.boot_media.currentData())
             boot_info_table = dialog.boot_info_table.isChecked()
+            rock_ridge = dialog.rock_ridge.isChecked()
+            udf = dialog.udf.isChecked()
             def create_iso(progress=None, token=None):
                 return create_iso_from_directory(
                     source, Path(output), dialog.label.text(), boot_image=boot_image,
                     boot_media=boot_media, boot_info_table=boot_info_table,
+                    rock_ridge=rock_ridge, udf=udf,
                 )
             self._run_worker("Creating bootable ISO image" if boot_image else "Creating ISO image", create_iso, on_result=lambda result: self._open_path(Path(result)))
             return
