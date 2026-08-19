@@ -17,6 +17,7 @@ from .core.devices import (backup_device_mbr, compare_image_with_device, format_
                            neutralize_device_mbr, restore_device_mbr)
 from .core.eltorito import export_boot_image, inspect_eltorito
 from .core.fat_layouts import FatImageLayout, create_fat_image_from_layout
+from .core.floppy_format import FloppyControllerFormatter
 from .core.filesystems import (FatImageFilesystem, IsoImageFilesystem, create_fat_image,
                                create_iso_from_directory, defragment_fat_image, replace_iso_file_safely)
 from .core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_image, create_dynamic_vhd_from_raw,
@@ -269,6 +270,10 @@ def parser() -> argparse.ArgumentParser:
     format_removable.add_argument("--fat", choices=["12", "16", "32"], default="16")
     format_removable.add_argument("--label", default="DISKFORGE")
     format_removable.add_argument("--confirm", required=True, help="Must be FORMAT")
+    floppy_status = commands.add_parser("floppy-format-status", help="Show controller-level floppy format capability")
+    floppy_format = commands.add_parser("format-floppy-controller", help="Low-level format one standard controller floppy from a device snapshot")
+    floppy_format.add_argument("manifest", type=Path)
+    floppy_format.add_argument("--confirm", required=True, help="Must be FORMAT_FLOPPY")
 
     bundle = commands.add_parser("bundle", help="Create a DiskForge multi-image bundle")
     bundle.add_argument("output", type=Path)
@@ -649,6 +654,11 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "format-removable-fat":
             result = format_removable_fat(_device_from_manifest(args.manifest), FileSystemType(f"FAT{args.fat}"),
                                           args.label, args.confirm)
+            _emit(args, result.__dict__)
+        elif args.command == "floppy-format-status":
+            _emit(args, FloppyControllerFormatter().capability_report().as_mapping())
+        elif args.command == "format-floppy-controller":
+            result = FloppyControllerFormatter().format(_device_from_manifest(args.manifest), args.confirm)
             _emit(args, result.__dict__)
         elif args.command == "bundle":
             info = create_bundle(args.images, args.output, password=_password_from_stdin(args.password_stdin),

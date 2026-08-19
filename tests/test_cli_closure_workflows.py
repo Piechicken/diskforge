@@ -120,3 +120,9 @@ def test_cli_create_and_extract_legacy_zip_container(tmp_path: Path, capsys) -> 
     unpacked = json.loads(capsys.readouterr().out)
     assert unpacked["payload_bytes"] == len(b"legacy payload")
     assert extracted.read_bytes() == b"legacy payload"
+
+
+def test_cli_floppy_format_status_reports_capability_without_executing(capsys) -> None:  # type: ignore[no-untyped-def]
+    assert main(["--json", "floppy-format-status"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert {"platform", "available", "reason"} <= set(payload)

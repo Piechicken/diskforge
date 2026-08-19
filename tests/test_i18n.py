@@ -296,3 +296,23 @@ def test_legacy_zip_workflow_is_translated_in_every_non_english_locale() -> None
         translated = CATALOG[language.code]
         assert required <= set(translated)
         assert all(translated[source] != source for source in required)
+
+
+def test_controller_floppy_format_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Type FORMAT_FLOPPY for controller-level floppy formatting",
+        "Type FORMAT_FLOPPY for controller format",
+        "Format controller floppy",
+        "Type FORMAT_FLOPPY exactly before controller-level floppy formatting.",
+        "Formatting controller floppy",
+        "Controller floppy formatted",
+        "Low-level format completed with backend verification.",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)

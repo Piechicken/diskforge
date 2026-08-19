@@ -40,6 +40,7 @@ from diskforge.core.devices import (backup_device_mbr, format_removable_fat, lis
 from diskforge.core.deployment import prepare_fat_deployment
 from diskforge.core.eltorito import export_boot_image, inspect_eltorito
 from diskforge.core.fat_layouts import FatImageLayout, create_fat_image_from_layout
+from diskforge.core.floppy_format import FloppyControllerFormatter
 from diskforge.core.filesystems import (FatImageFilesystem, ImageFilesystem, IsoImageFilesystem,
                                         create_fat_image, create_iso_from_directory, defragment_fat_image,
                                         replace_iso_file_safely)
@@ -353,9 +354,12 @@ class DeviceDialog(QDialog):
         self.format_label = QLineEdit("DISKFORGE")
         self.format_phrase = QLineEdit()
         self.format_phrase.setPlaceholderText("Type FORMAT to erase and format removable media")
+        self.floppy_phrase = QLineEdit()
+        self.floppy_phrase.setPlaceholderText("Type FORMAT_FLOPPY for controller-level floppy formatting")
         form.addRow("Removable format filesystem", self.format_fat)
         form.addRow("Removable format label", self.format_label)
         form.addRow("Type FORMAT to format", self.format_phrase)
+        form.addRow("Type FORMAT_FLOPPY for controller format", self.floppy_phrase)
         layout.addLayout(form)
         actions = QHBoxLayout()
         read = QPushButton("Read selected drive to image…")
@@ -376,10 +380,14 @@ class DeviceDialog(QDialog):
         format_fat = QPushButton("Format removable FAT media")
         format_fat.setStyleSheet("font-weight: 700; color: #B42318;")
         format_fat.clicked.connect(self._format_removable_fat)
+        format_floppy = QPushButton("Format controller floppy")
+        format_floppy.setStyleSheet("font-weight: 700; color: #B42318;")
+        format_floppy.clicked.connect(self._format_controller_floppy)
         actions.addWidget(backup_mbr)
         actions.addWidget(neutralize_mbr)
         actions.addWidget(restore_mbr)
         actions.addWidget(format_fat)
+        actions.addWidget(format_floppy)
         actions.addStretch()
         actions.addWidget(close)
         layout.addLayout(actions)
@@ -446,6 +454,16 @@ class DeviceDialog(QDialog):
         if pre_restore:
             self.done(15)
             self.setProperty("operation", ("mbr_restore", device, Path(backup), Path(pre_restore), self.phrase.text()))
+
+    def _format_controller_floppy(self) -> None:
+        device = self._selected()
+        if not device:
+            return
+        if self.floppy_phrase.text() != "FORMAT_FLOPPY":
+            QMessageBox.warning(self, "Confirmation required", "Type FORMAT_FLOPPY exactly before controller-level floppy formatting.")
+            return
+        self.done(16)
+        self.setProperty("operation", ("format_controller_floppy", device, self.floppy_phrase.text()))
 
     def _format_removable_fat(self) -> None:
         device = self._selected()
@@ -2121,6 +2139,10 @@ class MainWindow(QMainWindow):
             _, device, backup, destination, phrase = operation
             self._run_worker("Restoring device MBR", restore_device_mbr, device, backup, destination, phrase,
                              on_result=lambda result: QMessageBox.information(self, "Device MBR restored", f"Readback verification succeeded. Backup created:\n{result.backup}"))
+        elif operation[0] == "format_controller_floppy":
+            _, device, phrase = operation
+            self._run_worker("Formatting controller floppy", FloppyControllerFormatter().format, device, phrase,
+                             on_result=lambda result: QMessageBox.information(self, "Controller floppy formatted", "Low-level format completed with backend verification."))
         elif operation[0] == "format_removable_fat":
             _, device, filesystem, label, phrase = operation
             self._run_worker("Formatting removable FAT media", format_removable_fat, device, filesystem, label, phrase,

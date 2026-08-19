@@ -1029,3 +1029,35 @@ CATALOG["ja"].update({
     "Container format:": "コンテナー形式：", "Save ZIP-compatible legacy image": "ZIP 互換のレガシーイメージを保存",
     "Choose a different output file; the source image remains unchanged.": "別の出力ファイルを選択してください。元のイメージは変更されません。", "Creating ZIP-compatible legacy image": "ZIP 互換のレガシーイメージを作成中",
 })
+
+# Controller-level floppy formatting additions.
+CATALOG["zh_CN"].update({
+    "Type FORMAT_FLOPPY for controller-level floppy formatting": "输入 FORMAT_FLOPPY 以进行控制器级软盘格式化", "Type FORMAT_FLOPPY for controller format": "输入 FORMAT_FLOPPY 以进行控制器格式化",
+    "Format controller floppy": "格式化控制器软盘", "Type FORMAT_FLOPPY exactly before controller-level floppy formatting.": "进行控制器级软盘格式化前必须准确输入 FORMAT_FLOPPY。",
+    "Formatting controller floppy": "正在格式化控制器软盘", "Controller floppy formatted": "控制器软盘已格式化", "Low-level format completed with backend verification.": "低级格式化已完成并通过后端验证。",
+})
+CATALOG["es"].update({
+    "Type FORMAT_FLOPPY for controller-level floppy formatting": "Escriba FORMAT_FLOPPY para el formato de disquete a nivel de controlador", "Type FORMAT_FLOPPY for controller format": "Escriba FORMAT_FLOPPY para el formato de controlador",
+    "Format controller floppy": "Formatear disquete de controlador", "Type FORMAT_FLOPPY exactly before controller-level floppy formatting.": "Escriba FORMAT_FLOPPY exactamente antes de formatear un disquete a nivel de controlador.",
+    "Formatting controller floppy": "Formateando disquete de controlador", "Controller floppy formatted": "Disquete de controlador formateado", "Low-level format completed with backend verification.": "El formato de bajo nivel se completó con verificación del backend.",
+})
+CATALOG["fr"].update({
+    "Type FORMAT_FLOPPY for controller-level floppy formatting": "Saisissez FORMAT_FLOPPY pour le formatage de disquette au niveau contrôleur", "Type FORMAT_FLOPPY for controller format": "Saisissez FORMAT_FLOPPY pour le formatage contrôleur",
+    "Format controller floppy": "Formater une disquette contrôleur", "Type FORMAT_FLOPPY exactly before controller-level floppy formatting.": "Saisissez exactement FORMAT_FLOPPY avant le formatage de disquette au niveau contrôleur.",
+    "Formatting controller floppy": "Formatage de la disquette contrôleur", "Controller floppy formatted": "Disquette contrôleur formatée", "Low-level format completed with backend verification.": "Le formatage de bas niveau est terminé avec vérification du backend.",
+})
+CATALOG["ru"].update({
+    "Type FORMAT_FLOPPY for controller-level floppy formatting": "Введите FORMAT_FLOPPY для форматирования дискеты на уровне контроллера", "Type FORMAT_FLOPPY for controller format": "Введите FORMAT_FLOPPY для форматирования контроллера",
+    "Format controller floppy": "Форматировать дискету контроллера", "Type FORMAT_FLOPPY exactly before controller-level floppy formatting.": "Перед форматированием дискеты на уровне контроллера введите точно FORMAT_FLOPPY.",
+    "Formatting controller floppy": "Форматирование дискеты контроллера", "Controller floppy formatted": "Дискета контроллера отформатирована", "Low-level format completed with backend verification.": "Низкоуровневое форматирование завершено с проверкой бэкендом.",
+})
+CATALOG["ar"].update({
+    "Type FORMAT_FLOPPY for controller-level floppy formatting": "اكتب FORMAT_FLOPPY لتهيئة القرص المرن على مستوى المتحكم", "Type FORMAT_FLOPPY for controller format": "اكتب FORMAT_FLOPPY لتهيئة المتحكم",
+    "Format controller floppy": "تهيئة قرص مرن للمتحكم", "Type FORMAT_FLOPPY exactly before controller-level floppy formatting.": "اكتب FORMAT_FLOPPY بدقة قبل تهيئة القرص المرن على مستوى المتحكم.",
+    "Formatting controller floppy": "جارٍ تهيئة قرص مرن للمتحكم", "Controller floppy formatted": "تمت تهيئة قرص مرن للمتحكم", "Low-level format completed with backend verification.": "اكتملت التهيئة منخفضة المستوى مع تحقق الخلفية.",
+})
+CATALOG["ja"].update({
+    "Type FORMAT_FLOPPY for controller-level floppy formatting": "コントローラーレベルのフロッピーフォーマットには FORMAT_FLOPPY と入力", "Type FORMAT_FLOPPY for controller format": "コントローラーフォーマットには FORMAT_FLOPPY と入力",
+    "Format controller floppy": "コントローラーフロッピーをフォーマット", "Type FORMAT_FLOPPY exactly before controller-level floppy formatting.": "コントローラーレベルのフロッピーフォーマット前に FORMAT_FLOPPY を正確に入力してください。",
+    "Formatting controller floppy": "コントローラーフロッピーをフォーマット中", "Controller floppy formatted": "コントローラーフロッピーをフォーマットしました", "Low-level format completed with backend verification.": "低レベルフォーマットがバックエンド検証付きで完了しました。",
+})
