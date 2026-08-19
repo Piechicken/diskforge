@@ -17,7 +17,7 @@ DiskForge v0.7.0 resolves the historical-media interoperability path with sample
 
 ### Validation
 
-The release candidate adds synthetic regression coverage for a valid unlabeled 360 KB FAT12 superfloppy, `.IMA` aliases, non-executing text/archive/executable preview classification, seven-language preview labels, and application icon loading. Both supplied historical floppy images were also opened read-only and used to verify actual DOS executable, text, and InstallShield package preview classification. The full strict suite completes with 87 passing tests and no warnings; all three offscreen desktop smoke scripts emit zero bytes on standard error.
+The release candidate adds synthetic regression coverage for a valid unlabeled 360 KB FAT12 superfloppy, `.IMA` aliases, non-executing text/archive/executable preview classification, seven-language preview labels, and application icon loading. Both supplied historical floppy images were also opened read-only and used to verify actual DOS executable, text, and InstallShield package preview classification. The full strict suite completes with 89 passing tests and no warnings; all three offscreen desktop smoke scripts emit zero bytes on standard error.
 
 ## v0.6.0 — Converged Boot, Deployment, Virtual-Disk, and Workflow Studio
 
