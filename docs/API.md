@@ -34,6 +34,8 @@ print(result.destination)
 | `client.partitions(image)` | Return validated MBR/GPT partition entries. | Never opens or writes a partition. |
 | `client.filesystem(..., partition_index=N)` | Open one explicitly selected, validated MBR/GPT partition in a context manager. | FAT retains the existing optional writable path; NTFS, EXT, classic HFS, and HFS+ are routed at their exact validated byte offset through the read-only backend. No first-partition inference occurs, and resources are always closed. |
 | `client.replace_iso_file(source, iso_path, replacement, destination)` | Replace one existing equal-size ISO9660 file into a newly written ISO. | Source ISO and replacement source stay unchanged; output is reopened and verified. |
+| `client.inspect_imd(source)` | Parse IMD track and sector records without source mutation. | Reports whether exact RAW flattening can be proven; it does not treat IMD as a writable filesystem. |
+| `client.export_imd_to_raw(source, destination)` | Export a proven rectangular normal-data IMD layout to a new RAW file. | Requires a new local destination; irregular/mapped/missing/deleted/bad layouts are rejected. |
 | `client.mount_capability()` | Report the local OS read-only mount backend. | Diagnostic only; never starts a mount. |
 | `client.mount_read_only(image)` / `client.unmount(session)` | Create and release a system-backed image mount session. | Read-only only; callers retain and explicitly release the returned session. |
 | `client.filesystem(...)` | Open an image filesystem in a context manager. | Resources are always closed. ISO, NTFS, EXT, HFS, HFS+, and safe ZIP single-image sessions are read-only. A ZIP payload is private temporary data removed when the context ends. |
@@ -70,6 +72,18 @@ outputs = client.extract("archive.zip", ["/README.TXT"], "extracted")
 ```
 
 `client.filesystem("archive.zip", writable=True)`, `client.inject("archive.zip", ...)`, `client.move_fat("archive.zip", ...)`, and `client.convert("archive.zip", ...)` are deliberately rejected. ZIP containers are not generic archives, recursive image sources, or filesystem-editing targets; multiple entries, directories, unsafe names, encryption, unknown compression methods, empty/oversized/unrecognizable payloads, and all ZIP writes are rejected.
+
+## IMD inspection and strict RAW export
+
+`inspect_imd()` reads ImageDisk track records without changing the container and returns its text description, geometry, sector data types, and an `exportable` proof result. `export_imd_to_raw()` is deliberately separate from general conversion: it creates a new RAW file only when every track proves a complete rectangular CHS layout with fixed sector count and size, consecutive `1..N` IDs, no optional cylinder/head maps, and normal (including normal compressed-fill) data in every sector.
+
+```python
+inspection = client.inspect_imd("legacy.imd")
+if inspection.exportable:
+    result = client.export_imd_to_raw("legacy.imd", "exported.img")
+```
+
+Irregular geometry, variable layouts, duplicate tracks, maps, missing/deleted/bad sectors, trailing bytes, source writes, output overwrite, device targets, IMD writing, and bitstream/flux reconstruction are outside this contract.
 
 ## FAT deleted root-file candidate recovery
 

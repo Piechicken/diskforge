@@ -17,6 +17,7 @@ from .core.deployment import prepare_fat_deployment
 from .core.ext_inject import ExtFileInjector
 from .core.hfs_create import HfsImageCreator
 from .core.hfs_inject import HfsFileInjector
+from .core.imd import export_imd_to_raw, inspect_imd
 from .core.device_queue import DeviceReadRequest, read_device_queue
 from .core.devices import (backup_device_mbr, compare_image_with_device, format_removable_fat,
                            neutralize_device_mbr, restore_device_mbr)
@@ -65,6 +66,11 @@ def parser() -> argparse.ArgumentParser:
 
     info = commands.add_parser("info", help="Inspect image metadata")
     info.add_argument("image", type=Path)
+    imd_info = commands.add_parser("imd-info", help="Inspect IMD floppy-sector records without modifying the source")
+    imd_info.add_argument("image", type=Path)
+    convert_imd = commands.add_parser("convert-imd", help="Export only a strictly proven rectangular normal-data IMD layout to a new RAW image")
+    convert_imd.add_argument("source", type=Path)
+    convert_imd.add_argument("destination", type=Path)
 
     listing = commands.add_parser("list", help="List files in a browsable image or explicit validated partition")
     listing.add_argument("image", type=Path)
@@ -505,6 +511,24 @@ def main(argv: list[str] | None = None) -> int:
                 "virtual_bytes": info.virtual_size, "filesystem": info.filesystem.value,
                 "writable": info.writable, "notes": list(info.notes), "comment": metadata.comment,
             })
+        elif args.command == "imd-info":
+            inspection = inspect_imd(args.image)
+            _emit(args, {
+                "source": str(inspection.source), "description": inspection.description,
+                "bytes": inspection.source_bytes, "tracks": len(inspection.tracks),
+                "exportable": inspection.exportable, "export_reason": inspection.export_reason,
+                "cylinders": inspection.cylinders, "heads": inspection.heads,
+                "sectors_per_track": inspection.sectors_per_track,
+                "bytes_per_sector": inspection.bytes_per_sector, "raw_bytes": inspection.raw_bytes,
+                "track_records": [{
+                    "mode": track.mode, "cylinder": track.cylinder, "head": track.head,
+                    "sector_count": len(track.sectors), "optional_maps": track.has_optional_maps,
+                    "sector_types": [sector.data_type for sector in track.sectors],
+                } for track in inspection.tracks],
+            }, inspection.export_reason)
+        elif args.command == "convert-imd":
+            destination = export_imd_to_raw(args.source, args.destination)
+            _emit(args, {"source": str(args.source), "destination": str(destination)}, str(destination))
         elif args.command == "list":
             with _read_only_filesystem(args.image, partition_index=args.partition) as fs:
                 entries = fs.list_entries(args.path)

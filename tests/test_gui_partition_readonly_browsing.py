@@ -195,3 +195,11 @@ def test_gui_deleted_fat_recovery_worker_preserves_read_only_partition_route(
         "image": source, "read_only": True, "partition_index": 2, "slot_index": 17,
         "destination": destination, "token": "token", "closed": True,
     }
+
+
+
+def test_gui_imd_inspection_action_is_available_without_a_writable_image(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window._update_action_state()
+    assert window.action_imd.isEnabled()

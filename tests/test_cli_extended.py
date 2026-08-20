@@ -141,3 +141,25 @@ def test_cli_lists_and_recovers_conservative_deleted_fat_candidate(tmp_path: Pat
     assert sha256_file(image) == before
     assert main(["recover-deleted-fat", str(image), str(candidate["slot_index"]), str(output)]) == 2
     assert str(output) in capsys.readouterr().err
+
+
+
+def test_cli_imd_info_and_strict_raw_export(tmp_path: Path, capsys) -> None:
+    source = tmp_path / "cli.imd"
+    first = bytes(range(128))
+    source.write_bytes(b"IMD CLI\x1a" + bytes((0, 0, 0, 2, 0)) + b"\x01\x02" + b"\x01" + first + b"\x02Q")
+    assert main(["--json", "imd-info", str(source)]) == 0
+    info = json.loads(capsys.readouterr().out)
+    assert info["exportable"] is True
+    assert info["raw_bytes"] == 256
+    destination = tmp_path / "cli.img"
+    assert main(["--json", "convert-imd", str(source), str(destination)]) == 0
+    assert json.loads(capsys.readouterr().out)["destination"] == str(destination)
+    assert destination.read_bytes() == first + b"Q" * 128
+
+
+def test_cli_imd_export_rejects_deleted_sector_data(tmp_path: Path, capsys) -> None:
+    source = tmp_path / "deleted.imd"
+    source.write_bytes(b"IMD x\x1a" + bytes((0, 0, 0, 1, 0)) + b"\x01\x03" + bytes(128))
+    assert main(["convert-imd", str(source), str(tmp_path / "blocked.img")]) == 2
+    assert "cannot be safely exported" in capsys.readouterr().err

@@ -133,3 +133,22 @@ def test_public_api_lists_and_recovers_conservative_deleted_fat_candidate(tmp_pa
     output = client.recover_deleted_fat(image, candidate.slot_index, tmp_path / "recovered-api.bin")
     assert output.read_bytes() == payload.read_bytes()
     assert sha256_file(image) == before
+
+
+
+def test_public_api_inspects_and_exports_strict_imd_layout(tmp_path: Path) -> None:
+    source = tmp_path / "api.imd"
+    first = bytes(range(128))
+    source.write_bytes(b"IMD API\x1a" + bytes((0, 0, 0, 2, 0)) + b"\x01\x02" + b"\x01" + first + b"\x02R")
+    client = DiskForgeClient()
+    inspection = client.inspect_imd(source)
+    assert inspection.exportable
+    result = client.export_imd_to_raw(source, tmp_path / "api.img")
+    assert result.operation == "export_imd_to_raw"
+    assert result.destination is not None
+    assert result.destination.read_bytes() == first + b"R" * 128
+
+    unsafe = tmp_path / "unsafe.imd"
+    unsafe.write_bytes(b"IMD x\x1a" + bytes((0, 0, 0, 1, 0)) + b"\x01\x03" + bytes(128))
+    with pytest.raises(DiskForgeError, match="cannot be safely exported"):
+        client.export_imd_to_raw(unsafe, tmp_path / "blocked.img")

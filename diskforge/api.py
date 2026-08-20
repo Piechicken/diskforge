@@ -13,6 +13,7 @@ from typing import Iterator, Sequence
 from .core.browse_session import materialize_browsable_image
 from .core.compare import ComparisonResult, compare_streams
 from .core.fat_recovery import DeletedFatFileCandidate
+from .core.imd import ImdInspection, export_imd_to_raw, inspect_imd
 from .core.filesystems import (FatImageFilesystem, ImageFilesystem, IsoImageFilesystem,
                                create_fat_image, replace_iso_file_safely)
 from .core.formats import Converter, convert_image, inspect_image
@@ -73,6 +74,16 @@ class DiskForgeClient:
     def partitions(self, image: Path | str) -> list[DiskPartition]:
         """Return validated MBR/GPT entries without selecting or mutating a partition."""
         return list_partitions(image)
+
+    def inspect_imd(self, source: Path | str, *, token: CancellationToken | None = None) -> ImdInspection:
+        """Inspect IMD track records without mutating or flattening the source."""
+        return inspect_imd(source, token)
+
+    def export_imd_to_raw(self, source: Path | str, destination: Path | str, *,
+                          token: CancellationToken | None = None) -> ApiResult:
+        """Export only a proven normal-data rectangular IMD layout to a new RAW file."""
+        output = export_imd_to_raw(source, destination, token)
+        return ApiResult("export_imd_to_raw", Path(source), output, "Strict IMD-to-RAW export")
 
     def replace_iso_file(self, source: Path | str, iso_path: str, replacement: Path | str,
                          destination: Path | str, *, overwrite: bool = False) -> ApiResult:

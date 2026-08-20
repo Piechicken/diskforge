@@ -507,3 +507,32 @@ def test_deleted_fat_recovery_workflow_is_translated_in_every_non_english_locale
         translated = CATALOG[language.code]
         assert required <= set(translated)
         assert all(translated[source] != source for source in required)
+
+
+
+def test_imd_inspection_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect / export IMD…",
+        "Inspect IMD image",
+        "ImageDisk files (*.imd);;All files (*)",
+        "Inspecting IMD image",
+        "IMD inspection",
+        "Tracks",
+        "RAW export",
+        "Available",
+        "Unavailable",
+        "Reason",
+        "Export proven RAW…",
+        "Export proven RAW",
+        "Raw image (*.img *.ima *.bin);;All files (*)",
+        "Exporting IMD to RAW",
+        "Exported proven IMD layout to {path}",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)

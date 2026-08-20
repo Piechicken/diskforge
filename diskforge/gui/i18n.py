@@ -1627,3 +1627,49 @@ CATALOG["ja"].update({
     "Recovered deleted-file candidate to {path}": "削除済みファイル候補を {path} に復元しました",
 })
 TRANSLATABLE = _catalog_keys()
+
+
+# v0.10 IMD read-only inspection and strict RAW export.
+CATALOG["zh_CN"].update({
+    "Inspect / export IMD…": "检查/导出 IMD…", "Inspect IMD image": "检查 IMD 映像", "ImageDisk files (*.imd);;All files (*)": "ImageDisk 文件 (*.imd);;所有文件 (*)",
+    "Inspecting IMD image": "正在检查 IMD 映像", "IMD inspection": "IMD 检查", "Tracks": "磁道", "RAW export": "RAW 导出",
+    "Available": "可用", "Unavailable": "不可用", "Reason": "原因", "Export proven RAW…": "导出已验证的 RAW…",
+    "Export proven RAW": "导出已验证的 RAW", "Raw image (*.img *.ima *.bin);;All files (*)": "原始映像 (*.img *.ima *.bin);;所有文件 (*)",
+    "Exporting IMD to RAW": "正在将 IMD 导出为 RAW", "Exported proven IMD layout to {path}": "已将已验证的 IMD 布局导出至 {path}",
+})
+CATALOG["es"].update({
+    "Inspect / export IMD…": "Inspeccionar / exportar IMD…", "Inspect IMD image": "Inspeccionar imagen IMD", "ImageDisk files (*.imd);;All files (*)": "Archivos ImageDisk (*.imd);;Todos los archivos (*)",
+    "Inspecting IMD image": "Inspeccionando imagen IMD", "IMD inspection": "Inspección IMD", "Tracks": "Pistas", "RAW export": "Exportación RAW",
+    "Available": "Disponible", "Unavailable": "No disponible", "Reason": "Motivo", "Export proven RAW…": "Exportar RAW comprobado…",
+    "Export proven RAW": "Exportar RAW comprobado", "Raw image (*.img *.ima *.bin);;All files (*)": "Imagen sin formato (*.img *.ima *.bin);;Todos los archivos (*)",
+    "Exporting IMD to RAW": "Exportando IMD a RAW", "Exported proven IMD layout to {path}": "Diseño IMD comprobado exportado a {path}",
+})
+CATALOG["fr"].update({
+    "Inspect / export IMD…": "Inspecter / exporter IMD…", "Inspect IMD image": "Inspecter une image IMD", "ImageDisk files (*.imd);;All files (*)": "Fichiers ImageDisk (*.imd);;Tous les fichiers (*)",
+    "Inspecting IMD image": "Inspection de l’image IMD", "IMD inspection": "Inspection IMD", "Tracks": "Pistes", "RAW export": "Export RAW",
+    "Available": "Disponible", "Unavailable": "Indisponible", "Reason": "Motif", "Export proven RAW…": "Exporter le RAW vérifié…",
+    "Export proven RAW": "Exporter le RAW vérifié", "Raw image (*.img *.ima *.bin);;All files (*)": "Image brute (*.img *.ima *.bin);;Tous les fichiers (*)",
+    "Exporting IMD to RAW": "Exportation d’IMD vers RAW", "Exported proven IMD layout to {path}": "Disposition IMD vérifiée exportée vers {path}",
+})
+CATALOG["ru"].update({
+    "Inspect / export IMD…": "Проверить / экспортировать IMD…", "Inspect IMD image": "Проверить образ IMD", "ImageDisk files (*.imd);;All files (*)": "Файлы ImageDisk (*.imd);;Все файлы (*)",
+    "Inspecting IMD image": "Проверка образа IMD", "IMD inspection": "Проверка IMD", "Tracks": "Дорожки", "RAW export": "Экспорт RAW",
+    "Available": "Доступно", "Unavailable": "Недоступно", "Reason": "Причина", "Export proven RAW…": "Экспортировать проверенный RAW…",
+    "Export proven RAW": "Экспортировать проверенный RAW", "Raw image (*.img *.ima *.bin);;All files (*)": "Необработанный образ (*.img *.ima *.bin);;Все файлы (*)",
+    "Exporting IMD to RAW": "Экспорт IMD в RAW", "Exported proven IMD layout to {path}": "Проверенная структура IMD экспортирована в {path}",
+})
+CATALOG["ar"].update({
+    "Inspect / export IMD…": "فحص / تصدير IMD…", "Inspect IMD image": "فحص صورة IMD", "ImageDisk files (*.imd);;All files (*)": "ملفات ImageDisk ‏(*.imd)؛؛كل الملفات (*)",
+    "Inspecting IMD image": "جارٍ فحص صورة IMD", "IMD inspection": "فحص IMD", "Tracks": "المسارات", "RAW export": "تصدير RAW",
+    "Available": "متاح", "Unavailable": "غير متاح", "Reason": "السبب", "Export proven RAW…": "تصدير RAW المثبت…",
+    "Export proven RAW": "تصدير RAW المثبت", "Raw image (*.img *.ima *.bin);;All files (*)": "صورة خام (*.img *.ima *.bin)؛؛كل الملفات (*)",
+    "Exporting IMD to RAW": "جارٍ تصدير IMD إلى RAW", "Exported proven IMD layout to {path}": "تم تصدير تخطيط IMD المثبت إلى {path}",
+})
+CATALOG["ja"].update({
+    "Inspect / export IMD…": "IMD を検査 / エクスポート…", "Inspect IMD image": "IMD イメージを検査", "ImageDisk files (*.imd);;All files (*)": "ImageDisk ファイル (*.imd);;すべてのファイル (*)",
+    "Inspecting IMD image": "IMD イメージを検査中", "IMD inspection": "IMD 検査", "Tracks": "トラック", "RAW export": "RAW エクスポート",
+    "Available": "利用可能", "Unavailable": "利用不可", "Reason": "理由", "Export proven RAW…": "検証済み RAW をエクスポート…",
+    "Export proven RAW": "検証済み RAW をエクスポート", "Raw image (*.img *.ima *.bin);;All files (*)": "RAW イメージ (*.img *.ima *.bin);;すべてのファイル (*)",
+    "Exporting IMD to RAW": "IMD を RAW にエクスポート中", "Exported proven IMD layout to {path}": "検証済み IMD レイアウトを {path} にエクスポートしました",
+})
+TRANSLATABLE = _catalog_keys()

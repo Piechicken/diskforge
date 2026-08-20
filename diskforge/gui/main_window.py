@@ -40,6 +40,7 @@ from diskforge.core.deployment import prepare_fat_deployment
 from diskforge.core.ext_inject import ExtFileInjector
 from diskforge.core.hfs_create import HfsImageCreator
 from diskforge.core.hfs_inject import HfsFileInjector
+from diskforge.core.imd import export_imd_to_raw, inspect_imd
 from diskforge.core.eltorito import export_boot_image, inspect_eltorito
 from diskforge.core.fat_layouts import FatImageLayout, create_fat_image_from_layout
 from diskforge.core.floppy_format import FloppyControllerFormatter
@@ -678,6 +679,7 @@ class MainWindow(QMainWindow):
         self.action_devices = self._action("Read / write physical drive…", None, self.physical_drive)
         self.action_device_read_queue = self._action("Batch read physical media…", None, self.batch_read_physical_media)
         self.action_batch = self._action("Run batch recipe…", None, self.run_batch)
+        self.action_imd = self._action("Inspect / export IMD…", None, self.inspect_imd_image)
         self.action_batch_designer = self._action("Design batch workflow…", None, self.design_batch)
         self.action_batch_edit = self._action("Edit batch recipe…", None, self.edit_batch)
         self.action_sfx = self._action("Create self-extracting bundle…", None, self.create_sfx)
@@ -723,7 +725,7 @@ class MainWindow(QMainWindow):
         menu_view = self.menuBar().addMenu("&View")
         menu_view.addActions([self.action_view_details, self.action_view_icons])
         menu_tools = self.menuBar().addMenu("&Tools")
-        menu_tools.addActions([self.action_devices, self.action_device_read_queue, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
+        menu_tools.addActions([self.action_devices, self.action_device_read_queue, self.action_imd, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
         menu_language = menu_tools.addMenu("&Language")
         self.language_actions: list[QAction] = []
         try:
@@ -1896,6 +1898,68 @@ class MainWindow(QMainWindow):
             return fs.rename(path, value)
         finally:
             fs.close()
+
+    def inspect_imd_image(self) -> None:
+        """Inspect an IMD source without mutation and optionally export a proven RAW layout."""
+        current = self.current_path if self.current_path and self.current_path.suffix.casefold() == ".imd" else None
+        source_name = str(current) if current else ""
+        source, accepted = QFileDialog.getOpenFileName(self, self._localized("Inspect IMD image"), source_name,
+                                                        self._localized("ImageDisk files (*.imd);;All files (*)"))
+        if not accepted or not source:
+            return
+        source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting IMD image"),
+            lambda progress=None, token=None: inspect_imd(source_path, token),
+            on_result=lambda inspection: self._show_imd_inspection(inspection),
+        )
+
+    def _show_imd_inspection(self, inspection) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self._localized("IMD inspection"))
+        dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        summary = (
+            f"{self._localized('Tracks')}: {len(inspection.tracks)}\n"
+            f"{self._localized('RAW export')}: {self._localized('Available') if inspection.exportable else self._localized('Unavailable')}\n"
+            f"{self._localized('Reason')}: {inspection.export_reason}"
+        )
+        header = QLabel(summary)
+        header.setWordWrap(True)
+        layout.addWidget(header)
+        details = QPlainTextEdit()
+        details.setReadOnly(True)
+        details.setPlainText(
+            f"{inspection.description}\n\n" + "\n".join(
+                f"C{track.cylinder} H{track.head}: {len(track.sectors)} sectors; "
+                f"types {', '.join(str(sector.data_type) for sector in track.sectors)}"
+                for track in inspection.tracks
+            )
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        export_button = None
+        if inspection.exportable:
+            export_button = buttons.addButton(self._localized("Export proven RAW…"), QDialogButtonBox.ButtonRole.ActionRole)
+            export_button.clicked.connect(lambda: self._choose_imd_raw_destination(inspection, dialog))
+        buttons.rejected.connect(dialog.reject)
+        buttons.accepted.connect(dialog.accept)
+        layout.addWidget(buttons)
+        dialog.exec()
+
+    def _choose_imd_raw_destination(self, inspection, dialog: QDialog) -> None:
+        destination, accepted = QFileDialog.getSaveFileName(
+            self, self._localized("Export proven RAW"), str(inspection.source.with_suffix(".img")),
+            self._localized("Raw image (*.img *.ima *.bin);;All files (*)"),
+        )
+        if not accepted or not destination:
+            return
+        dialog.accept()
+        self._run_worker(
+            self._localized("Exporting IMD to RAW"),
+            lambda progress=None, token=None: export_imd_to_raw(inspection.source, Path(destination), token),
+            on_result=lambda output: self.log(self._localized("Exported proven IMD layout to {path}").format(path=output)),
+        )
 
     def move_selected(self) -> None:
         """Move a selected regular file to an existing FAT directory without overwrite."""
