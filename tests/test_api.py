@@ -71,3 +71,28 @@ def test_public_api_moves_regular_fat_file_and_rejects_directory_move(tmp_path: 
     assert client.extract(image, ["/archive/payload.txt"], tmp_path / "out")[0].read_text(encoding="utf-8") == "SDK move payload"
     with pytest.raises(DiskForgeError, match="directory moves"):
         client.move_fat(image, "/archive", "/")
+
+
+
+def test_public_api_reads_zip_image_container_and_rejects_writable_session(tmp_path: Path) -> None:
+    import zipfile
+
+    client = DiskForgeClient()
+    image = tmp_path / "inside.img"
+    client.create_fat(image, size_bytes=8 * 1024 * 1024, filesystem=FileSystemType.FAT16, label="ZIPAPI")
+    payload = tmp_path / "payload.txt"
+    payload.write_text("SDK ZIP payload", encoding="utf-8")
+    client.inject(image, [payload])
+    archive = tmp_path / "inside.zip"
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as container:
+        container.write(image, image.name)
+
+    with client.filesystem(archive) as filesystem:
+        assert [entry.name for entry in filesystem.list_entries("/")] == ["payload.txt"]
+    extracted = client.extract(archive, ["/payload.txt"], tmp_path / "out")
+    assert extracted[0].read_text(encoding="utf-8") == "SDK ZIP payload"
+    with pytest.raises(DiskForgeError, match="read-only"):
+        with client.filesystem(archive, writable=True):
+            pass
+    with pytest.raises(DiskForgeError, match="read-only"):
+        client.inject(archive, [payload])

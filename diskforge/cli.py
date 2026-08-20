@@ -4,10 +4,12 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
 from .core.batch import BatchRunner, write_example_batch
+from .core.browse_session import materialize_browsable_image
 from .core.bootsector import apply_boot_template, edit_fat_boot_properties, import_boot_sector_file, list_boot_templates
 from .core.bundle import create_bundle, extract_bundle, inspect_bundle
 from .core.compare import compare_streams
@@ -408,6 +410,8 @@ def _device_from_manifest(path: Path) -> DeviceInfo:
 
 def _filesystem(image: Path, *, writable: bool = False, partition_index: int | None = None):
     info = inspect_image(image, QemuImgConverter())
+    if writable and info.image_format == ImageFormat.ZIP:
+        raise DiskForgeError("ZIP image containers are read-only; extract or open the payload through a read-only workflow.")
     if partition_index is not None:
         return open_partition_filesystem(image, partition_index, writable=writable)
     if info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
@@ -417,6 +421,20 @@ def _filesystem(image: Path, *, writable: bool = False, partition_index: int | N
     if info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS, FileSystemType.HFS_PLUS}:
         return SleuthKitImageFilesystem(image, info.filesystem)
     raise SystemExit("Image filesystem is not browsable. Supported: FAT, ISO, NTFS, EXT, HFS and HFS+ with optional backend.")
+
+
+@contextmanager
+def _read_only_filesystem(image: Path, *, partition_index: int | None = None):
+    """Open a browsable image, materializing safe ZIP/container inputs temporarily."""
+    session = materialize_browsable_image(image, converter=QemuImgConverter())
+    filesystem = None
+    try:
+        filesystem = _filesystem(session.image, partition_index=partition_index)
+        yield filesystem
+    finally:
+        if filesystem is not None:
+            filesystem.close()
+        session.close()
 
 
 def _entry_json(entry) -> dict[str, Any]:
@@ -479,22 +497,16 @@ def main(argv: list[str] | None = None) -> int:
                 "writable": info.writable, "notes": list(info.notes), "comment": metadata.comment,
             })
         elif args.command == "list":
-            fs = _filesystem(args.image, partition_index=args.partition)
-            try:
+            with _read_only_filesystem(args.image, partition_index=args.partition) as fs:
                 entries = fs.list_entries(args.path)
                 _emit(args, [_entry_json(entry) for entry in entries], "\n".join(
                     f"{'d' if entry.is_dir else '-'} {entry.size:>12} {entry.attributes:>10} {entry.path}" for entry in entries
                 ))
-            finally:
-                fs.close()
         elif args.command == "extract":
-            fs = _filesystem(args.image, partition_index=args.partition)
-            try:
+            with _read_only_filesystem(args.image, partition_index=args.partition) as fs:
                 outputs = fs.extract(args.paths, args.destination, progress, policy=_policy(args))
                 print() if outputs and not args.json else None
                 _emit(args, {"outputs": [str(output) for output in outputs]}, "\n".join(str(output) for output in outputs))
-            finally:
-                fs.close()
         elif args.command == "inject":
             fs = _filesystem(args.image, writable=True, partition_index=args.partition)
             try:
@@ -749,12 +761,9 @@ def main(argv: list[str] | None = None) -> int:
             _emit(args, result.__dict__, f"{result.reason}; first difference: {result.first_difference}")
             return 0 if result.equal else 1
         elif args.command == "export-listing":
-            filesystem = _filesystem(args.image, partition_index=args.partition)
-            try:
+            with _read_only_filesystem(args.image, partition_index=args.partition) as filesystem:
                 output = export_directory_listing(filesystem, args.image, args.output, html=args.html)
                 _emit(args, {"path": str(output), "format": "html" if args.html else "text"}, str(output))
-            finally:
-                filesystem.close()
         elif args.command == "defragment-fat":
             output = defragment_fat_image(args.source, args.destination, progress=progress)
             print() if not args.json else None

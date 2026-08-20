@@ -55,7 +55,7 @@ DiskForge 将专业映像管理流程整合到统一界面。主窗口包含映�
 | 工作流 | 原生能力 | 说明 |
 |---|---|---|
 | 创建映像 | RAW/IMG/IMA、FAT12、FAT16、FAT32、经过验证的老式 FAT12 软盘预设、DMF 布局 FAT12、ISO9660/Joliet/Rock Ridge/UDF、可选经典 HFS | 可创建标准可编辑 FAT 映像、明确的 IMG/IMA 老式软盘预设或受支持自定义 CHS 几何、DMF 映像，以及含可选 El Torito 启动介质的 ISO。显式可用 `hformat` 时，DiskForge 可从 800 KiB 起创建新的独立经典 HFS 常规文件映像；HFS+ 始终保持只读。 |
-| 浏览与提取 | FAT12/16/32（包含经过验证的无显示标签旧式 DOS 软盘）、ISO9660/Joliet、固定 VHD 数据视图，以及可选 NTFS/EXT/经典 HFS/HFS+ 只读后端 | 目录树和表格采用确定性分页与排序缓存，不会无界加载大目录。经验证的 MBR/GPT 分区始终按显式表索引选择：FAT 保留现有编辑路径，NTFS/EXT/经典 HFS/HFS+ 仅按精确验证偏移经只读后端打开。双击会打开无需系统默认程序的文档式工作区：文本可查找、另存副本，且仅在可写 FAT 条目中可编辑后保存回映像；图像、常见压缩包、传统安装包、可执行文件和二进制数据均以安全、不执行的方式检查。固定 VHD 以排除尾部元数据的临时 RAW 只读视图打开。 |
+| 浏览与提取 | FAT12/16/32（包含经过验证的无显示标签旧式 DOS 软盘）、ISO9660/Joliet、安全单映像 ZIP 容器、固定 VHD 数据视图，以及可选 NTFS/EXT/经典 HFS/HFS+ 只读后端 | 普通 ZIP 仅在恰有一个安全的根级映像载荷时，才会物化到自动清理的私有只读会话；它绝不会变为可写或可转换映像。目录树和表格采用确定性分页与排序缓存，不会无界加载大目录。经验证的 MBR/GPT 分区始终按显式表索引选择：FAT 保留现有编辑路径，NTFS/EXT/经典 HFS/HFS+ 仅按精确验证偏移经只读后端打开。双击会打开无需系统默认程序的文档式工作区：文本可查找、另存副本，且仅在可写 FAT 条目中可编辑后保存回映像；图像、常见压缩包、传统安装包、可执行文件和二进制数据均以安全、不执行的方式检查。固定 VHD 以排除尾部元数据的临时 RAW 只读视图打开。 |
 | 修改映像内容 | FAT 文件/目录注入、删除、改名、跨目录移动常规文件、时间属性编辑；安全的 ISO 重建编辑；可选 NTFS/EXT/经典 HFS 受控注入 | FAT IMG 与 IMA 共享完整可编辑工作流。常规文件可移动到已有目录而不覆盖；根目录、缺失或非目录目标、同名冲突、只读会话和所有目录移动均会在修改前被拒绝。同目录改名仍是独立操作。ISO 编辑始终输出新的重建映像并核验暂存内容，保留 Rock Ridge/UDF；仅可保留已验证的单初始 El Torito 条目，多启动、混合或歧义启动布局会被拒绝。若显式提供 `ntfsprogs`、`e2fsprogs` 或 `hfsutils` 后端，NTFS/EXT/经典 HFS 只能将新的根目录常规文件写入独立且已验证的输出映像；不允许原映像、分区偏移、元数据、改名、删除或覆盖写入。经典 HFS 仅传输原始数据 fork；HFS+ 保持只读。 |
 | 格式转换 | 原生 RAW/IMG/IMA 与固定 VHD | IMG 与 IMA 转换会保留用户明确选择的原始映像扩展名；VHDX、VMDK、QCOW2 通过显式配置的 `qemu-img` 适配器处理。 |
 | FAT 紧凑整理 | 基于重建的碎片整理 | 输出新映像，原映像保留作为恢复点。 |
@@ -93,6 +93,7 @@ diskforge-cli list demo.img
 diskforge-cli list partitioned.img --partition 2
 diskforge-cli export-listing partitioned.img partition-report.html --html --partition 2
 diskforge-cli move-fat demo.img /README.TXT /DOCS  # /DOCS 必须已存在；仅常规文件
+diskforge-cli list archived-image.zip  # 仅一个安全根级映像载荷；只读
 diskforge-cli create-legacy-floppy win16-disk --profile pc525_dsdd_360 --format ima
 diskforge-cli create-legacy-floppy custom-disk --format img --cylinders 80 --heads 2 --sectors-per-track 9
 diskforge-cli create-iso folder bootable.iso --boot-image boot.img --boot-media noemul
@@ -130,13 +131,14 @@ python scripts/build.py
 | VHDX / VMDK / QCOW2 | 配置适配器后支持 | 通过转换工作流 | 配置适配器后支持 |
 | NTFS / EXT2 / EXT3 / EXT4 | 签名或分区提示 | 可选 Sleuth Kit 可在 offset-0 或显式选择的经验证 MBR/GPT 分区读取/列举/提取；支持文本/HTML 目录报告。配置 `ntfsprogs` / `e2fsprogs` 后，受控注入仍仅限独立 offset-0 新输出 | 浏览始终只读。注入仅外部后端：独立 offset-0 卷、新根目录常规文件、拒绝覆盖；必须核验源 SHA-256、读回 SHA-256 和文件系统。 |
 | HFS / HFS+ | 签名或分区提示 | 可选 Sleuth Kit 可在 offset-0 或显式选择的经验证 MBR/GPT 分区读取/列举/数据 fork 提取；支持文本/HTML 目录报告。经典 HFS 可通过配置的 `hfsutils` 受控注入到新输出，并创建经验证的新常规文件映像 | 分区浏览始终只读。经典 HFS 新建仅允许新常规文件、至少 800 KiB 且按 512 字节对齐、安全的 1–27 字符 ASCII 卷标；拒绝设备、分区映射、已有输出和 `-f`，并在原子提升前核验 HFS 签名与 SHA-256。注入仍限独立 offset-0 卷、新安全根目录常规文件、仅原始数据 fork、拒绝覆盖，必须核验源和每个读回载荷的 SHA-256。HFS+ 保持只读；不支持有日志 HFS+ 写入、资源 fork 重建或文件系统修复。 |
+| ZIP 单映像容器（`.zip`） | ZIP 结构与一个候选载荷 | 自动清理的临时物化后，仅可读取/列举/提取/导出报告 | 不支持创建、转换、文件系统编辑或归档写入。必须恰有一个根级、未加密、Stored/Deflated 的 `.img`、`.ima`、`.bin`、`.dd`、`.dmf`、`.iso` 或 `.hfs` 载荷，且不超过 2 GiB 并能重新识别为可浏览映像。 |
 | DMG | 签名提示 | 不原生修改 | 建议使用兼容的外部工作流。 |
 
-DiskForge 会明确暴露不支持的编辑路径，不会进行未经验证的危险写入。FAT 文件移动明确限制为一个常规文件移动到一个已有目标目录：绝不覆盖或合并条目，并且由于可用的通用目录实现采用“复制后删除”、不具备原子性，目录移动会被拒绝。若需要虚拟磁盘转换，请在 **Tools → Preferences** 中配置 `qemu-img`；NTFS/EXT/HFS/HFS+ 只读浏览需要本地 Sleuth Kit 的 `fls` 与 `icat`，可选受控注入需要显式配置 `ntfscp`/`ntfsls`/`ntfscat`、`debugfs`/`e2fsck`，或仅对经典 HFS 配置用于注入的 `hmount`/`hcopy`/`hls` 或用于已验证新建的 `hformat`。应用不会静默下载、挂载或运行外部工具。详见 [FILESYSTEM_INJECTION.md](docs/FILESYSTEM_INJECTION.md)。
+DiskForge 会明确暴露不支持的编辑路径，不会进行未经验证的危险写入。普通 ZIP 是受限的**只读单映像容器**，不是通用文件系统或转换源：必须恰有一个安全根级、未加密、Stored/Deflated 且使用认可直接映像扩展名、不超过 2 GiB 的载荷。多条目、文件夹、不安全名称、加密、未知压缩、空/过大/未知载荷、递归容器、虚拟磁盘链、转换以及所有 ZIP 写入均会拒绝；临时字节在正常关闭、错误和取消时都会删除。FAT 文件移动明确限制为一个常规文件移动到一个已有目标目录：绝不覆盖或合并条目，并且由于可用的通用目录实现采用“复制后删除”、不具备原子性，目录移动会被拒绝。若需要虚拟磁盘转换，请在 **Tools → Preferences** 中配置 `qemu-img`；NTFS/EXT/HFS/HFS+ 只读浏览需要本地 Sleuth Kit 的 `fls` 与 `icat`，可选受控注入需要显式配置 `ntfscp`/`ntfsls`/`ntfscat`、`debugfs`/`e2fsck`，或仅对经典 HFS 配置用于注入的 `hmount`/`hcopy`/`hls` 或用于已验证新建的 `hformat`。应用不会静默下载、挂载或运行外部工具。详见 [FILESYSTEM_INJECTION.md](docs/FILESYSTEM_INJECTION.md)。
 
 ## 工程质量
 
-项目自动化覆盖 FAT 创建、安全常规文件移动与高级修改、可启动 ISO 和 El Torito 检查、原创启动模板的 BPB 保留与备份、固定 VHD 临时浏览与清理、FAT 部署规划、尾部零扇区报告、原生拖放契约、全操作图形批处理编辑与无副作用预演、文档预览/查找/保存回写、目录分页遍历、完整七语言工作区、公共 API 会话、可移植设置、任务中心、字体与目录视图持久化、主题切换、跨平台光学介质识别、校验和、MBR 解析、自解压归档、物理写入保护、目录导出和 FAT 重建式整理。pytest 启用严格配置、严格标记和警告即错误；GUI 同时接受离屏启动验证。持续集成会在 Windows、Linux、macOS Intel 和 macOS Apple Silicon 上运行同一质量门槛，并打包每个原生目标。版本标签必须与项目元数据一致；若同版本 Release 已存在，工作流将失败而绝不会覆盖资产。
+项目自动化覆盖 FAT 创建、安全常规文件移动、安全 ZIP 单映像物化与清理以及高级修改、可启动 ISO 和 El Torito 检查、原创启动模板的 BPB 保留与备份、固定 VHD 临时浏览与清理、FAT 部署规划、尾部零扇区报告、原生拖放契约、全操作图形批处理编辑与无副作用预演、文档预览/查找/保存回写、目录分页遍历、完整七语言工作区、公共 API 会话、可移植设置、任务中心、字体与目录视图持久化、主题切换、跨平台光学介质识别、校验和、MBR 解析、自解压归档、物理写入保护、目录导出和 FAT 重建式整理。pytest 启用严格配置、严格标记和警告即错误；GUI 同时接受离屏启动验证。持续集成会在 Windows、Linux、macOS Intel 和 macOS Apple Silicon 上运行同一质量门槛，并打包每个原生目标。版本标签必须与项目元数据一致；若同版本 Release 已存在，工作流将失败而绝不会覆盖资产。
 
 ```bash
 QT_QPA_PLATFORM=offscreen pytest

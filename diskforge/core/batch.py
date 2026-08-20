@@ -7,10 +7,12 @@ must always go through an interactive, foreground confirmation flow.
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from .browse_session import materialize_browsable_image
 from .bundle import create_bundle, extract_bundle
 from .compare import compare_streams
 from .filesystems import (FatImageFilesystem, IsoImageFilesystem, rebuild_iso_with_changes,
@@ -204,9 +206,11 @@ class BatchRunner:
 
     @staticmethod
     def _filesystem(source: Path, *, partition_index: int | None = None, writable: bool = False):
+        info = inspect_image(source)
+        if writable and info.image_format == ImageFormat.ZIP:
+            raise DiskForgeError("Batch ZIP image containers are read-only and cannot be modified.")
         if partition_index is not None:
             return open_partition_filesystem(source, partition_index, writable=writable)
-        info = inspect_image(source)
         if info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
             return FatImageFilesystem(source, read_only=not writable)
         if info.filesystem == FileSystemType.ISO9660 or info.image_format == ImageFormat.ISO:
@@ -218,6 +222,19 @@ class BatchRunner:
                 raise DiskForgeError("Batch NTFS, EXT, HFS and HFS+ filesystem actions are read-only.")
             return SleuthKitImageFilesystem(source, info.filesystem)
         raise DiskForgeError("Batch filesystem actions require FAT, ISO, NTFS, EXT, HFS or HFS+ image content.")
+
+    @contextmanager
+    def _read_only_filesystem(self, source: Path, *, partition_index: int | None = None):
+        """Open a source through a disposable browsing session when it is a container."""
+        session = materialize_browsable_image(source, converter=self.converter)
+        filesystem = None
+        try:
+            filesystem = self._filesystem(session.image, partition_index=partition_index)
+            yield filesystem
+        finally:
+            if filesystem is not None:
+                filesystem.close()
+            session.close()
 
     def _run_item(self, item: dict[str, Any], kind: OperationKind) -> str | None:
         if kind == OperationKind.CONVERT:
@@ -294,13 +311,10 @@ class BatchRunner:
             return str(resized.destination)
         if kind == OperationKind.EXPORT_LISTING:
             source = Path(item["source"])
-            filesystem = self._filesystem(source, partition_index=item.get("partition"))
-            try:
+            with self._read_only_filesystem(source, partition_index=item.get("partition")) as filesystem:
                 report = export_directory_listing(
                     filesystem, source, item["destination"], html=bool(item.get("html", False)),
                 )
-            finally:
-                filesystem.close()
             return str(report)
         if kind == OperationKind.MOVE:
             source = Path(item["source"])
@@ -328,11 +342,8 @@ class BatchRunner:
                 source_paths = [Path(value) for value in source_values]
                 destinations = list(planned_paths(item["destination_root"], SequencePattern.from_mapping(item["sequence"]), len(source_paths)))
             for source, destination in zip(source_paths, destinations):
-                filesystem = self._filesystem(source, partition_index=item.get("partition"))
-                try:
+                with self._read_only_filesystem(source, partition_index=item.get("partition")) as filesystem:
                     filesystem.extract(paths, destination, policy=self._policy(item))
-                finally:
-                    filesystem.close()
             return str(destinations[-1])
         if kind == OperationKind.INJECT:
             source = Path(item["destination"])

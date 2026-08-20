@@ -19,12 +19,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional, Protocol
 
-from .models import FileSystemType, ImageFormat, ImageInfo, OperationKind, ProgressCallback
+from .models import FileSystemType, ImageFormat, ImageInfo, OperationKind, Progress, ProgressCallback
 from .storage import CancellationToken, DiskForgeError, stream_copy
 
 
 VHD_FOOTER_SIZE = 512
 VHD_COOKIE = b"conectix"
+ZIP_IMAGE_MAX_BYTES = 2 * 1024 * 1024 * 1024
+ZIP_DIRECT_IMAGE_SUFFIXES = frozenset({".img", ".ima", ".bin", ".dd", ".dmf", ".iso", ".hfs"})
 
 
 @dataclass(frozen=True)
@@ -56,6 +58,16 @@ class DynamicVhdExport:
 @dataclass(frozen=True)
 class LegacyZipImage:
     """A ZIP-compatible legacy compressed image with exactly one raw payload."""
+
+    source: Path
+    destination: Path
+    payload_name: str
+    payload_size: int
+
+
+@dataclass(frozen=True)
+class ZipImagePayload:
+    """A safely materialized single image payload from a read-only ZIP container."""
 
     source: Path
     destination: Path
@@ -381,6 +393,63 @@ def _legacy_zip_payload(archive: zipfile.ZipFile) -> zipfile.ZipInfo:
     return entry
 
 
+def _zip_image_payload(archive: zipfile.ZipFile) -> zipfile.ZipInfo:
+    """Return the only safe directly-browsable image payload from a regular ZIP."""
+    entries = archive.infolist()
+    if len(entries) != 1 or entries[0].is_dir():
+        raise DiskForgeError("A ZIP image container must contain exactly one regular image payload.")
+    entry = entries[0]
+    name = entry.filename
+    if (not name or "\x00" in name or name in {".", ".."} or "/" in name or "\\" in name
+            or ":" in name or Path(name).name != name):
+        raise DiskForgeError("ZIP image container contains an unsafe payload name.")
+    if entry.flag_bits & 0x1:
+        raise DiskForgeError("Encrypted ZIP image containers are not supported.")
+    if entry.compress_type not in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED}:
+        raise DiskForgeError("ZIP image container uses an unsupported compression method.")
+    if entry.file_size <= 0 or entry.file_size > ZIP_IMAGE_MAX_BYTES:
+        raise DiskForgeError("ZIP image payload size is empty or exceeds the safety limit.")
+    if Path(name).suffix.lower() not in ZIP_DIRECT_IMAGE_SUFFIXES:
+        raise DiskForgeError("ZIP image payload does not use a supported directly-browsable image extension.")
+    return entry
+
+
+def extract_zip_image_payload(source: Path | str, destination: Path | str, *,
+                              progress: ProgressCallback | None = None,
+                              token: CancellationToken | None = None) -> ZipImagePayload:
+    """Safely materialize one directly-browsable ZIP payload into a new local file."""
+    origin, output = Path(source), Path(destination)
+    if ImageFormat.from_path(origin) != ImageFormat.ZIP:
+        raise DiskForgeError("ZIP image extraction requires a .zip container.")
+    if not origin.is_file():
+        raise FileNotFoundError(origin)
+    if not zipfile.is_zipfile(origin):
+        raise DiskForgeError("ZIP image container is not a valid ZIP archive.")
+    if output.exists():
+        raise FileExistsError(output)
+    temporary = output.with_name(f".{output.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with zipfile.ZipFile(origin) as archive:
+            entry = _zip_image_payload(archive)
+            temporary.parent.mkdir(parents=True, exist_ok=True)
+            transferred = 0
+            with archive.open(entry, "r") as source_handle, temporary.open("wb") as target_handle:
+                while block := source_handle.read(1024 * 1024):
+                    if token:
+                        token.raise_if_cancelled()
+                    target_handle.write(block)
+                    transferred += len(block)
+                    if progress:
+                        progress(Progress(OperationKind.OPEN, transferred, entry.file_size, f"Extracting {entry.filename}"))
+            if transferred != entry.file_size or temporary.stat().st_size != entry.file_size:
+                raise DiskForgeError("ZIP image payload was truncated during extraction.")
+        os.replace(temporary, output)
+        return ZipImagePayload(origin, output, entry.filename, entry.file_size)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
 def create_legacy_zip_image(source: Path | str, destination: Path | str, image_format: ImageFormat,
                             *, overwrite: bool = False) -> LegacyZipImage:
     """Create a conservative ZIP-compatible IMZ/WLZ-style single-image container."""
@@ -505,7 +574,7 @@ def inspect_image(path: Path | str, converter: Converter | None = None) -> Image
         virtual_size = int(metadata.get("virtual-size", 0)) or None
         notes.append(f"Converter reports {metadata.get('format', detected.value)}")
     fs_type = detect_filesystem(head, image_size=size)
-    writable = os.access(target, os.W_OK) and detected not in {ImageFormat.ISO, ImageFormat.DMG}
+    writable = os.access(target, os.W_OK) and detected not in {ImageFormat.ISO, ImageFormat.DMG, ImageFormat.ZIP}
     return ImageInfo(target, detected, size, fs_type, writable=writable,
                      virtual_size=virtual_size, notes=tuple(notes))
 
@@ -592,6 +661,8 @@ def convert_image(source: Path | str, destination: Path | str, destination_forma
     """Perform native simple conversions or route virtual formats to qemu-img."""
     source_path, destination_path = Path(source), Path(destination)
     source_info = inspect_image(source_path, converter)
+    if source_info.image_format == ImageFormat.ZIP:
+        raise DiskForgeError("ZIP image containers are read-only; extract or browse the single payload instead of converting the container.")
     if destination_format in {ImageFormat.RAW, ImageFormat.IMG, ImageFormat.IMA}:
         source_limit = source_info.virtual_size if source_info.image_format == ImageFormat.VHD else None
         stream_copy(source_path, destination_path, OperationKind.CONVERT, limit=source_limit,

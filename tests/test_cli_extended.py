@@ -67,3 +67,33 @@ def test_cli_move_fat_emits_json_and_rejects_directory_sources(tmp_path: Path, c
     }
     assert main(["move-fat", str(image), "/archive", "/"]) == 2
     assert "directory moves" in capsys.readouterr().err
+
+
+
+def test_cli_reads_zip_image_container_and_refuses_writes(tmp_path: Path, capsys) -> None:
+    import zipfile
+
+    image = tmp_path / "inside.img"
+    payload = tmp_path / "payload.txt"
+    payload.write_text("zip CLI payload", encoding="utf-8")
+    assert main(["create-fat", str(image), "--size-mib", "8", "--fat", "16"]) == 0
+    assert main(["inject", str(image), str(payload)]) == 0
+
+    archive = tmp_path / "inside.zip"
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as container:
+        container.write(image, image.name)
+    capsys.readouterr()
+
+    assert main(["--json", "list", str(archive)]) == 0
+    assert [entry["name"] for entry in json.loads(capsys.readouterr().out)] == ["payload.txt"]
+
+    output = tmp_path / "out"
+    assert main(["--json", "extract", str(archive), str(output), "/payload.txt"]) == 0
+    assert (output / "payload.txt").read_text(encoding="utf-8") == "zip CLI payload"
+
+    report = tmp_path / "listing.txt"
+    assert main(["--json", "export-listing", str(archive), str(report)]) == 0
+    assert "/payload.txt" in report.read_text(encoding="utf-8")
+
+    assert main(["inject", str(archive), str(payload)]) == 2
+    assert "read-only" in capsys.readouterr().err

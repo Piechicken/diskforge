@@ -91,3 +91,51 @@ def test_batch_move_rejects_invalid_partition_during_preview(tmp_path: Path) -> 
 
     with pytest.raises(DiskForgeError, match="positive integer"):
         BatchRunner().preview(recipe)
+
+
+
+def test_batch_reads_zip_image_container_and_rejects_write_recipe(tmp_path: Path) -> None:
+    import zipfile
+
+    from diskforge.core.filesystems import FatImageFilesystem, create_fat_image
+    from diskforge.core.models import FileSystemType
+
+    image = create_fat_image(tmp_path / "inside.img", 8 * 1024 * 1024, FileSystemType.FAT16, "ZIPBATCH")
+    payload = tmp_path / "payload.txt"
+    payload.write_text("batch ZIP payload", encoding="utf-8")
+    filesystem = FatImageFilesystem(image)
+    try:
+        filesystem.inject([payload])
+        filesystem.fs.makedirs("/archive", recreate=True)
+    finally:
+        filesystem.close()
+    archive = tmp_path / "inside.zip"
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as container:
+        container.write(image, image.name)
+    before = sha256_file(archive)
+
+    output = tmp_path / "out"
+    extract_recipe = _recipe(tmp_path / "zip-extract.json", {
+        "kind": "extract", "source": str(archive), "destination": str(output), "paths": ["/payload.txt"],
+    })
+    runner = BatchRunner()
+    assert runner.preview(extract_recipe)[0]["will_write"] is True
+    extracted = runner.run(extract_recipe)
+    assert extracted.items[0].success
+    assert (output / "payload.txt").read_text(encoding="utf-8") == "batch ZIP payload"
+
+    report = tmp_path / "zip-report.txt"
+    report_recipe = _recipe(tmp_path / "zip-report.json", {
+        "kind": "export_listing", "source": str(archive), "destination": str(report),
+    })
+    reported = runner.run(report_recipe)
+    assert reported.items[0].success
+    assert "/payload.txt" in report.read_text(encoding="utf-8")
+
+    move_recipe = _recipe(tmp_path / "zip-move.json", {
+        "kind": "move", "source": str(archive), "item_path": "/payload.txt", "target_directory": "/archive",
+    })
+    rejected = runner.run(move_recipe)
+    assert rejected.items[0].success is False
+    assert "read-only" in rejected.items[0].message
+    assert sha256_file(archive) == before

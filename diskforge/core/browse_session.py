@@ -6,8 +6,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from .formats import Converter, extract_legacy_zip_image, inspect_image
-from .models import ImageFormat, ImageInfo, OperationKind, ProgressCallback
+from .formats import Converter, extract_legacy_zip_image, extract_zip_image_payload, inspect_image
+from .models import FileSystemType, ImageFormat, ImageInfo, OperationKind, ProgressCallback
 from .storage import CancellationToken, DiskForgeError, stream_copy
 
 
@@ -41,21 +41,23 @@ def materialize_browsable_image(source: Path | str, *, converter: Converter | No
                                  token: CancellationToken | None = None) -> BrowsableImageSession:
     """Return an image path suitable for read-only filesystem probing.
 
-    Native raw/FAT/ISO images are returned directly.  A fixed VHD is copied only
-    up to its validated virtual size, excluding the footer.  VHDX, VMDK and QCOW2
-    require the explicitly configured converter and are converted to a temporary
-    RAW image.  Every temporary directory is caller-owned through ``close``.
+    Native raw/FAT/ISO images are returned directly. A safe single-payload ZIP,
+    legacy compressed image, or fixed VHD is materialized to a private temporary
+    file; VHDX, VMDK and QCOW2 require the explicitly configured converter. Every
+    temporary directory is caller-owned through ``close`` and is always read-only.
     """
     original = Path(source)
     info = inspect_image(original, converter)
     if info.image_format not in {ImageFormat.VHD, ImageFormat.VHDX, ImageFormat.VMDK, ImageFormat.QCOW2,
-                                 ImageFormat.IMZ, ImageFormat.WLZ}:
+                                 ImageFormat.IMZ, ImageFormat.WLZ, ImageFormat.ZIP}:
         return BrowsableImageSession(original, original, info)
     temporary = Path(tempfile.mkdtemp(prefix="diskforge-browse-"))
     raw = temporary / f"{original.stem}.img"
     try:
         if info.image_format in {ImageFormat.IMZ, ImageFormat.WLZ}:
             extract_legacy_zip_image(original, raw)
+        elif info.image_format == ImageFormat.ZIP:
+            extract_zip_image_payload(original, raw, progress=progress, token=token)
         elif info.image_format == ImageFormat.VHD:
             if info.virtual_size is None:
                 raise DiskForgeError("VHD browsing requires a valid fixed-VHD virtual size.")
@@ -67,6 +69,14 @@ def materialize_browsable_image(source: Path | str, *, converter: Converter | No
             raise DiskForgeError(
                 f"Browsing {info.image_format.value} requires qemu-img. Configure it before opening this image."
             )
+        if info.image_format == ImageFormat.ZIP:
+            materialized_info = inspect_image(raw, converter)
+            if materialized_info.filesystem not in {
+                FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32,
+                FileSystemType.ISO9660, FileSystemType.NTFS, FileSystemType.EXT,
+                FileSystemType.HFS, FileSystemType.HFS_PLUS,
+            } and materialized_info.image_format != ImageFormat.ISO:
+                raise DiskForgeError("ZIP image payload is not a supported browsable disk image.")
         return BrowsableImageSession(original, raw, info, temporary)
     except Exception:
         shutil.rmtree(temporary, ignore_errors=True)

@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator, Sequence
 
+from .core.browse_session import materialize_browsable_image
 from .core.compare import ComparisonResult, compare_streams
 from .core.filesystems import (FatImageFilesystem, ImageFilesystem, IsoImageFilesystem,
                                create_fat_image, replace_iso_file_safely)
@@ -97,24 +98,35 @@ class DiskForgeClient:
         """Open a filesystem facade and always release the underlying resource."""
         source = Path(image)
         info = self.inspect(source)
-        if partition_index is not None:
-            filesystem: ImageFilesystem = open_partition_filesystem(source, partition_index, writable=writable)
-        elif info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
-            filesystem = FatImageFilesystem(source, read_only=not writable)
-        elif info.filesystem == FileSystemType.ISO9660:
-            if writable:
-                raise DiskForgeError("ISO images are read-only; create a new ISO instead.")
-            filesystem = IsoImageFilesystem(source)
-        elif info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS, FileSystemType.HFS_PLUS}:
-            if writable:
-                raise DiskForgeError("NTFS, EXT, HFS and HFS+ image access is read-only.")
-            filesystem = SleuthKitImageFilesystem(source, info.filesystem)
-        else:
-            raise DiskForgeError("No filesystem facade is available for this image.")
+        browse_session = None
+        filesystem: ImageFilesystem | None = None
         try:
+            if info.image_format == ImageFormat.ZIP:
+                if writable:
+                    raise DiskForgeError("ZIP image containers are read-only; writable filesystem access is unavailable.")
+                browse_session = materialize_browsable_image(source, converter=self.converter)
+                source = browse_session.image
+                info = self.inspect(source)
+            if partition_index is not None:
+                filesystem = open_partition_filesystem(source, partition_index, writable=writable)
+            elif info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
+                filesystem = FatImageFilesystem(source, read_only=not writable)
+            elif info.filesystem == FileSystemType.ISO9660:
+                if writable:
+                    raise DiskForgeError("ISO images are read-only; create a new ISO instead.")
+                filesystem = IsoImageFilesystem(source)
+            elif info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS, FileSystemType.HFS_PLUS}:
+                if writable:
+                    raise DiskForgeError("NTFS, EXT, HFS and HFS+ image access is read-only.")
+                filesystem = SleuthKitImageFilesystem(source, info.filesystem)
+            else:
+                raise DiskForgeError("No filesystem facade is available for this image.")
             yield filesystem
         finally:
-            filesystem.close()
+            if filesystem is not None:
+                filesystem.close()
+            if browse_session is not None:
+                browse_session.close()
 
     def extract(self, image: Path | str, paths: Sequence[str], destination: Path | str, *,
                 policy: ExtractionPolicy | None = None,

@@ -930,12 +930,17 @@ class MainWindow(QMainWindow):
         entries = bool(self._selected_paths())
         fs_writable = isinstance(self.current_fs, FatImageFilesystem) and not getattr(self.current_fs, "read_only", False)
         selected_file = next((entry for entry in self.current_entries if entry.path in self._selected_paths() and not entry.is_dir), None)
+        zip_container = open_image and self.current_info is not None and self.current_info.image_format == ImageFormat.ZIP
         for action in [self.action_close, self.action_convert, self.action_resize, self.action_compare,
-                       self.action_verify, self.action_partitions, self.action_boot, self.action_comment,
+                       self.action_verify, self.action_partitions, self.action_comment,
                        self.action_bundle, self.action_sfx, self.action_trim_zero_tail, self.action_iso_boot,
                        self.action_replace_iso, self.action_edit_iso]:
             action.setEnabled(open_image)
-        fat_source = open_image and isinstance(self.current_fs, FatImageFilesystem)
+        self.action_boot.setEnabled(open_image and not zip_container)
+        if zip_container:
+            for action in [self.action_convert, self.action_resize, self.action_trim_zero_tail]:
+                action.setEnabled(False)
+        fat_source = fs_writable
         self.action_wrap_mbr.setEnabled(fat_source)
         self.action_prepare_deployment.setEnabled(fat_source)
         iso_open = open_image and self.current_info is not None and (self.current_info.image_format == ImageFormat.ISO or self.current_info.filesystem == FileSystemType.ISO9660)
@@ -949,7 +954,7 @@ class MainWindow(QMainWindow):
         self.action_dynamic_vhd.setEnabled(fat_source)
         self.action_convert_dmg.setEnabled(open_image and self.current_info is not None and self.current_info.image_format == ImageFormat.DMG)
         self.action_mount.setEnabled(open_image and self.current_mount_session is None)
-        self.action_legacy_zip.setEnabled(open_image and self.current_info is not None and self.current_info.image_format not in {ImageFormat.IMZ, ImageFormat.WLZ})
+        self.action_legacy_zip.setEnabled(open_image and self.current_info is not None and self.current_info.image_format not in {ImageFormat.IMZ, ImageFormat.WLZ, ImageFormat.ZIP})
         self.action_unmount.setEnabled(self.current_mount_session is not None)
         self.action_extract.setEnabled(open_image and entries and self.current_fs is not None)
         self.action_preview.setEnabled(open_image and self.current_fs is not None and selected_file is not None and len(self._selected_paths()) == 1)
@@ -1363,7 +1368,7 @@ class MainWindow(QMainWindow):
                 self._editable_fixed_vhd = True
                 self.log(f"Opened validated editable fixed-VHD copy for {path.name}")
             elif self.current_info.image_format in {ImageFormat.VHD, ImageFormat.VHDX, ImageFormat.VMDK, ImageFormat.QCOW2,
-                                                    ImageFormat.IMZ, ImageFormat.WLZ}:
+                                                    ImageFormat.IMZ, ImageFormat.WLZ, ImageFormat.ZIP}:
                 self.current_browse_session = materialize_browsable_image(path, converter=converter)
                 browse_path = self.current_browse_session.image
                 browse_info = inspect_image(browse_path)

@@ -36,7 +36,7 @@ print(result.destination)
 | `client.replace_iso_file(source, iso_path, replacement, destination)` | Replace one existing equal-size ISO9660 file into a newly written ISO. | Source ISO and replacement source stay unchanged; output is reopened and verified. |
 | `client.mount_capability()` | Report the local OS read-only mount backend. | Diagnostic only; never starts a mount. |
 | `client.mount_read_only(image)` / `client.unmount(session)` | Create and release a system-backed image mount session. | Read-only only; callers retain and explicitly release the returned session. |
-| `client.filesystem(...)` | Open an image filesystem in a context manager. | Resources are always closed. ISO, NTFS, EXT, HFS, and HFS+ sessions—including explicit non-FAT partitions—are read-only. |
+| `client.filesystem(...)` | Open an image filesystem in a context manager. | Resources are always closed. ISO, NTFS, EXT, HFS, HFS+, and safe ZIP single-image sessions are read-only. A ZIP payload is private temporary data removed when the context ends. |
 | `client.extract(...)` | Extract paths to a local directory. | Uses the selected extraction policy; source remains unchanged. |
 | `client.inject(...)` | Add local files or directories to FAT. | Only writable FAT sessions are accepted. |
 | `client.move_fat(image, item_path, target_directory)` | Move one regular FAT image file into an existing image directory. | Only writable FAT images are accepted. The target must already be a directory; root movement, collisions, missing/non-directory targets, read-only sessions, and all directory moves are rejected before the backend mutation. |
@@ -54,6 +54,20 @@ with client.filesystem("lab.img", writable=True) as filesystem:
     entries = filesystem.list_dir("/")
     print([entry.name for entry in entries])
 ```
+
+## ZIP single-image containers
+
+A regular `.zip` can be used as a **read-only image container** through `filesystem()` and `extract()` when it contains exactly one safe root-level image payload. The payload must be unencrypted, use Stored or Deflated compression, be nonempty and no larger than 2 GiB, use one of `.img`, `.ima`, `.bin`, `.dd`, `.dmf`, `.iso`, or `.hfs`, and re-identify as a supported browsable filesystem after materialization. The SDK streams it into a private temporary file and removes that file when the context closes, including when the operation raises.
+
+```python
+client = DiskForgeClient()
+with client.filesystem("archive.zip") as filesystem:
+    print([entry.path for entry in filesystem.list_entries("/")])
+
+outputs = client.extract("archive.zip", ["/README.TXT"], "extracted")
+```
+
+`client.filesystem("archive.zip", writable=True)`, `client.inject("archive.zip", ...)`, `client.move_fat("archive.zip", ...)`, and `client.convert("archive.zip", ...)` are deliberately rejected. ZIP containers are not generic archives, recursive image sources, or filesystem-editing targets; multiple entries, directories, unsafe names, encryption, unknown compression methods, empty/oversized/unrecognizable payloads, and all ZIP writes are rejected.
 
 ## FAT regular-file movement
 
@@ -83,8 +97,7 @@ with client.filesystem("disk.img", partition_index=2, writable=False) as filesys
 
 A valid FAT IMA can be opened through `client.filesystem(..., writable=True)` just like a FAT IMG and can therefore be listed, extracted, injected, moved as a regular file, renamed, and otherwise edited through the same managed FAT session. The verified named legacy-floppy profile directory and custom-geometry validation are deliberately exposed by the desktop, CLI `create-legacy-floppy`, and `diskforge.core.legacy_floppy` service during this SDK version; they are not yet advertised as a stable `DiskForgeClient` method.
 
-ZIP-compatible legacy compressed images with `.imz` or `.wlz` extensions are recognized as **single-payload containers** only.
- DiskForge rejects encrypted, unsafe, non-Deflate/non-Stored, or multi-payload archives; a valid payload is materialized to a caller-owned temporary raw image for read-only browsing. The GUI and CLI can create or extract the same constrained container shape, but this does not claim support for undocumented proprietary extensions beyond that ZIP-compatible profile.
+ZIP-compatible legacy compressed images with `.imz` or `.wlz` extensions are recognized as **single-payload containers** only. Ordinary `.zip` single-image containers use the separate, stricter direct-browse contract above. DiskForge rejects encrypted, unsafe, non-Deflate/non-Stored, or multi-payload legacy archives; a valid payload is materialized to a caller-owned temporary raw image for read-only browsing. The GUI and CLI can create or extract the same constrained container shape, but this does not claim support for undocumented proprietary extensions beyond that ZIP-compatible profile.
 
 ## Optional controlled NTFS, EXT, and classic-HFS image workflows
 
