@@ -1,6 +1,6 @@
 # DiskForge Python API
 
-**DiskForge v0.10.0.dev0** exposes **SDK API 1.1**, a typed file-image API through `diskforge.api`. The public facade is deliberately narrower than the desktop application: it supports inspection, checksums, comparison, FAT creation, conversion, validated partition inspection, managed filesystem sessions, extraction, FAT injection and regular-file movement, safe ISO replacement, and controlled read-only mounting. It does **not** expose unattended physical-device writes, MBR changes, device formatting, or the desktop/CLI ISO rebuild editor.
+**DiskForge v0.10.0.dev0** exposes **SDK API 1.1**, a typed file-image API through `diskforge.api`. The public facade is deliberately narrower than the desktop application: it supports inspection, checksums, comparison, FAT creation, conversion, read-only batch image inventory, validated partition inspection, managed filesystem sessions, extraction, FAT injection and regular-file movement, safe ISO replacement, and controlled read-only mounting. It does **not** expose unattended physical-device writes, MBR changes, device formatting, or the desktop/CLI ISO rebuild editor.
 
 > Physical devices are a foreground desktop workflow. Capacity, mount state, system-disk protection, and the exact `ERASE` confirmation remain outside the unattended API by design.
 
@@ -36,6 +36,8 @@ print(result.destination)
 | `client.replace_iso_file(source, iso_path, replacement, destination)` | Replace one existing equal-size ISO9660 file into a newly written ISO. | Source ISO and replacement source stay unchanged; output is reopened and verified. |
 | `client.inspect_imd(source)` | Parse IMD track and sector records without source mutation. | Reports whether exact RAW flattening can be proven; it does not treat IMD as a writable filesystem. |
 | `client.export_imd_to_raw(source, destination)` | Export a proven rectangular normal-data IMD layout to a new RAW file. | Requires a new local destination; irregular/mapped/missing/deleted/bad layouts are rejected. |
+| `client.inventory_images(root, options=None)` | Read local image-file metadata into a filtered `ImageInventory`. | Does not open writable filesystem sessions or modify candidates. It ignores symbolic links, regular files over 16 GiB, and unsupported suffixes; scanning is limited to 10,000 discovered regular files. |
+| `client.export_image_inventory(inventory, destination, report_format)` | Atomically write a new JSON, CSV, or HTML image-inventory report. | Destination must be a nonexisting local file outside the scanned root. It never overwrites or creates a report inside the scan tree. |
 | `client.mount_capability()` | Report the local OS read-only mount backend. | Diagnostic only; never starts a mount. |
 | `client.mount_read_only(image)` / `client.unmount(session)` | Create and release a system-backed image mount session. | Read-only only; callers retain and explicitly release the returned session. |
 | `client.filesystem(...)` | Open an image filesystem in a context manager. | Resources are always closed. ISO, NTFS, EXT, HFS, HFS+, and safe ZIP single-image sessions are read-only. A ZIP payload is private temporary data removed when the context ends. |
@@ -84,6 +86,24 @@ if inspection.exportable:
 ```
 
 Irregular geometry, variable layouts, duplicate tracks, maps, missing/deleted/bad sectors, trailing bytes, source writes, output overwrite, device targets, IMD writing, and bitstream/flux reconstruction are outside this contract.
+
+## Read-only batch image inventory
+
+`inventory_images()` scans one existing non-symlink local directory and returns records for recognized candidate suffixes. `ImageInventoryOptions` can opt into recursive discovery, extension, recognized-format, filesystem, byte-size, and SHA-256-prefix filters, plus per-record SHA-256 and partition summaries. Filtering is metadata-led: unrecognized or malformed candidate observations are preserved with an `error` field unless a selected format/filesystem filter excludes them.
+
+```python
+from pathlib import Path
+from diskforge.core.inventory import ImageInventoryOptions
+
+inventory = client.inventory_images(
+    Path("lab-images"),
+    ImageInventoryOptions(recursive=True, include_sha256=True, filesystems=(FileSystemType.FAT16,)),
+)
+report = client.export_image_inventory(inventory, Path("lab-images-report.json"), "json")
+print(report.destination)
+```
+
+The report writer supports only `json`, `csv`, and `html`, writes through a sibling temporary file and hard-link promotion, refuses an existing or symbolic-link destination, and refuses a destination resolved within the scanned root. It is intentionally not a batch v4 operation: no unattended recipe path invokes it in this release. The scan does not follow links, does not inspect physical devices, and accepts at most 10,000 discovered regular files, each no larger than 16 GiB.
 
 ## FAT deleted root-file candidate recovery
 

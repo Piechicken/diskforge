@@ -41,6 +41,7 @@ from diskforge.core.ext_inject import ExtFileInjector
 from diskforge.core.hfs_create import HfsImageCreator
 from diskforge.core.hfs_inject import HfsFileInjector
 from diskforge.core.imd import export_imd_to_raw, inspect_imd
+from diskforge.core.inventory import ImageInventoryOptions, export_image_inventory, inventory_images
 from diskforge.core.eltorito import export_boot_image, inspect_eltorito
 from diskforge.core.fat_layouts import FatImageLayout, create_fat_image_from_layout
 from diskforge.core.floppy_format import FloppyControllerFormatter
@@ -680,6 +681,7 @@ class MainWindow(QMainWindow):
         self.action_device_read_queue = self._action("Batch read physical media…", None, self.batch_read_physical_media)
         self.action_batch = self._action("Run batch recipe…", None, self.run_batch)
         self.action_imd = self._action("Inspect / export IMD…", None, self.inspect_imd_image)
+        self.action_inventory = self._action("Inventory images…", None, self.inventory_images)
         self.action_batch_designer = self._action("Design batch workflow…", None, self.design_batch)
         self.action_batch_edit = self._action("Edit batch recipe…", None, self.edit_batch)
         self.action_sfx = self._action("Create self-extracting bundle…", None, self.create_sfx)
@@ -725,7 +727,7 @@ class MainWindow(QMainWindow):
         menu_view = self.menuBar().addMenu("&View")
         menu_view.addActions([self.action_view_details, self.action_view_icons])
         menu_tools = self.menuBar().addMenu("&Tools")
-        menu_tools.addActions([self.action_devices, self.action_device_read_queue, self.action_imd, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
+        menu_tools.addActions([self.action_devices, self.action_device_read_queue, self.action_imd, self.action_inventory, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
         menu_language = menu_tools.addMenu("&Language")
         self.language_actions: list[QAction] = []
         try:
@@ -2412,6 +2414,104 @@ class MainWindow(QMainWindow):
         def job(progress=None, token=None):
             return export_directory_listing(self.current_fs, source, Path(output), html=html_output, token=token)
         self._run_worker("Exporting directory listing", job, on_result=lambda path: self.log(f"Exported listing: {path}"))
+
+    def inventory_images(self) -> None:
+        """Create a read-only filtered inventory report for a local image directory."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self._localized("Inventory images"))
+        dialog.setMinimumWidth(560)
+        layout = QVBoxLayout(dialog)
+        notice = QLabel(self._localized("This workflow reads local image metadata and writes one new report; it never modifies source images."))
+        notice.setWordWrap(True)
+        layout.addWidget(notice)
+        form = QFormLayout()
+        root = QLineEdit(str(self.settings.value("last_directory", "")))
+        browse = QPushButton(self._localized("Browse…"))
+        browse.clicked.connect(lambda: root.setText(QFileDialog.getExistingDirectory(
+            dialog, self._localized("Select directory to scan"), root.text()) or root.text()))
+        root_row = QHBoxLayout()
+        root_row.addWidget(root)
+        root_row.addWidget(browse)
+        form.addRow(self._localized("Select directory to scan"), root_row)
+        report_format = QComboBox()
+        report_format.addItem("JSON", "json")
+        report_format.addItem("CSV", "csv")
+        report_format.addItem("HTML", "html")
+        form.addRow(self._localized("Report format"), report_format)
+        suffixes = QLineEdit()
+        suffixes.setPlaceholderText(self._localized("Comma-separated suffixes, for example: img, ima"))
+        form.addRow(self._localized("File suffix filter (optional)"), suffixes)
+        image_format = QComboBox()
+        image_format.addItem(self._localized("Any supported format"), None)
+        for value in ImageFormat:
+            if value != ImageFormat.UNKNOWN:
+                image_format.addItem(value.value.upper(), value)
+        form.addRow(self._localized("Image format filter"), image_format)
+        filesystem = QComboBox()
+        filesystem.addItem(self._localized("Any filesystem"), None)
+        for value in FileSystemType:
+            if value != FileSystemType.UNKNOWN:
+                filesystem.addItem(value.value, value)
+        form.addRow(self._localized("Filesystem filter"), filesystem)
+        minimum = QLineEdit()
+        minimum.setPlaceholderText("0")
+        maximum = QLineEdit()
+        maximum.setPlaceholderText(self._localized("Leave blank for no limit"))
+        form.addRow(self._localized("Minimum size (bytes)"), minimum)
+        form.addRow(self._localized("Maximum size (bytes)"), maximum)
+        digest_prefix = QLineEdit()
+        digest_prefix.setPlaceholderText(self._localized("SHA-256 prefix (optional)"))
+        form.addRow(self._localized("SHA-256 prefix (optional)"), digest_prefix)
+        recursive = QCheckBox(self._localized("Recursive scan"))
+        include_sha256 = QCheckBox(self._localized("Include SHA-256"))
+        include_partitions = QCheckBox(self._localized("Include partition summary"))
+        form.addRow("", recursive)
+        form.addRow("", include_sha256)
+        form.addRow("", include_partitions)
+        layout.addLayout(form)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        root_path = Path(root.text().strip())
+        try:
+            min_bytes = int(minimum.text()) if minimum.text().strip() else None
+            max_bytes = int(maximum.text()) if maximum.text().strip() else None
+            selected_format = image_format.currentData()
+            selected_filesystem = filesystem.currentData()
+            options = ImageInventoryOptions(
+                recursive=recursive.isChecked(),
+                suffixes=tuple(value.strip() for value in suffixes.text().split(",") if value.strip()),
+                formats=(selected_format,) if selected_format is not None else (),
+                filesystems=(selected_filesystem,) if selected_filesystem is not None else (),
+                min_bytes=min_bytes, max_bytes=max_bytes, sha256_prefix=digest_prefix.text().strip() or None,
+                include_sha256=include_sha256.isChecked(), include_partitions=include_partitions.isChecked(),
+            )
+        except ValueError:
+            QMessageBox.warning(self, self._localized("Inventory images"), self._localized("Size filters must be whole numbers of bytes."))
+            return
+        suffix = str(report_format.currentData())
+        default_name = f"{root_path.name or 'images'}-inventory.{suffix}"
+        destination, accepted = QFileDialog.getSaveFileName(
+            self, self._localized("Inventory report"), str(root_path.parent / default_name),
+            self._localized("Inventory reports (*.json *.csv *.html);;All files (*)"),
+        )
+        if not accepted or not destination:
+            return
+        def job(progress=None, token=None):
+            inventory = inventory_images(root_path, options, converter=QemuImgConverter(), token=token)
+            output = export_image_inventory(inventory, Path(destination), suffix, token)
+            return inventory, output
+        def completed(result) -> None:  # type: ignore[no-untyped-def]
+            inventory, output = result
+            message = self._localized("Inventory complete: {count} images reported to {path}").format(
+                count=len(inventory.records), path=output,
+            )
+            self.log(message)
+            QMessageBox.information(self, self._localized("Inventory images"), message)
+        self._run_worker(self._localized("Scanning image inventory"), job, on_result=completed)
 
     def batch_read_physical_media(self) -> None:
         """Queue selected removable/optical devices for read-only acquisition."""

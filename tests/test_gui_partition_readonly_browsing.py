@@ -205,6 +205,14 @@ def test_gui_imd_inspection_action_is_available_without_a_writable_image(qtbot) 
     assert window.action_imd.isEnabled()
 
 
+def test_gui_image_inventory_action_is_available_without_an_open_image(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window._update_action_state()
+    assert window.current_path is None
+    assert window.action_inventory.isEnabled()
+
+
 def test_gui_open_routes_imd_to_read_only_inspector(
     qtbot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:  # type: ignore[no-untyped-def]

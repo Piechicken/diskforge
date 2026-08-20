@@ -14,6 +14,8 @@ from .core.browse_session import materialize_browsable_image
 from .core.compare import ComparisonResult, compare_streams
 from .core.fat_recovery import DeletedFatFileCandidate
 from .core.imd import ImdInspection, export_imd_to_raw, inspect_imd
+from .core.inventory import (ImageInventory, ImageInventoryOptions, ReportFormat,
+                             export_image_inventory, inventory_images)
 from .core.filesystems import (FatImageFilesystem, ImageFilesystem, IsoImageFilesystem,
                                create_fat_image, replace_iso_file_safely)
 from .core.formats import Converter, convert_image, inspect_image
@@ -70,6 +72,18 @@ class DiskForgeClient:
                 token: CancellationToken | None = None) -> ApiResult:
         info = convert_image(source, destination, image_format, self.converter, progress, token, overwrite)
         return ApiResult("convert", Path(source), info.path, info.image_format.value)
+
+    def inventory_images(self, root: Path | str, options: ImageInventoryOptions | None = None,
+                         *, token: CancellationToken | None = None) -> ImageInventory:
+        """Read only local image metadata and optional hashes into a filtered inventory."""
+        return inventory_images(root, options, converter=self.converter, token=token)
+
+    def export_image_inventory(self, inventory: ImageInventory, destination: Path | str,
+                               report_format: ReportFormat, *,
+                               token: CancellationToken | None = None) -> ApiResult:
+        """Write a new JSON, CSV, or HTML inventory report without overwrite."""
+        output = export_image_inventory(inventory, destination, report_format, token)
+        return ApiResult("export_image_inventory", inventory.root, output, report_format)
 
     def partitions(self, image: Path | str) -> list[DiskPartition]:
         """Return validated MBR/GPT entries without selecting or mutating a partition."""

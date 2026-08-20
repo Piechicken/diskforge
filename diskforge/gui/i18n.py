@@ -233,6 +233,81 @@ CATALOG["ja"].update({
 })
 
 
+# v0.10 read-only batch image inventory and filter-report workflow.
+CATALOG["zh_CN"].update({
+    "Inventory images…": "盘点映像…", "Inventory images": "盘点映像", "Select directory to scan": "选择要扫描的目录",
+    "Inventory report": "映像清单报告", "Scanning image inventory": "正在扫描映像清单", "Report format": "报告格式",
+    "Include SHA-256": "包含 SHA-256", "Recursive scan": "递归扫描",
+    "Inventory complete: {count} images reported to {path}": "清单完成：已将 {count} 个映像报告至 {path}",
+    "This workflow reads local image metadata and writes one new report; it never modifies source images.": "此工作流仅读取本地映像元数据并写入一份新报告；绝不修改源映像。",
+    "Comma-separated suffixes, for example: img, ima": "以逗号分隔的扩展名，例如：img, ima", "File suffix filter (optional)": "文件扩展名筛选（可选）",
+    "Any supported format": "任何受支持格式", "Image format filter": "映像格式筛选", "Any filesystem": "任何文件系统", "Filesystem filter": "文件系统筛选",
+    "Minimum size (bytes)": "最小大小（字节）", "Maximum size (bytes)": "最大大小（字节）", "Leave blank for no limit": "留空表示不限制",
+    "SHA-256 prefix (optional)": "SHA-256 前缀（可选）", "Include partition summary": "包含分区摘要",
+    "Size filters must be whole numbers of bytes.": "大小筛选必须为完整的字节数。", "Inventory reports (*.json *.csv *.html);;All files (*)": "清单报告（*.json *.csv *.html）；；所有文件（*）",
+})
+CATALOG["es"].update({
+    "Inventory images…": "Inventariar imágenes…", "Inventory images": "Inventario de imágenes", "Select directory to scan": "Seleccionar directorio para analizar",
+    "Inventory report": "Informe de inventario", "Scanning image inventory": "Analizando inventario de imágenes", "Report format": "Formato de informe",
+    "Include SHA-256": "Incluir SHA-256", "Recursive scan": "Análisis recursivo",
+    "Inventory complete: {count} images reported to {path}": "Inventario completado: {count} imágenes informadas en {path}",
+    "This workflow reads local image metadata and writes one new report; it never modifies source images.": "Este flujo lee metadatos de imágenes locales y escribe un informe nuevo; nunca modifica las imágenes de origen.",
+    "Comma-separated suffixes, for example: img, ima": "Sufijos separados por comas; por ejemplo: img, ima", "File suffix filter (optional)": "Filtro de sufijo de archivo (opcional)",
+    "Any supported format": "Cualquier formato compatible", "Image format filter": "Filtro de formato de imagen", "Any filesystem": "Cualquier sistema de archivos", "Filesystem filter": "Filtro de sistema de archivos",
+    "Minimum size (bytes)": "Tamaño mínimo (bytes)", "Maximum size (bytes)": "Tamaño máximo (bytes)", "Leave blank for no limit": "Déjelo vacío sin límite",
+    "SHA-256 prefix (optional)": "Prefijo SHA-256 (opcional)", "Include partition summary": "Incluir resumen de particiones",
+    "Size filters must be whole numbers of bytes.": "Los filtros de tamaño deben ser números enteros de bytes.", "Inventory reports (*.json *.csv *.html);;All files (*)": "Informes de inventario (*.json *.csv *.html);;Todos los archivos (*)",
+})
+CATALOG["fr"].update({
+    "Inventory images…": "Inventorier les images…", "Inventory images": "Inventaire des images", "Select directory to scan": "Sélectionner le dossier à analyser",
+    "Inventory report": "Rapport d’inventaire", "Scanning image inventory": "Analyse de l’inventaire des images", "Report format": "Format du rapport",
+    "Include SHA-256": "Inclure SHA-256", "Recursive scan": "Analyse récursive",
+    "Inventory complete: {count} images reported to {path}": "Inventaire terminé : {count} images consignées dans {path}",
+    "This workflow reads local image metadata and writes one new report; it never modifies source images.": "Ce flux lit les métadonnées des images locales et écrit un nouveau rapport ; il ne modifie jamais les images sources.",
+    "Comma-separated suffixes, for example: img, ima": "Suffixes séparés par des virgules, par exemple : img, ima", "File suffix filter (optional)": "Filtre de suffixe de fichier (facultatif)",
+    "Any supported format": "Tout format pris en charge", "Image format filter": "Filtre de format d’image", "Any filesystem": "Tout système de fichiers", "Filesystem filter": "Filtre de système de fichiers",
+    "Minimum size (bytes)": "Taille minimale (octets)", "Maximum size (bytes)": "Taille maximale (octets)", "Leave blank for no limit": "Laisser vide pour aucune limite",
+    "SHA-256 prefix (optional)": "Préfixe SHA-256 (facultatif)", "Include partition summary": "Inclure le résumé des partitions",
+    "Size filters must be whole numbers of bytes.": "Les filtres de taille doivent être des nombres entiers d’octets.", "Inventory reports (*.json *.csv *.html);;All files (*)": "Rapports d’inventaire (*.json *.csv *.html);;Tous les fichiers (*)",
+})
+CATALOG["ru"].update({
+    "Inventory images…": "Инвентаризировать образы…", "Inventory images": "Инвентаризация образов", "Select directory to scan": "Выберите каталог для сканирования",
+    "Inventory report": "Отчёт инвентаризации", "Scanning image inventory": "Сканирование инвентаризации образов", "Report format": "Формат отчёта",
+    "Include SHA-256": "Включить SHA-256", "Recursive scan": "Рекурсивное сканирование",
+    "Inventory complete: {count} images reported to {path}": "Инвентаризация завершена: {count} образов внесено в отчёт {path}",
+    "This workflow reads local image metadata and writes one new report; it never modifies source images.": "Этот процесс читает метаданные локальных образов и записывает один новый отчёт; исходные образы никогда не изменяются.",
+    "Comma-separated suffixes, for example: img, ima": "Суффиксы через запятую, например: img, ima", "File suffix filter (optional)": "Фильтр суффиксов файлов (необязательно)",
+    "Any supported format": "Любой поддерживаемый формат", "Image format filter": "Фильтр формата образа", "Any filesystem": "Любая файловая система", "Filesystem filter": "Фильтр файловой системы",
+    "Minimum size (bytes)": "Минимальный размер (байты)", "Maximum size (bytes)": "Максимальный размер (байты)", "Leave blank for no limit": "Оставьте пустым без ограничения",
+    "SHA-256 prefix (optional)": "Префикс SHA-256 (необязательно)", "Include partition summary": "Включить сводку разделов",
+    "Size filters must be whole numbers of bytes.": "Фильтры размера должны быть целыми числами байтов.", "Inventory reports (*.json *.csv *.html);;All files (*)": "Отчёты инвентаризации (*.json *.csv *.html);;Все файлы (*)",
+})
+CATALOG["ar"].update({
+    "Inventory images…": "جرد الصور…", "Inventory images": "جرد الصور", "Select directory to scan": "اختر الدليل المراد فحصه",
+    "Inventory report": "تقرير الجرد", "Scanning image inventory": "جارٍ فحص جرد الصور", "Report format": "تنسيق التقرير",
+    "Include SHA-256": "تضمين SHA-256", "Recursive scan": "فحص متكرر",
+    "Inventory complete: {count} images reported to {path}": "اكتمل الجرد: تم الإبلاغ عن {count} صورة في {path}",
+    "This workflow reads local image metadata and writes one new report; it never modifies source images.": "يقرأ هذا المسار بيانات تعريف الصور المحلية ويكتب تقريراً جديداً واحداً؛ ولا يعدّل صور المصدر مطلقاً.",
+    "Comma-separated suffixes, for example: img, ima": "لواحق مفصولة بفواصل، مثلاً: img, ima", "File suffix filter (optional)": "تصفية لاحقة الملف (اختياري)",
+    "Any supported format": "أي تنسيق مدعوم", "Image format filter": "تصفية تنسيق الصورة", "Any filesystem": "أي نظام ملفات", "Filesystem filter": "تصفية نظام الملفات",
+    "Minimum size (bytes)": "الحد الأدنى للحجم (بايت)", "Maximum size (bytes)": "الحد الأقصى للحجم (بايت)", "Leave blank for no limit": "اتركه فارغاً بلا حد",
+    "SHA-256 prefix (optional)": "بادئة SHA-256 (اختيارية)", "Include partition summary": "تضمين ملخص الأقسام",
+    "Size filters must be whole numbers of bytes.": "يجب أن تكون عوامل تصفية الحجم أعداداً صحيحة من البايتات.", "Inventory reports (*.json *.csv *.html);;All files (*)": "تقارير الجرد (*.json *.csv *.html);;كل الملفات (*)",
+})
+CATALOG["ja"].update({
+    "Inventory images…": "イメージを棚卸し…", "Inventory images": "イメージの棚卸し", "Select directory to scan": "スキャンするディレクトリを選択",
+    "Inventory report": "イメージ棚卸しレポート", "Scanning image inventory": "イメージ棚卸しをスキャン中", "Report format": "レポート形式",
+    "Include SHA-256": "SHA-256 を含める", "Recursive scan": "再帰的にスキャン",
+    "Inventory complete: {count} images reported to {path}": "棚卸し完了：{count} 件のイメージを {path} に報告しました",
+    "This workflow reads local image metadata and writes one new report; it never modifies source images.": "このワークフローはローカルイメージのメタデータを読み取り、新しいレポートを 1 件だけ書き込みます。ソースイメージは一切変更しません。",
+    "Comma-separated suffixes, for example: img, ima": "カンマ区切りの拡張子。例：img, ima", "File suffix filter (optional)": "ファイル拡張子フィルター（任意）",
+    "Any supported format": "対応形式すべて", "Image format filter": "イメージ形式フィルター", "Any filesystem": "すべてのファイルシステム", "Filesystem filter": "ファイルシステムフィルター",
+    "Minimum size (bytes)": "最小サイズ（バイト）", "Maximum size (bytes)": "最大サイズ（バイト）", "Leave blank for no limit": "無制限にするには空欄のままにします",
+    "SHA-256 prefix (optional)": "SHA-256 プレフィックス（任意）", "Include partition summary": "パーティションの概要を含める",
+    "Size filters must be whole numbers of bytes.": "サイズフィルターはバイト単位の整数でなければなりません。", "Inventory reports (*.json *.csv *.html);;All files (*)": "棚卸しレポート (*.json *.csv *.html);;すべてのファイル (*)",
+})
+
+
 def _catalog_keys() -> set[str]:
     return {key for translations in CATALOG.values() for key in translations}
 

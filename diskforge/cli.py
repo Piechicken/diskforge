@@ -18,6 +18,7 @@ from .core.ext_inject import ExtFileInjector
 from .core.hfs_create import HfsImageCreator
 from .core.hfs_inject import HfsFileInjector
 from .core.imd import export_imd_to_raw, inspect_imd
+from .core.inventory import ImageInventoryOptions, export_image_inventory, inventory_images
 from .core.device_queue import DeviceReadRequest, read_device_queue
 from .core.devices import (backup_device_mbr, compare_image_with_device, format_removable_fat,
                            neutralize_device_mbr, restore_device_mbr)
@@ -71,6 +72,19 @@ def parser() -> argparse.ArgumentParser:
     convert_imd = commands.add_parser("convert-imd", help="Export only a strictly proven rectangular normal-data IMD layout to a new RAW image")
     convert_imd.add_argument("source", type=Path)
     convert_imd.add_argument("destination", type=Path)
+    inventory = commands.add_parser("inventory-images", help="Read-only inventory and filter report for local image files")
+    inventory.add_argument("root", type=Path, help="Existing local directory to scan")
+    inventory.add_argument("destination", type=Path, help="New report file outside the scanned directory")
+    inventory.add_argument("--report-format", choices=["json", "csv", "html"], default="json")
+    inventory.add_argument("--recursive", action="store_true")
+    inventory.add_argument("--suffix", action="append", default=[], help="Allowed image suffix; repeatable")
+    inventory.add_argument("--image-format", action="append", choices=[item.value for item in ImageFormat if item is not ImageFormat.UNKNOWN], default=[])
+    inventory.add_argument("--filesystem", action="append", choices=[item.value for item in FileSystemType if item is not FileSystemType.UNKNOWN], default=[])
+    inventory.add_argument("--min-bytes", type=int)
+    inventory.add_argument("--max-bytes", type=int)
+    inventory.add_argument("--sha256-prefix")
+    inventory.add_argument("--include-sha256", action="store_true")
+    inventory.add_argument("--include-partitions", action="store_true")
 
     listing = commands.add_parser("list", help="List files in a browsable image or explicit validated partition")
     listing.add_argument("image", type=Path)
@@ -529,6 +543,17 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "convert-imd":
             destination = export_imd_to_raw(args.source, args.destination)
             _emit(args, {"source": str(args.source), "destination": str(destination)}, str(destination))
+        elif args.command == "inventory-images":
+            options = ImageInventoryOptions(
+                recursive=args.recursive, suffixes=tuple(args.suffix),
+                formats=tuple(ImageFormat(value) for value in args.image_format),
+                filesystems=tuple(FileSystemType(value) for value in args.filesystem),
+                min_bytes=args.min_bytes, max_bytes=args.max_bytes, sha256_prefix=args.sha256_prefix,
+                include_sha256=args.include_sha256, include_partitions=args.include_partitions,
+            )
+            report = inventory_images(args.root, options, converter=QemuImgConverter())
+            destination = export_image_inventory(report, args.destination, args.report_format)
+            _emit(args, {"destination": str(destination), **report.as_mapping()}, str(destination))
         elif args.command == "list":
             with _read_only_filesystem(args.image, partition_index=args.partition) as fs:
                 entries = fs.list_entries(args.path)

@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from diskforge.cli import main
+from diskforge.core.storage import sha256_file
 
 
 def test_cli_fat_editing_comment_and_compare(tmp_path: Path, capsys) -> None:
@@ -163,3 +164,19 @@ def test_cli_imd_export_rejects_deleted_sector_data(tmp_path: Path, capsys) -> N
     source.write_bytes(b"IMD x\x1a" + bytes((0, 0, 0, 1, 0)) + b"\x01\x03" + bytes(128))
     assert main(["convert-imd", str(source), str(tmp_path / "blocked.img")]) == 2
     assert "cannot be safely exported" in capsys.readouterr().err
+
+
+
+def test_cli_inventory_images_writes_new_read_only_report(tmp_path: Path, capsys) -> None:
+    root = tmp_path / "collection"
+    root.mkdir()
+    image = root / "fleet.img"
+    image.write_bytes(bytes(4096))
+    before = sha256_file(image)
+    destination = tmp_path / "inventory.json"
+    assert main(["--json", "inventory-images", str(root), str(destination), "--include-sha256"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["destination"] == str(destination)
+    assert result["summary"]["reported"] == 1
+    assert json.loads(destination.read_text(encoding="utf-8"))["records"][0]["path"] == "fleet.img"
+    assert sha256_file(image) == before

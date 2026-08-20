@@ -536,3 +536,23 @@ def test_imd_inspection_workflow_is_translated_in_every_non_english_locale() -> 
         translated = CATALOG[language.code]
         assert required <= set(translated)
         assert all(translated[source] != source for source in required)
+
+
+def test_inventory_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inventory images…", "Inventory images", "Select directory to scan", "Inventory report",
+        "Scanning image inventory", "Report format", "Include SHA-256", "Recursive scan",
+        "Inventory complete: {count} images reported to {path}",
+        "This workflow reads local image metadata and writes one new report; it never modifies source images.",
+        "File suffix filter (optional)", "Image format filter", "Filesystem filter",
+        "Minimum size (bytes)", "Maximum size (bytes)", "SHA-256 prefix (optional)",
+        "Include partition summary", "Size filters must be whole numbers of bytes.",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)

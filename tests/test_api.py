@@ -6,7 +6,7 @@ import pytest
 
 from diskforge.api import API_VERSION, DiskForgeClient
 from diskforge.core.models import FileSystemType
-from diskforge.core.storage import DiskForgeError
+from diskforge.core.storage import DiskForgeError, sha256_file
 
 
 def test_public_api_can_create_inject_extract_and_inspect(tmp_path: Path) -> None:
@@ -152,3 +152,20 @@ def test_public_api_inspects_and_exports_strict_imd_layout(tmp_path: Path) -> No
     unsafe.write_bytes(b"IMD x\x1a" + bytes((0, 0, 0, 1, 0)) + b"\x01\x03" + bytes(128))
     with pytest.raises(DiskForgeError, match="cannot be safely exported"):
         client.export_imd_to_raw(unsafe, tmp_path / "blocked.img")
+
+
+
+def test_public_api_inventories_images_without_mutating_sources(tmp_path: Path) -> None:
+    from diskforge.core.inventory import ImageInventoryOptions
+
+    root = tmp_path / "collection"
+    root.mkdir()
+    image = root / "api.img"
+    image.write_bytes(bytes(4096))
+    before = sha256_file(image)
+    client = DiskForgeClient()
+    inventory = client.inventory_images(root, ImageInventoryOptions(include_sha256=True))
+    assert [record.relative_path for record in inventory.records] == ["api.img"]
+    report = client.export_image_inventory(inventory, tmp_path / "api.csv", "csv")
+    assert report.destination is not None and report.destination.exists()
+    assert sha256_file(image) == before
