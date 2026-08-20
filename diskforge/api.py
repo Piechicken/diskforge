@@ -13,6 +13,7 @@ from typing import Iterator, Sequence
 
 from .core.browse_session import materialize_browsable_image
 from .core.compare import ComparisonResult, compare_streams
+from .core.cpc_dsk import CpcDskInspection, export_cpc_dsk_to_raw, inspect_cpc_dsk
 from .core.fat_metadata import (FatMetadataResult, apply_fat_metadata,
                                 metadata_update_from_values)
 from .core.fat_recovery import DeletedFatFileCandidate
@@ -113,6 +114,16 @@ class DiskForgeClient:
         output = export_td0_to_raw(source, destination, token)
         return ApiResult("export_td0_to_raw", Path(source), output, "Strict TD0-to-RAW export")
 
+    def inspect_cpc_dsk(self, source: Path | str, *, token: CancellationToken | None = None) -> CpcDskInspection:
+        """Inspect a signed CPC standard/extended DSK container without mutation."""
+        return inspect_cpc_dsk(source, token)
+
+    def export_cpc_dsk_to_raw(self, source: Path | str, destination: Path | str, *,
+                              token: CancellationToken | None = None) -> ApiResult:
+        """Export only a proven normal rectangular CPC DSK layout to a new RAW file."""
+        output = export_cpc_dsk_to_raw(source, destination, token)
+        return ApiResult("export_cpc_dsk_to_raw", Path(source), output, "Strict CPC DSK-to-RAW export")
+
     def replace_iso_file(self, source: Path | str, iso_path: str, replacement: Path | str,
                          destination: Path | str, *, overwrite: bool = False) -> ApiResult:
         """Write an equal-length ISO file replacement to a new verified image."""
@@ -143,6 +154,8 @@ class DiskForgeClient:
         try:
             if info.image_format == ImageFormat.TD0:
                 raise DiskForgeError("TD0 images are read-only sector containers; inspect them or use strict TD0 RAW export instead of filesystem access.")
+            if info.image_format == ImageFormat.CPC_DSK:
+                raise DiskForgeError("CPC DSK images are read-only sector containers; inspect them or use strict CPC DSK RAW export instead of filesystem access.")
             if info.image_format == ImageFormat.ZIP:
                 if writable:
                     raise DiskForgeError("ZIP image containers are read-only; writable filesystem access is unavailable.")

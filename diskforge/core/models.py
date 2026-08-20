@@ -32,6 +32,7 @@ class ImageFormat(str, Enum):
     WLZ = "wlz"
     ZIP = "zip"
     TD0 = "td0"
+    CPC_DSK = "cpc_dsk"
     UNKNOWN = "unknown"
 
     @classmethod

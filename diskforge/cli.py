@@ -14,6 +14,7 @@ from .core.browse_session import materialize_browsable_image
 from .core.bootsector import apply_boot_template, edit_fat_boot_properties, import_boot_sector_file, list_boot_templates
 from .core.bundle import create_bundle, extract_bundle, inspect_bundle
 from .core.compare import compare_streams
+from .core.cpc_dsk import export_cpc_dsk_to_raw, inspect_cpc_dsk
 from .core.deployment import prepare_fat_deployment
 from .core.ext_inject import ExtFileInjector
 from .core.fat_metadata import apply_fat_metadata, metadata_update_from_values
@@ -92,6 +93,11 @@ def parser() -> argparse.ArgumentParser:
     convert_td0 = commands.add_parser("convert-td0", help="Export only a strictly proven unflagged ordinary TD0 layout to a new RAW image")
     convert_td0.add_argument("source", type=Path)
     convert_td0.add_argument("destination", type=Path)
+    cpc_dsk_info = commands.add_parser("cpc-dsk-info", help="Inspect a signed CPC standard or extended DSK container without modifying the source")
+    cpc_dsk_info.add_argument("image", type=Path)
+    convert_cpc_dsk = commands.add_parser("convert-cpc-dsk", help="Export only a strictly proven normal CPC DSK layout to a new RAW image")
+    convert_cpc_dsk.add_argument("source", type=Path)
+    convert_cpc_dsk.add_argument("destination", type=Path)
     inventory = commands.add_parser("inventory-images", help="Read-only inventory and filter report for local image files")
     inventory.add_argument("root", type=Path, help="Existing local directory to scan")
     inventory.add_argument("destination", type=Path, help="New report file outside the scanned directory")
@@ -592,6 +598,26 @@ def main(argv: list[str] | None = None) -> int:
             }, inspection.export_reason)
         elif args.command == "convert-td0":
             destination = export_td0_to_raw(args.source, args.destination)
+            _emit(args, {"source": str(args.source), "destination": str(destination)}, str(destination))
+        elif args.command == "cpc-dsk-info":
+            inspection = inspect_cpc_dsk(args.image)
+            _emit(args, {
+                "source": str(inspection.source), "kind": inspection.kind.value,
+                "creator": inspection.creator, "bytes": inspection.source_bytes,
+                "tracks": len(inspection.tracks), "exportable": inspection.exportable,
+                "export_reason": inspection.export_reason, "cylinders": inspection.cylinders,
+                "sides": inspection.sides, "sectors_per_track": inspection.sectors_per_track,
+                "bytes_per_sector": inspection.bytes_per_sector, "raw_bytes": inspection.raw_bytes,
+                "track_records": [{
+                    "physical_track": track.physical_track, "physical_side": track.physical_side,
+                    "header_track": track.header_track, "header_side": track.header_side,
+                    "sector_count": track.sector_count,
+                    "sector_ids": [sector.r for sector in track.sectors],
+                    "status": [[sector.status1, sector.status2] for sector in track.sectors],
+                } for track in inspection.tracks],
+            }, inspection.export_reason)
+        elif args.command == "convert-cpc-dsk":
+            destination = export_cpc_dsk_to_raw(args.source, args.destination)
             _emit(args, {"source": str(args.source), "destination": str(destination)}, str(destination))
         elif args.command == "inventory-images":
             options = ImageInventoryOptions(

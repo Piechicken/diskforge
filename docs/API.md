@@ -47,6 +47,7 @@ print(result.destination)
 | `client.inject(...)` | Add local files or directories to FAT. | Only writable FAT sessions are accepted. |
 | `client.move_fat(image, item_path, target_directory)` | Move one regular FAT image file into an existing image directory. | Only writable FAT images are accepted. The target must already be a directory; root movement, collisions, missing/non-directory targets, read-only sessions, and all directory moves are rejected before the backend mutation. |
 | `client.set_fat_metadata(image, paths, ..., partition_index=None)` | Apply requested standard DOS attributes and/or FAT creation, modification, access times to explicit existing paths. | Writable FAT only. Paths must be nonempty, unique, and non-root; values are explicit, timezone-free FAT times or standard DOS booleans. The ordered updates are observable, but not claimed as a multi-entry transaction. |
+| `client.inspect_cpc_dsk(source)` / `client.export_cpc_dsk_to_raw(source, destination)` | Inspect a signed standard/extended CPC DSK container and export only a strictly proven normal layout to a new RAW file. | Read-only only. Signature recognition is required; no filesystem session, general conversion, write, repair, device, weak-sector, or copy-protection support is provided. |
 | `client.list_deleted_fat(image, partition_index=None)` | List conservative FAT12/FAT16 deleted fixed-root-file candidates. | Read-only. Only ordinary 8.3 slots are listed; candidate recovery is available solely for one currently free single cluster. |
 | `client.recover_deleted_fat(image, slot_index, destination, partition_index=None)` | Copy one revalidated deleted-file candidate to a new local path. | Never writes the image; `destination` must not exist. The result is a candidate copy, not a name or integrity guarantee. |
 
@@ -131,6 +132,12 @@ output = client.recover_deleted_fat("legacy.img", candidate.slot_index, "recover
 ```
 
 The deleted first filename character is unrecoverable from a normal FAT deletion record. A free cluster can nevertheless contain stale or overwritten bytes, so neither original name nor file integrity is asserted. FAT32, subdirectories, long names, zero-length entries, multi-cluster chains, non-free clusters, source-image writes, output overwrite, device recovery, and batch recovery are deliberately unsupported.
+
+## CPC DSK inspection and strict RAW export
+
+`inspect_cpc_dsk()` reports only signed standard/extended CPC DSK container structure. `export_cpc_dsk_to_raw()` creates a new RAW file only when every declared physical track/side is present and consistent, controller status is clean, sector sizes/counts are fixed, IDs are consecutive, and each sector has exactly one normal-size data payload. The source is never changed and an existing destination is rejected.
+
+The SDK rejects ambiguous extension-only input, unformatted tracks, status or coordinate anomalies, variable geometry, short/long/multi-copy sectors, trailing bytes, source-equal or existing destinations, devices, filesystem access, generic conversion, editing, repair, copy-protection, weak-sector, bitstream, and flux claims.
 
 ## Explicit FAT metadata updates
 
