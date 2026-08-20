@@ -1,6 +1,6 @@
 # DiskForge Python API
 
-**DiskForge v0.10.0.dev0** exposes **SDK API 1.1**, a typed file-image API through `diskforge.api`. The public facade is deliberately narrower than the desktop application: it supports inspection, checksums, comparison, FAT creation, conversion, validated partition inspection, managed filesystem sessions, extraction, FAT injection, safe ISO replacement, and controlled read-only mounting. It does **not** expose unattended physical-device writes, MBR changes, device formatting, or the desktop/CLI ISO rebuild editor.
+**DiskForge v0.10.0.dev0** exposes **SDK API 1.1**, a typed file-image API through `diskforge.api`. The public facade is deliberately narrower than the desktop application: it supports inspection, checksums, comparison, FAT creation, conversion, validated partition inspection, managed filesystem sessions, extraction, FAT injection and regular-file movement, safe ISO replacement, and controlled read-only mounting. It does **not** expose unattended physical-device writes, MBR changes, device formatting, or the desktop/CLI ISO rebuild editor.
 
 > Physical devices are a foreground desktop workflow. Capacity, mount state, system-disk protection, and the exact `ERASE` confirmation remain outside the unattended API by design.
 
@@ -39,6 +39,7 @@ print(result.destination)
 | `client.filesystem(...)` | Open an image filesystem in a context manager. | Resources are always closed. ISO, NTFS, EXT, HFS, and HFS+ sessions—including explicit non-FAT partitions—are read-only. |
 | `client.extract(...)` | Extract paths to a local directory. | Uses the selected extraction policy; source remains unchanged. |
 | `client.inject(...)` | Add local files or directories to FAT. | Only writable FAT sessions are accepted. |
+| `client.move_fat(image, item_path, target_directory)` | Move one regular FAT image file into an existing image directory. | Only writable FAT images are accepted. The target must already be a directory; root movement, collisions, missing/non-directory targets, read-only sessions, and all directory moves are rejected before the backend mutation. |
 
 ## Managed filesystem session
 
@@ -54,6 +55,18 @@ with client.filesystem("lab.img", writable=True) as filesystem:
     print([entry.name for entry in entries])
 ```
 
+## FAT regular-file movement
+
+Use `move_fat()` when a caller needs to relocate **one regular file** within a writable FAT image. The method returns the new image-internal POSIX path. It does not infer or create a destination directory and never overwrites an existing entry.
+
+```python
+client = DiskForgeClient()
+destination = client.move_fat("lab.img", "/README.TXT", "/DOCS")
+assert destination == "/DOCS/README.TXT"
+```
+
+Directory movement is deliberately absent from the stable API. The available generic directory operation copies and then deletes its source, so it cannot provide the same atomic, preflighted single-item contract. Use `rename()` inside a managed FAT session for same-directory renaming.
+
 ## Selected partition and ISO workflows
 
 For a partitioned image, first inspect the validated table and then choose an explicit one-based table index. This prevents an automation host from accidentally acting on the first compatible volume in a multi-volume image. FAT partitions retain the established writable session when `writable=True`; NTFS, EXT, classic HFS, and HFS+ partitions are opened only through the read-only backend at the selected partition offset.
@@ -68,7 +81,7 @@ with client.filesystem("disk.img", partition_index=2, writable=False) as filesys
 
 `replace_iso_file()` is intentionally narrower than generic ISO authoring. It only replaces one existing normal ISO file whose replacement has exactly the original logical size; it creates a different output file and verifies the reopened result. The desktop and CLI additionally expose a rebuild-based ISO editor that preserves verified Rock Ridge/UDF profiles and a verified single initial El Torito entry; it remains outside the stable SDK facade during API 1.1.
 
-A valid FAT IMA can be opened through `client.filesystem(..., writable=True)` just like a FAT IMG and can therefore be listed, extracted, injected, renamed, and otherwise edited through the same managed FAT session. The verified named legacy-floppy profile directory and custom-geometry validation are deliberately exposed by the desktop, CLI `create-legacy-floppy`, and `diskforge.core.legacy_floppy` service during this SDK version; they are not yet advertised as a stable `DiskForgeClient` method.
+A valid FAT IMA can be opened through `client.filesystem(..., writable=True)` just like a FAT IMG and can therefore be listed, extracted, injected, moved as a regular file, renamed, and otherwise edited through the same managed FAT session. The verified named legacy-floppy profile directory and custom-geometry validation are deliberately exposed by the desktop, CLI `create-legacy-floppy`, and `diskforge.core.legacy_floppy` service during this SDK version; they are not yet advertised as a stable `DiskForgeClient` method.
 
 ZIP-compatible legacy compressed images with `.imz` or `.wlz` extensions are recognized as **single-payload containers** only.
  DiskForge rejects encrypted, unsafe, non-Deflate/non-Stored, or multi-payload archives; a valid payload is materialized to a caller-owned temporary raw image for read-only browsing. The GUI and CLI can create or extract the same constrained container shape, but this does not claim support for undocumented proprietary extensions beyond that ZIP-compatible profile.

@@ -80,6 +80,7 @@ class BatchRunner:
             OperationKind.HFS_INJECT: ("source", "destination", "sources"),
             OperationKind.HFS_CREATE: ("destination", "size_bytes", "label"),
             OperationKind.EXPORT_LISTING: ("source", "destination"),
+            OperationKind.MOVE: ("source", "item_path", "target_directory"),
         }
         for position, raw in enumerate(spec["operations"]):
             item = raw if isinstance(raw, dict) else {}
@@ -112,6 +113,12 @@ class BatchRunner:
                     raise DiskForgeError("Batch export_listing partition must be a positive integer when provided.")
                 if "html" in item and not isinstance(item["html"], bool):
                     raise DiskForgeError("Batch export_listing html must be a boolean when provided.")
+            if kind == OperationKind.MOVE:
+                if not isinstance(item.get("item_path"), str) or not isinstance(item.get("target_directory"), str):
+                    raise DiskForgeError("Batch move item_path and target_directory must be strings.")
+                partition_index = item.get("partition")
+                if partition_index is not None and (isinstance(partition_index, bool) or not isinstance(partition_index, int) or partition_index < 1):
+                    raise DiskForgeError("Batch move partition must be a positive integer when provided.")
             if kind == OperationKind.ISO_EDIT:
                 additions, delete_paths, create_directories, target_directory = self._iso_edit_values(item)
                 if not additions and not delete_paths and not create_directories:
@@ -130,13 +137,13 @@ class BatchRunner:
                 "name": str(item.get("name") or kind.value),
                 "kind": kind.value,
                 "source": item.get("source"),
-                "destination": item.get("destination") or item.get("destination_root"),
+                "destination": item.get("destination") or item.get("target_directory") or item.get("destination_root"),
                 "will_write": kind in {OperationKind.CONVERT, OperationKind.RESIZE, OperationKind.INJECT,
                                          OperationKind.BUNDLE, OperationKind.UNBUNDLE, OperationKind.EXTRACT,
                                          OperationKind.LEGACY_COMPRESS, OperationKind.LEGACY_EXTRACT,
                                          OperationKind.ISO_REPLACE, OperationKind.ISO_EDIT,
                                          OperationKind.NTFS_INJECT, OperationKind.EXT_INJECT, OperationKind.HFS_INJECT,
-                                         OperationKind.HFS_CREATE, OperationKind.EXPORT_LISTING},
+                                         OperationKind.HFS_CREATE, OperationKind.EXPORT_LISTING, OperationKind.MOVE},
             })
         return preview
 
@@ -295,6 +302,16 @@ class BatchRunner:
             finally:
                 filesystem.close()
             return str(report)
+        if kind == OperationKind.MOVE:
+            source = Path(item["source"])
+            filesystem = self._filesystem(source, partition_index=item.get("partition"), writable=True)
+            try:
+                if not isinstance(filesystem, FatImageFilesystem):
+                    raise DiskForgeError("Batch move is available only for writable FAT images.")
+                filesystem.move(str(item["item_path"]), str(item["target_directory"]))
+            finally:
+                filesystem.close()
+            return str(source)
         if kind == OperationKind.EXTRACT:
             paths = item.get("paths", ["/"])
             if not isinstance(paths, list) or not all(isinstance(value, str) for value in paths):

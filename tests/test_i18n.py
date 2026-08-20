@@ -458,3 +458,28 @@ def test_batch_directory_report_workflow_is_translated_in_every_non_english_loca
         translated = CATALOG[language.code]
         assert required <= set(translated)
         assert all(translated[source] != source for source in required)
+
+
+
+def test_fat_file_move_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Move to directory…",
+        "Move image file",
+        "Existing target directory",
+        "Moving image file",
+        "Moved entry to {path}",
+        "Move regular FAT file",
+        "Image file to move",
+        "FAT target directory",
+        "Move one regular file within a writable FAT image to an existing image directory. Existing targets are never overwritten and directory moves are deliberately rejected because they are not atomic.",
+        "FAT file move requires a source image, an image file path, and an existing target directory.",
+        "FAT file move partition index must be a positive integer.",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)

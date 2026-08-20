@@ -46,3 +46,24 @@ def test_cli_bundle_password_stdin(tmp_path: Path, monkeypatch, capsys) -> None:
     finally:
         monkeypatch.setattr(sys, "stdin", original_stdin)
     assert (output / "payload.img").read_bytes() == image.read_bytes()
+
+
+
+def test_cli_move_fat_emits_json_and_rejects_directory_sources(tmp_path: Path, capsys) -> None:
+    image = tmp_path / "move.img"
+    payload = tmp_path / "payload.txt"
+    payload.write_text("CLI move payload", encoding="utf-8")
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    (archive / "placeholder.txt").write_text("directory anchor", encoding="utf-8")
+
+    assert main(["create-fat", str(image), "--size-mib", "8", "--fat", "16"]) == 0
+    assert main(["inject", str(image), str(payload), str(archive)]) == 0
+    capsys.readouterr()
+
+    assert main(["--json", "move-fat", str(image), "/payload.txt", "/archive"]) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "source": "/payload.txt", "destination": "/archive/payload.txt",
+    }
+    assert main(["move-fat", str(image), "/archive", "/"]) == 2
+    assert "directory moves" in capsys.readouterr().err

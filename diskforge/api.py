@@ -130,3 +130,11 @@ class DiskForgeClient:
             if not isinstance(filesystem, FatImageFilesystem):
                 raise DiskForgeError("Only writable FAT images accept file injection.")
             return filesystem.inject(sources, target_directory, progress, token)
+
+
+    def move_fat(self, image: Path | str, item_path: str, target_directory: str) -> str:
+        """Move one regular file into an existing directory of a writable FAT image."""
+        with self.filesystem(image, writable=True) as filesystem:
+            if not isinstance(filesystem, FatImageFilesystem):
+                raise DiskForgeError("Only writable FAT images support file movement.")
+            return filesystem.move(item_path, target_directory)

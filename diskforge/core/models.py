@@ -112,6 +112,7 @@ class OperationKind(str, Enum):
     HFS_INJECT = "hfs_inject"
     HFS_CREATE = "hfs_create"
     EXPORT_LISTING = "export_listing"
+    MOVE = "move"
 
 
 @dataclass(frozen=True)

@@ -349,6 +349,32 @@ class FatImageFilesystem(ImageFilesystem):
             else:
                 self.fs.remove(item_path)
 
+    def move(self, item_path: str, target_directory: str) -> str:
+        """Move one FAT file or directory into an existing directory without overwrite."""
+        if self.read_only:
+            raise DiskForgeError("This FAT image is open read-only.")
+        source = _normal(item_path)
+        destination_directory = _normal(target_directory)
+        if source == "/":
+            raise DiskForgeError("The FAT root directory cannot be moved.")
+        if not self.fs.exists(source):
+            raise FileNotFoundError(source)
+        if not self.fs.exists(destination_directory):
+            raise DiskForgeError("The FAT move target directory does not exist.")
+        source_info = self.fs.getinfo(source)
+        target_info = self.fs.getinfo(destination_directory)
+        if not target_info.is_dir:
+            raise DiskForgeError("The FAT move target must be an existing directory.")
+        if source_info.is_dir:
+            raise DiskForgeError("FAT directory moves are not supported because they cannot be completed atomically.")
+        destination = _normal(posixpath.join(destination_directory, posixpath.basename(source)))
+        if destination == source:
+            return source
+        if self.fs.exists(destination):
+            raise FileExistsError(destination)
+        self.fs.move(source, destination)
+        return destination
+
     def rename(self, item_path: str, new_name: str) -> str:
         """Rename a FAT file or directory within its current parent directory."""
         if self.read_only:

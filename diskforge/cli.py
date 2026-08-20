@@ -106,6 +106,12 @@ def parser() -> argparse.ArgumentParser:
     inject_hfs.add_argument("--hcopy", help="Optional explicit hcopy executable")
     inject_hfs.add_argument("--hls", help="Optional explicit hls executable")
 
+    move_fat = commands.add_parser("move-fat", help="Move one regular file into an existing directory of a writable FAT image")
+    move_fat.add_argument("image", type=Path)
+    move_fat.add_argument("source_path", help="Existing image file path to move")
+    move_fat.add_argument("target_directory", help="Existing image directory receiving the file")
+    move_fat.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
+
     rename = commands.add_parser("rename", help="Rename one FAT image entry")
     rename.add_argument("image", type=Path)
     rename.add_argument("path")
@@ -524,6 +530,15 @@ def main(argv: list[str] | None = None) -> int:
                 "source_sha256": result.source_sha256, "target_paths": list(result.target_paths),
                 "payload_sha256": list(result.payload_sha256),
             }, str(result.destination))
+        elif args.command == "move-fat":
+            fs = _filesystem(args.image, writable=True, partition_index=args.partition)
+            try:
+                if not isinstance(fs, FatImageFilesystem):
+                    raise SystemExit("Only FAT images support file movement.")
+                destination = fs.move(args.source_path, args.target_directory)
+                _emit(args, {"source": args.source_path, "destination": destination}, destination)
+            finally:
+                fs.close()
         elif args.command == "rename":
             fs = _filesystem(args.image, writable=True, partition_index=args.partition)
             try:

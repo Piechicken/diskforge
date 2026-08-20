@@ -1517,3 +1517,61 @@ CATALOG["ja"].update({
     "Directory report partition index must be a positive integer.": "ディレクトリレポートのパーティションインデックスは正の整数でなければなりません。",
 })
 TRANSLATABLE = _catalog_keys()
+
+
+# v0.10 FAT regular-file movement across the desktop and graphical batch designer.
+CATALOG["zh_CN"].update({
+    "Move to directory…": "移动到目录…", "Move image file": "移动映像文件",
+    "Existing target directory": "现有目标目录", "Moving image file": "正在移动映像文件",
+    "Moved entry to {path}": "已将条目移动到 {path}", "Move regular FAT file": "移动常规 FAT 文件",
+    "Image file to move": "要移动的映像文件", "FAT target directory": "FAT 目标目录",
+    "Move one regular file within a writable FAT image to an existing image directory. Existing targets are never overwritten and directory moves are deliberately rejected because they are not atomic.": "在可写 FAT 映像中将一个常规文件移动到现有映像目录。绝不覆盖现有目标；目录移动会被明确拒绝，因为它不具备原子性。",
+    "FAT file move requires a source image, an image file path, and an existing target directory.": "FAT 文件移动需要源映像、映像文件路径和现有目标目录。",
+    "FAT file move partition index must be a positive integer.": "FAT 文件移动的分区索引必须是正整数。",
+})
+CATALOG["es"].update({
+    "Move to directory…": "Mover a directorio…", "Move image file": "Mover archivo de imagen",
+    "Existing target directory": "Directorio de destino existente", "Moving image file": "Moviendo archivo de imagen",
+    "Moved entry to {path}": "Entrada movida a {path}", "Move regular FAT file": "Mover archivo FAT regular",
+    "Image file to move": "Archivo de imagen que se va a mover", "FAT target directory": "Directorio de destino FAT",
+    "Move one regular file within a writable FAT image to an existing image directory. Existing targets are never overwritten and directory moves are deliberately rejected because they are not atomic.": "Mueva un archivo regular dentro de una imagen FAT editable a un directorio existente de la imagen. Nunca se sobrescriben destinos existentes y los movimientos de directorios se rechazan deliberadamente porque no son atómicos.",
+    "FAT file move requires a source image, an image file path, and an existing target directory.": "El movimiento de archivos FAT requiere una imagen de origen, una ruta de archivo dentro de la imagen y un directorio de destino existente.",
+    "FAT file move partition index must be a positive integer.": "El índice de partición para mover archivos FAT debe ser un entero positivo.",
+})
+CATALOG["fr"].update({
+    "Move to directory…": "Déplacer vers un dossier…", "Move image file": "Déplacer le fichier de l’image",
+    "Existing target directory": "Dossier de destination existant", "Moving image file": "Déplacement du fichier de l’image",
+    "Moved entry to {path}": "Entrée déplacée vers {path}", "Move regular FAT file": "Déplacer un fichier FAT standard",
+    "Image file to move": "Fichier de l’image à déplacer", "FAT target directory": "Dossier cible FAT",
+    "Move one regular file within a writable FAT image to an existing image directory. Existing targets are never overwritten and directory moves are deliberately rejected because they are not atomic.": "Déplacez un fichier standard dans une image FAT modifiable vers un dossier existant de l’image. Les cibles existantes ne sont jamais écrasées et les déplacements de dossiers sont volontairement refusés car ils ne sont pas atomiques.",
+    "FAT file move requires a source image, an image file path, and an existing target directory.": "Le déplacement de fichier FAT requiert une image source, un chemin de fichier dans l’image et un dossier cible existant.",
+    "FAT file move partition index must be a positive integer.": "L’index de partition pour le déplacement de fichier FAT doit être un entier positif.",
+})
+CATALOG["ru"].update({
+    "Move to directory…": "Переместить в каталог…", "Move image file": "Переместить файл образа",
+    "Existing target directory": "Существующий целевой каталог", "Moving image file": "Перемещение файла образа",
+    "Moved entry to {path}": "Элемент перемещён в {path}", "Move regular FAT file": "Переместить обычный файл FAT",
+    "Image file to move": "Файл образа для перемещения", "FAT target directory": "Целевой каталог FAT",
+    "Move one regular file within a writable FAT image to an existing image directory. Existing targets are never overwritten and directory moves are deliberately rejected because they are not atomic.": "Переместите один обычный файл в редактируемом FAT-образе в существующий каталог образа. Существующие цели никогда не перезаписываются, а перемещения каталогов намеренно отклоняются, поскольку они неатомарны.",
+    "FAT file move requires a source image, an image file path, and an existing target directory.": "Для перемещения файла FAT нужны исходный образ, путь к файлу в образе и существующий целевой каталог.",
+    "FAT file move partition index must be a positive integer.": "Индекс раздела для перемещения файла FAT должен быть положительным целым числом.",
+})
+CATALOG["ar"].update({
+    "Move to directory…": "نقل إلى مجلد…", "Move image file": "نقل ملف الصورة",
+    "Existing target directory": "مجلد الهدف الموجود", "Moving image file": "جارٍ نقل ملف الصورة",
+    "Moved entry to {path}": "نُقل العنصر إلى {path}", "Move regular FAT file": "نقل ملف FAT عادي",
+    "Image file to move": "ملف الصورة المراد نقله", "FAT target directory": "مجلد الهدف لـ FAT",
+    "Move one regular file within a writable FAT image to an existing image directory. Existing targets are never overwritten and directory moves are deliberately rejected because they are not atomic.": "انقل ملفًا عاديًا واحدًا داخل صورة FAT قابلة للكتابة إلى مجلد موجود في الصورة. لا تُستبدل الأهداف الموجودة مطلقًا، وتُرفض عمليات نقل المجلدات عمدًا لأنها ليست ذرية.",
+    "FAT file move requires a source image, an image file path, and an existing target directory.": "يتطلب نقل ملف FAT صورة مصدر ومسار ملف داخل الصورة ومجلد هدف موجودًا.",
+    "FAT file move partition index must be a positive integer.": "يجب أن يكون فهرس القسم لنقل ملف FAT عددًا صحيحًا موجبًا.",
+})
+CATALOG["ja"].update({
+    "Move to directory…": "ディレクトリへ移動…", "Move image file": "イメージファイルを移動",
+    "Existing target directory": "既存の移動先ディレクトリ", "Moving image file": "イメージファイルを移動中",
+    "Moved entry to {path}": "エントリを {path} に移動しました", "Move regular FAT file": "通常の FAT ファイルを移動",
+    "Image file to move": "移動するイメージ内ファイル", "FAT target directory": "FAT の移動先ディレクトリ",
+    "Move one regular file within a writable FAT image to an existing image directory. Existing targets are never overwritten and directory moves are deliberately rejected because they are not atomic.": "書き込み可能な FAT イメージ内の通常ファイルを、既存のイメージ内ディレクトリへ移動します。既存の移動先は決して上書きされず、ディレクトリ移動はアトミックではないため意図的に拒否されます。",
+    "FAT file move requires a source image, an image file path, and an existing target directory.": "FAT ファイル移動には、ソースイメージ、イメージ内ファイルパス、既存の移動先ディレクトリが必要です。",
+    "FAT file move partition index must be a positive integer.": "FAT ファイル移動のパーティションインデックスは正の整数でなければなりません。",
+})
+TRANSLATABLE = _catalog_keys()

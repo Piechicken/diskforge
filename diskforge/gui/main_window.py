@@ -649,6 +649,7 @@ class MainWindow(QMainWindow):
         self.action_delete = self._action("Delete selected", "Delete", self.delete_selected)
         self.action_properties = self._action("Modify selected timestamp…", None, self.modify_timestamp)
         self.action_rename = self._action("Rename selected…", "F2", self.rename_selected)
+        self.action_move = self._action("Move to directory…", None, self.move_selected)
         self.action_attributes = self._action("Edit DOS attributes…", None, self.edit_attributes)
         self.action_label = self._action("Change volume label…", None, self.change_volume_label)
         self.action_comment = self._action("Edit image comment…", None, self.edit_image_comment)
@@ -709,7 +710,7 @@ class MainWindow(QMainWindow):
         menu_file.addAction("Exit", self.close)
         menu_image = self.menuBar().addMenu("&Image")
         menu_image.addActions([self.action_extract, self.action_inject, self.action_controlled_inject, self.action_preview, self.action_delete, self.action_properties,
-                               self.action_rename, self.action_attributes, self.action_label, self.action_comment])
+                               self.action_rename, self.action_move, self.action_attributes, self.action_label, self.action_comment])
         menu_image.addSeparator()
         menu_image.addActions([self.action_convert, self.action_resize, self.action_trim_zero_tail, self.action_compare, self.action_verify,
                                self.action_defragment, self.action_partitions, self.action_boot, self.action_wrap_mbr, self.action_prepare_deployment,
@@ -960,6 +961,7 @@ class MainWindow(QMainWindow):
         self.action_delete.setEnabled(fs_writable and entries)
         self.action_properties.setEnabled(fs_writable and entries)
         self.action_rename.setEnabled(fs_writable and len(self._selected_paths()) == 1)
+        self.action_move.setEnabled(fs_writable and selected_file is not None and len(self._selected_paths()) == 1)
         self.action_attributes.setEnabled(fs_writable and len(self._selected_paths()) == 1)
         self.action_label.setEnabled(fs_writable)
         self.action_export.setEnabled(open_image and self.current_fs is not None)
@@ -1883,6 +1885,36 @@ class MainWindow(QMainWindow):
         fs = FatImageFilesystem(source)
         try:
             return fs.rename(path, value)
+        finally:
+            fs.close()
+
+    def move_selected(self) -> None:
+        """Move a selected regular file to an existing FAT directory without overwrite."""
+        if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
+            return
+        paths = self._selected_paths()
+        entry = next((item for item in self.current_entries if item.path == paths[0]), None) if len(paths) == 1 else None
+        if entry is None or entry.is_dir:
+            return
+        target_directory, accepted = QInputDialog.getText(
+            self, self._localized("Move image file"), self._localized("Existing target directory"),
+            text=self.current_directory,
+        )
+        if not accepted:
+            return
+        source, item_path, partition_index = self.current_path, entry.path, self.current_partition_index
+        self._run_worker(
+            self._localized("Moving image file"),
+            lambda progress=None, token=None: self._move_in_image(source, item_path, target_directory, partition_index),
+            on_result=lambda path: self._after_fs_change(self._localized("Moved entry to {path}").format(path=path)),
+        )
+
+    @staticmethod
+    def _move_in_image(source: Path, item_path: str, target_directory: str,
+                       partition_index: int | None = None) -> str:
+        fs = FatImageFilesystem(source, partition_index=partition_index)
+        try:
+            return fs.move(item_path, target_directory)
         finally:
             fs.close()
 

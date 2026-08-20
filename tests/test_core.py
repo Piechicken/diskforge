@@ -91,3 +91,60 @@ def test_self_extractor_verifies_payload(tmp_path: Path) -> None:
     completed = subprocess.run([sys.executable, str(package), str(destination)], capture_output=True, text=True)
     assert completed.returncode == 0, completed.stderr
     assert (destination / "small.img").read_bytes() == image.read_bytes()
+
+
+def test_fat_move_preserves_regular_file_payload(tmp_path: Path) -> None:
+    image = create_fat_image(tmp_path / "move.img", 4 * 1024 * 1024, FileSystemType.FAT12, "MOVE")
+    file_payload = tmp_path / "single.txt"
+    file_payload.write_text("single move payload", encoding="utf-8")
+    filesystem = FatImageFilesystem(image)
+    try:
+        filesystem.inject([file_payload])
+        filesystem.fs.makedirs("/archive", recreate=True)
+
+        assert filesystem.move("/single.txt", "/archive") == "/archive/single.txt"
+        assert not filesystem.fs.exists("/single.txt")
+        assert filesystem.extract(["/archive/single.txt"], tmp_path / "extract")
+    finally:
+        filesystem.close()
+
+    assert (tmp_path / "extract" / "archive" / "single.txt").read_text(encoding="utf-8") == "single move payload"
+
+
+def test_fat_move_rejects_unsafe_destinations_and_preserves_source(tmp_path: Path) -> None:
+    image = create_fat_image(tmp_path / "move-guards.img", 4 * 1024 * 1024, FileSystemType.FAT12, "MOVE")
+    payload = tmp_path / "payload.txt"
+    payload.write_text("guarded", encoding="utf-8")
+    filesystem = FatImageFilesystem(image)
+    try:
+        filesystem.inject([payload])
+        filesystem.fs.makedirs("/folder/child", recreate=True)
+        filesystem.inject([payload], "/folder")
+
+        import pytest
+        from diskforge.core.storage import DiskForgeError
+
+        with pytest.raises(FileExistsError):
+            filesystem.move("/payload.txt", "/folder")
+        with pytest.raises(DiskForgeError, match="target directory does not exist"):
+            filesystem.move("/payload.txt", "/missing")
+        with pytest.raises(DiskForgeError, match="existing directory"):
+            filesystem.move("/payload.txt", "/folder/payload.txt")
+        with pytest.raises(DiskForgeError, match="root directory"):
+            filesystem.move("/", "/folder")
+        with pytest.raises(DiskForgeError, match="directory moves"):
+            filesystem.move("/folder", "/folder/child")
+        assert filesystem.fs.exists("/payload.txt")
+        assert filesystem.fs.exists("/folder")
+    finally:
+        filesystem.close()
+
+    read_only = FatImageFilesystem(image, read_only=True)
+    try:
+        import pytest
+        from diskforge.core.storage import DiskForgeError
+
+        with pytest.raises(DiskForgeError, match="read-only"):
+            read_only.move("/payload.txt", "/folder")
+    finally:
+        read_only.close()

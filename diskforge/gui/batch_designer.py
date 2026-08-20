@@ -43,6 +43,7 @@ _EDITABLE_KINDS = (
     OperationKind.HFS_CREATE,
     OperationKind.BUNDLE,
     OperationKind.UNBUNDLE,
+    OperationKind.MOVE,
 )
 
 
@@ -105,6 +106,7 @@ class BatchDesignerDialog(QDialog):
             OperationKind.HFS_CREATE: "Create verified classic HFS image",
             OperationKind.BUNDLE: "Create secure image container",
             OperationKind.UNBUNDLE: "Extract image container",
+            OperationKind.MOVE: "Move regular FAT file",
         }
         for kind in _EDITABLE_KINDS:
             self.kind_choice.addItem(labels[kind], kind.value)
@@ -141,6 +143,7 @@ class BatchDesignerDialog(QDialog):
         editor.addRow("Extraction sequence", sequence_layout)
 
         self.paths = QLineEdit("/")
+        self.item_path = QLineEdit()
         self.target_directory = QLineEdit("/")
         self.layout_choice = QComboBox()
         self.layout_choice.addItem("Preserve image paths", ExtractionLayout.PRESERVE_PATHS)
@@ -152,6 +155,7 @@ class BatchDesignerDialog(QDialog):
         self.conflict_choice.addItem("Skip existing file", ConflictPolicy.SKIP)
         self.conflict_choice.addItem("Rename conflicting file", ConflictPolicy.RENAME)
         editor.addRow("Image paths to extract (one per line)", self.paths)
+        editor.addRow("Image file to move", self.item_path)
         editor.addRow("FAT target directory", self.target_directory)
         editor.addRow("Extraction layout", self.layout_choice)
         editor.addRow("Existing files", self.conflict_choice)
@@ -193,7 +197,7 @@ class BatchDesignerDialog(QDialog):
         self.preview.setWordWrap(True)
         layout.addWidget(self.preview)
         for widget in (self.source, self.destination, self.sources, self.prefix, self.suffix, self.paths,
-                       self.target_directory, self.sha256, self.compare_bytes, self.size_bytes, self.partition_index, self.volume_label, self.comment,
+                       self.item_path, self.target_directory, self.sha256, self.compare_bytes, self.size_bytes, self.partition_index, self.volume_label, self.comment,
                        self.description, self.bundle_names):
             signal = widget.textChanged if isinstance(widget, QPlainTextEdit) else widget.textChanged
             signal.connect(self.update_preview)
@@ -234,6 +238,7 @@ class BatchDesignerDialog(QDialog):
             OperationKind.HFS_CREATE: "Create a new standalone classic HFS output through an explicitly available hfsutils backend. Choose a new destination, at least 800 KiB in 512-byte units, and a safe volume label. HFS+, physical media, partition maps, and overwrite are rejected.",
             OperationKind.BUNDLE: "Create an unencrypted, auditable image container from selected image files.",
             OperationKind.UNBUNDLE: "Extract named or all items from an unencrypted image container.",
+            OperationKind.MOVE: "Move one regular file within a writable FAT image to an existing image directory. Existing targets are never overwritten and directory moves are deliberately rejected because they are not atomic.",
         }
         self.preview.setText(hints[kind])
 
@@ -337,6 +342,20 @@ class BatchDesignerDialog(QDialog):
             if not source or not destination or not self.size_bytes.text().strip():
                 raise DiskForgeError("Resize requires source, destination and byte size.")
             item.update({"source": source, "destination": destination, "size_bytes": int(self.size_bytes.text().strip())})
+        elif kind == OperationKind.MOVE:
+            item_path = self.item_path.text().strip()
+            target_directory = self.target_directory.text().strip()
+            if not source or not item_path or not target_directory:
+                raise DiskForgeError("FAT file move requires a source image, an image file path, and an existing target directory.")
+            item.update({"source": source, "item_path": item_path, "target_directory": target_directory})
+            if self.partition_index.text().strip():
+                try:
+                    partition = int(self.partition_index.text().strip())
+                except ValueError as exc:
+                    raise DiskForgeError("FAT file move partition index must be a positive integer.") from exc
+                if partition < 1:
+                    raise DiskForgeError("FAT file move partition index must be a positive integer.")
+                item["partition"] = partition
         elif kind == OperationKind.INJECT:
             if not destination or not sources:
                 raise DiskForgeError("Injection requires a FAT destination image and local file paths.")
@@ -375,7 +394,7 @@ class BatchDesignerDialog(QDialog):
     def _summary(item: dict[str, Any]) -> str:
         kind = str(item.get("kind", "operation"))
         source = "new image" if kind == OperationKind.HFS_CREATE.value else item.get("source") or f"{len(item.get('sources', []))} source(s)"
-        destination = item.get("destination") or item.get("destination_root") or "read-only"
+        destination = item.get("destination") or item.get("target_directory") or item.get("destination_root") or "read-only"
         return f"{kind}: {source} → {destination}"
 
     def _refresh_operation_table(self, select: int | None = None) -> None:
@@ -439,6 +458,7 @@ class BatchDesignerDialog(QDialog):
             self.width.setValue(int(sequence.get("width", 3)))
             self.step.setValue(int(sequence.get("step", 1)))
         self.paths.setText("\n".join(str(value) for value in item.get("paths", ["/"])))
+        self.item_path.setText(str(item.get("item_path", "")))
         self.target_directory.setText(str(item.get("target_directory", "/")))
         self._set_combo_data(self.layout_choice, item.get("layout", ExtractionLayout.PRESERVE_PATHS.value))
         self._set_combo_data(self.conflict_choice, item.get("on_conflict", ConflictPolicy.ERROR.value))

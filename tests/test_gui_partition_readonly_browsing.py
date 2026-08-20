@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from PySide6.QtWidgets import QInputDialog, QMessageBox
 
+from diskforge.core.filesystems import FatImageFilesystem, create_fat_image
 from diskforge.core.models import DiskPartition, FileSystemType, ImageEntry
 from diskforge.gui import main_window as window_module
 from diskforge.gui.main_window import MainWindow
@@ -79,3 +80,69 @@ def test_gui_partition_chooser_routes_supported_non_fat_index(
 
     assert errors == []
     assert opened == [(image, 1)]
+
+
+def test_gui_move_action_requires_one_regular_file_in_writable_fat(
+    qtbot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:  # type: ignore[no-untyped-def]
+    image = create_fat_image(tmp_path / "move.img", 8 * 1024 * 1024, FileSystemType.FAT16, "MOVEGUI")
+    writable = FatImageFilesystem(image)
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.current_path = image
+    window.current_fs = writable
+    window.current_entries = [
+        ImageEntry("/payload.txt", "payload.txt", False, 7),
+        ImageEntry("/archive", "archive", True),
+    ]
+    try:
+        monkeypatch.setattr(window, "_selected_paths", lambda: ["/payload.txt"])
+        window._update_action_state()
+        assert window.action_move.isEnabled()
+
+        monkeypatch.setattr(window, "_selected_paths", lambda: ["/archive"])
+        window._update_action_state()
+        assert not window.action_move.isEnabled()
+
+        monkeypatch.setattr(window, "_selected_paths", lambda: ["/payload.txt", "/archive"])
+        window._update_action_state()
+        assert not window.action_move.isEnabled()
+    finally:
+        writable.close()
+
+    read_only = FatImageFilesystem(image, read_only=True)
+    window.current_fs = read_only
+    try:
+        monkeypatch.setattr(window, "_selected_paths", lambda: ["/payload.txt"])
+        window._update_action_state()
+        assert not window.action_move.isEnabled()
+    finally:
+        read_only.close()
+
+
+
+def test_gui_move_worker_preserves_explicit_fat_partition_index(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "partitioned.img"
+    source.write_bytes(b"image")
+    received: dict[str, object] = {}
+
+    class _StubFatFilesystem:
+        def __init__(self, image: Path, *, partition_index: int | None = None) -> None:
+            received.update({"image": image, "partition_index": partition_index})
+
+        def move(self, item_path: str, target_directory: str) -> str:
+            received.update({"item_path": item_path, "target_directory": target_directory})
+            return "/archive/payload.txt"
+
+        def close(self) -> None:
+            received["closed"] = True
+
+    monkeypatch.setattr(window_module, "FatImageFilesystem", _StubFatFilesystem)
+
+    assert MainWindow._move_in_image(source, "/payload.txt", "/archive", 2) == "/archive/payload.txt"
+    assert received == {
+        "image": source, "partition_index": 2, "item_path": "/payload.txt",
+        "target_directory": "/archive", "closed": True,
+    }

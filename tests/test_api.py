@@ -53,3 +53,21 @@ def test_public_api_v11_exposes_safe_iso_replacement_and_read_only_mount_capabil
     capability = client.mount_capability()
     assert capability.read_only is True
     assert isinstance(capability.available, bool)
+
+
+
+def test_public_api_moves_regular_fat_file_and_rejects_directory_move(tmp_path: Path) -> None:
+    client = DiskForgeClient()
+    image = tmp_path / "move-api.img"
+    client.create_fat(image, size_bytes=8 * 1024 * 1024, filesystem=FileSystemType.FAT16, label="MOVEAPI")
+    payload = tmp_path / "payload.txt"
+    payload.write_text("SDK move payload", encoding="utf-8")
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    (archive / "placeholder.txt").write_text("directory anchor", encoding="utf-8")
+    client.inject(image, [payload, archive])
+
+    assert client.move_fat(image, "/payload.txt", "/archive") == "/archive/payload.txt"
+    assert client.extract(image, ["/archive/payload.txt"], tmp_path / "out")[0].read_text(encoding="utf-8") == "SDK move payload"
+    with pytest.raises(DiskForgeError, match="directory moves"):
+        client.move_fat(image, "/archive", "/")

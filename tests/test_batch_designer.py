@@ -166,3 +166,48 @@ def test_batch_designer_serializes_read_only_directory_report(tmp_path: Path) ->
     assert reopened.destination.text() == str(destination)
     assert reopened.partition_index.text() == "2"
     assert reopened.html_listing.isChecked()
+
+
+
+def test_batch_designer_serializes_regular_fat_file_move(tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "source.img"
+    source.write_bytes(b"source")
+    dialog = BatchDesignerDialog()
+    kind_index = dialog.kind_choice.findData("move")
+    assert kind_index >= 0
+    dialog.kind_choice.setCurrentIndex(kind_index)
+    dialog.source.setText(str(source))
+    dialog.item_path.setText("/payload.txt")
+    dialog.target_directory.setText("/archive")
+    dialog.partition_index.setText("2")
+
+    operation = dialog.recipe()["operations"][0]
+
+    assert operation == {
+        "name": dialog.kind_choice.currentText(), "kind": "move", "source": str(source),
+        "item_path": "/payload.txt", "target_directory": "/archive", "partition": 2,
+    }
+    reopened = BatchDesignerDialog(recipe={"schema": "diskforge.batch/v4", "operations": [operation]})
+    assert reopened.source.text() == str(source)
+    assert reopened.item_path.text() == "/payload.txt"
+    assert reopened.target_directory.text() == "/archive"
+    assert reopened.partition_index.text() == "2"
+    assert reopened._summary(operation).endswith("→ /archive")
+
+
+def test_batch_designer_rejects_invalid_fat_file_move_partition(tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "source.img"
+    source.write_bytes(b"source")
+    dialog = BatchDesignerDialog()
+    kind_index = dialog.kind_choice.findData("move")
+    assert kind_index >= 0
+    dialog.kind_choice.setCurrentIndex(kind_index)
+    dialog.source.setText(str(source))
+    dialog.item_path.setText("/payload.txt")
+    dialog.target_directory.setText("/archive")
+    dialog.partition_index.setText("0")
+
+    with pytest.raises(DiskForgeError, match="positive integer"):
+        dialog.recipe()
