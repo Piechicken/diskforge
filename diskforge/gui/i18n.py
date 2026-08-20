@@ -1276,6 +1276,11 @@ CATALOG["zh_CN"].update({
     "Inject safely into new classic HFS image": "安全注入到新的经典 HFS 映像",
     "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.": "将独立经典 HFS 映像复制为新输出，添加新的根目录原始数据 fork 文件并验证每个载荷。已有目标、原位更改、HFS+、元数据和资源 fork 均会被拒绝。",
     "Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.": "受控 NTFS/EXT/经典 HFS 注入需要源映像、新目标映像和本地文件路径。",
+    "Classic HFS image (optional hfsutils)": "经典 HFS 映像（可选 hfsutils）",
+    "Classic HFS size": "经典 HFS 大小",
+    "Creates a new standalone classic HFS file through an explicitly available hfsutils backend. The output is verified before opening; HFS+ and physical media are not included.": "通过显式可用的 hfsutils 后端创建新的独立经典 HFS 文件。输出在打开前会被验证；HFS+ 和物理介质不在此范围内。",
+    "Create classic HFS image": "创建经典 HFS 映像",
+    "Creating verified classic HFS image": "正在创建已验证的经典 HFS 映像",
 })
 CATALOG["es"].update({
     "Inject files safely into new NTFS/EXT/classic HFS image…": "Inyectar archivos de forma segura en una nueva imagen NTFS/EXT/HFS clásico…",
@@ -1286,6 +1291,11 @@ CATALOG["es"].update({
     "Inject safely into new classic HFS image": "Inyectar de forma segura en una nueva imagen HFS clásico",
     "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.": "Copie una imagen HFS clásica independiente a una nueva salida, añada archivos nuevos de bifurcación de datos sin procesar en la raíz y verifique cada carga. Se rechazan los destinos existentes, los cambios en el lugar, HFS+, los metadatos y las bifurcaciones de recursos.",
     "Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.": "La inyección NTFS/EXT/HFS clásico controlada requiere una imagen de origen, una nueva imagen de destino y rutas de archivos locales.",
+    "Classic HFS image (optional hfsutils)": "Imagen HFS clásico (hfsutils opcional)",
+    "Classic HFS size": "Tamaño de HFS clásico",
+    "Creates a new standalone classic HFS file through an explicitly available hfsutils backend. The output is verified before opening; HFS+ and physical media are not included.": "Crea un archivo HFS clásico independiente mediante un backend hfsutils disponible explícitamente. La salida se verifica antes de abrirla; HFS+ y los medios físicos no están incluidos.",
+    "Create classic HFS image": "Crear imagen HFS clásico",
+    "Creating verified classic HFS image": "Creando imagen HFS clásico verificada",
 })
 CATALOG["fr"].update({
     "Inject files safely into new NTFS/EXT/classic HFS image…": "Injecter des fichiers en toute sécurité dans une nouvelle image NTFS/EXT/HFS classique…",
@@ -1296,6 +1306,11 @@ CATALOG["fr"].update({
     "Inject safely into new classic HFS image": "Injecter en toute sécurité dans une nouvelle image HFS classique",
     "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.": "Copiez une image HFS classique autonome vers une nouvelle sortie, ajoutez de nouveaux fichiers de fourche de données brutes à la racine et vérifiez chaque charge. Les destinations existantes, les modifications sur place, HFS+, les métadonnées et les fourches de ressources sont refusés.",
     "Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.": "L’injection NTFS/EXT/HFS classique contrôlée requiert une image source, une nouvelle image de destination et des chemins de fichiers locaux.",
+    "Classic HFS image (optional hfsutils)": "Image HFS classique (hfsutils facultatif)",
+    "Classic HFS size": "Taille HFS classique",
+    "Creates a new standalone classic HFS file through an explicitly available hfsutils backend. The output is verified before opening; HFS+ and physical media are not included.": "Crée un fichier HFS classique autonome via un backend hfsutils explicitement disponible. La sortie est vérifiée avant ouverture ; HFS+ et les supports physiques ne sont pas inclus.",
+    "Create classic HFS image": "Créer une image HFS classique",
+    "Creating verified classic HFS image": "Création d’une image HFS classique vérifiée",
 })
 CATALOG["ru"].update({
     "Inject files safely into new NTFS/EXT/classic HFS image…": "Безопасно добавить файлы в новый образ NTFS/EXT/классический HFS…",
@@ -1306,6 +1321,11 @@ CATALOG["ru"].update({
     "Inject safely into new classic HFS image": "Безопасно добавить в новый образ классического HFS",
     "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.": "Скопируйте автономный образ классического HFS в новый результат, добавьте новые файлы с необработанной вилкой данных в корень и проверьте каждый файл. Существующие назначения, изменения на месте, HFS+, метаданные и ресурсные вилки отклоняются.",
     "Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.": "Для контролируемого добавления NTFS/EXT/классического HFS требуются исходный образ, новый целевой образ и пути к локальным файлам.",
+    "Classic HFS image (optional hfsutils)": "Образ классического HFS (дополнительный hfsutils)",
+    "Classic HFS size": "Размер классического HFS",
+    "Creates a new standalone classic HFS file through an explicitly available hfsutils backend. The output is verified before opening; HFS+ and physical media are not included.": "Создаёт новый автономный файл классического HFS через явно доступный backend hfsutils. Результат проверяется перед открытием; HFS+ и физические носители не входят в область действия.",
+    "Create classic HFS image": "Создать образ классического HFS",
+    "Creating verified classic HFS image": "Создание проверенного образа классического HFS",
 })
 CATALOG["ar"].update({
     "Inject files safely into new NTFS/EXT/classic HFS image…": "إدراج الملفات بأمان في صورة NTFS/EXT/HFS كلاسيكية جديدة…",
@@ -1316,6 +1336,11 @@ CATALOG["ar"].update({
     "Inject safely into new classic HFS image": "إدراج آمن في صورة HFS كلاسيكية جديدة",
     "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.": "انسخ صورة HFS كلاسيكية مستقلة إلى مخرج جديد، وأضف ملفات شوكة بيانات خام جديدة في الجذر، وتحقق من كل حمولة. تُرفض الوجهات الموجودة والتغييرات الموضعية وHFS+ والبيانات الوصفية وشوكات الموارد.",
     "Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.": "يتطلب الإدراج المتحكم به في NTFS/EXT/HFS الكلاسيكي صورة مصدر وصورة وجهة جديدة ومسارات ملفات محلية.",
+    "Classic HFS image (optional hfsutils)": "صورة HFS كلاسيكية (hfsutils اختياري)",
+    "Classic HFS size": "حجم HFS الكلاسيكي",
+    "Creates a new standalone classic HFS file through an explicitly available hfsutils backend. The output is verified before opening; HFS+ and physical media are not included.": "ينشئ ملف HFS كلاسيكيًا مستقلاً جديدًا عبر خلفية hfsutils متاحة صراحةً. يُتحقق من الناتج قبل فتحه؛ ولا يشمل HFS+ أو الوسائط الفعلية.",
+    "Create classic HFS image": "إنشاء صورة HFS كلاسيكية",
+    "Creating verified classic HFS image": "جارٍ إنشاء صورة HFS كلاسيكية متحقق منها",
 })
 CATALOG["ja"].update({
     "Inject files safely into new NTFS/EXT/classic HFS image…": "新しい NTFS/EXT/クラシック HFS イメージへ安全にファイルを追加…",
@@ -1326,5 +1351,49 @@ CATALOG["ja"].update({
     "Inject safely into new classic HFS image": "新しいクラシック HFS イメージへ安全に追加",
     "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.": "独立したクラシック HFS イメージを新しい出力へコピーし、ルートに新しい生データフォークファイルを追加して各ペイロードを検証します。既存の出力先、インプレース変更、HFS+、メタデータ、リソースフォークは拒否されます。",
     "Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.": "制御済み NTFS/EXT/クラシック HFS 注入には、ソースイメージ、新しい出力イメージ、ローカルファイルパスが必要です。",
+    "Classic HFS image (optional hfsutils)": "クラシック HFS イメージ（任意の hfsutils）",
+    "Classic HFS size": "クラシック HFS サイズ",
+    "Creates a new standalone classic HFS file through an explicitly available hfsutils backend. The output is verified before opening; HFS+ and physical media are not included.": "明示的に利用可能な hfsutils バックエンドを介して、新しい独立したクラシック HFS ファイルを作成します。出力は開く前に検証されます。HFS+ と物理メディアは対象外です。",
+    "Create classic HFS image": "クラシック HFS イメージを作成",
+    "Creating verified classic HFS image": "検証済みクラシック HFS イメージを作成中",
+})
+TRANSLATABLE = _catalog_keys()
+
+# Verified classic-HFS creation additions for the graphical batch designer.
+CATALOG["zh_CN"].update({
+    "Create verified classic HFS image": "创建已验证的经典 HFS 映像",
+    "Create a new standalone classic HFS output through an explicitly available hfsutils backend. Choose a new destination, at least 800 KiB in 512-byte units, and a safe volume label. HFS+, physical media, partition maps, and overwrite are rejected.": "通过显式可用的 hfsutils 后端创建新的独立经典 HFS 输出。请选择新目标、至少 800 KiB 且按 512 字节对齐的大小以及安全的卷标。HFS+、物理介质、分区映射和覆盖均会被拒绝。",
+    "Classic HFS creation requires a new destination image, byte size, and volume label.": "经典 HFS 创建需要新的目标映像、字节大小和卷标。",
+    "Classic HFS creation byte size must be an integer.": "经典 HFS 创建的字节大小必须是整数。",
+})
+CATALOG["es"].update({
+    "Create verified classic HFS image": "Crear imagen HFS clásico verificada",
+    "Create a new standalone classic HFS output through an explicitly available hfsutils backend. Choose a new destination, at least 800 KiB in 512-byte units, and a safe volume label. HFS+, physical media, partition maps, and overwrite are rejected.": "Cree una nueva salida HFS clásica independiente mediante un backend hfsutils disponible explícitamente. Elija un destino nuevo, al menos 800 KiB en unidades de 512 bytes y una etiqueta de volumen segura. Se rechazan HFS+, los medios físicos, los mapas de particiones y la sobrescritura.",
+    "Classic HFS creation requires a new destination image, byte size, and volume label.": "La creación de HFS clásico requiere una imagen de destino nueva, el tamaño en bytes y una etiqueta de volumen.",
+    "Classic HFS creation byte size must be an integer.": "El tamaño en bytes para crear HFS clásico debe ser un número entero.",
+})
+CATALOG["fr"].update({
+    "Create verified classic HFS image": "Créer une image HFS classique vérifiée",
+    "Create a new standalone classic HFS output through an explicitly available hfsutils backend. Choose a new destination, at least 800 KiB in 512-byte units, and a safe volume label. HFS+, physical media, partition maps, and overwrite are rejected.": "Créez une nouvelle sortie HFS classique autonome via un backend hfsutils explicitement disponible. Choisissez une nouvelle destination, au moins 800 Kio en unités de 512 octets et une étiquette de volume sûre. HFS+, les supports physiques, les tables de partitions et l’écrasement sont refusés.",
+    "Classic HFS creation requires a new destination image, byte size, and volume label.": "La création HFS classique requiert une nouvelle image de destination, une taille en octets et une étiquette de volume.",
+    "Classic HFS creation byte size must be an integer.": "La taille en octets de création HFS classique doit être un entier.",
+})
+CATALOG["ru"].update({
+    "Create verified classic HFS image": "Создать проверенный образ классического HFS",
+    "Create a new standalone classic HFS output through an explicitly available hfsutils backend. Choose a new destination, at least 800 KiB in 512-byte units, and a safe volume label. HFS+, physical media, partition maps, and overwrite are rejected.": "Создайте новый автономный образ классического HFS через явно доступный backend hfsutils. Выберите новое назначение, размер не менее 800 КиБ с шагом 512 байт и безопасную метку тома. HFS+, физические носители, карты разделов и перезапись отклоняются.",
+    "Classic HFS creation requires a new destination image, byte size, and volume label.": "Для создания классического HFS требуются новый целевой образ, размер в байтах и метка тома.",
+    "Classic HFS creation byte size must be an integer.": "Размер в байтах для создания классического HFS должен быть целым числом.",
+})
+CATALOG["ar"].update({
+    "Create verified classic HFS image": "إنشاء صورة HFS كلاسيكية متحقق منها",
+    "Create a new standalone classic HFS output through an explicitly available hfsutils backend. Choose a new destination, at least 800 KiB in 512-byte units, and a safe volume label. HFS+, physical media, partition maps, and overwrite are rejected.": "أنشئ مخرج HFS كلاسيكيًا مستقلاً جديدًا عبر خلفية hfsutils متاحة صراحةً. اختر وجهة جديدة وحجمًا لا يقل عن 800 كيلوبايت ثنائي بوحدات 512 بايت وتسمية آمنة لوحدة التخزين. تُرفض HFS+ والوسائط الفعلية وخرائط الأقسام والاستبدال.",
+    "Classic HFS creation requires a new destination image, byte size, and volume label.": "يتطلب إنشاء HFS الكلاسيكي صورة وجهة جديدة وحجمًا بالبايت وتسمية لوحدة التخزين.",
+    "Classic HFS creation byte size must be an integer.": "يجب أن يكون حجم البايت لإنشاء HFS الكلاسيكي عددًا صحيحًا.",
+})
+CATALOG["ja"].update({
+    "Create verified classic HFS image": "検証済みクラシック HFS イメージを作成",
+    "Create a new standalone classic HFS output through an explicitly available hfsutils backend. Choose a new destination, at least 800 KiB in 512-byte units, and a safe volume label. HFS+, physical media, partition maps, and overwrite are rejected.": "明示的に利用可能な hfsutils バックエンドを介して、新しい独立したクラシック HFS 出力を作成します。新しい保存先、512 バイト単位で 800 KiB 以上のサイズ、安全なボリュームラベルを選択してください。HFS+、物理メディア、パーティションマップ、上書きは拒否されます。",
+    "Classic HFS creation requires a new destination image, byte size, and volume label.": "クラシック HFS の作成には、新しい保存先イメージ、バイトサイズ、ボリュームラベルが必要です。",
+    "Classic HFS creation byte size must be an integer.": "クラシック HFS 作成のバイトサイズは整数でなければなりません。",
 })
 TRANSLATABLE = _catalog_keys()

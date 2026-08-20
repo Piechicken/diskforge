@@ -39,6 +39,7 @@ from diskforge.core.devices import (backup_device_mbr, format_removable_fat, lis
                                       write_image_to_device)
 from diskforge.core.deployment import prepare_fat_deployment
 from diskforge.core.ext_inject import ExtFileInjector
+from diskforge.core.hfs_create import HfsImageCreator
 from diskforge.core.hfs_inject import HfsFileInjector
 from diskforge.core.eltorito import export_boot_image, inspect_eltorito
 from diskforge.core.fat_layouts import FatImageLayout, create_fat_image_from_layout
@@ -92,6 +93,7 @@ class NewImageDialog(QDialog):
         self.kind.addItem("Raw/IMG image", "raw")
         self.kind.addItem("Legacy FAT floppy image (IMG/IMA)", "legacy_floppy")
         self.kind.addItem("DMF 1.68 MB FAT12 image", "dmf")
+        self.kind.addItem("Classic HFS image (optional hfsutils)", "hfs")
         self.kind.addItem("ISO9660/Joliet from directory", "iso")
         self.size = QSpinBox()
         self.size.setRange(1, 1024 * 1024)
@@ -108,6 +110,12 @@ class NewImageDialog(QDialog):
         source_row.addWidget(self.source_button)
         form.addRow("Image type", self.kind)
         form.addRow("Size", self.size)
+        self.hfs_size_label = QLabel("Classic HFS size")
+        self.hfs_size = QSpinBox()
+        self.hfs_size.setRange(800, 1024 * 1024)
+        self.hfs_size.setValue(800)
+        self.hfs_size.setSuffix(" KiB")
+        form.addRow(self.hfs_size_label, self.hfs_size)
         form.addRow("FAT variant", self.fat)
         form.addRow("Volume label", self.label)
         self.legacy_profile_label = QLabel("Legacy floppy profile")
@@ -210,7 +218,10 @@ class NewImageDialog(QDialog):
         is_iso = mode == "iso"
         is_layout = mode == "fat_layout"
         is_legacy = mode == "legacy_floppy"
-        self.size.setEnabled(mode not in {"iso", "dmf", "fat_layout", "legacy_floppy"})
+        is_hfs = mode == "hfs"
+        self.size.setEnabled(mode not in {"iso", "dmf", "fat_layout", "legacy_floppy", "hfs"})
+        self.hfs_size_label.setVisible(is_hfs)
+        self.hfs_size.setVisible(is_hfs)
         self.fat.setEnabled(mode == "fat")
         for widget in (self.legacy_profile_label, self.legacy_profile, self.legacy_format_label, self.legacy_format,
                        self.legacy_custom, self.legacy_geometry_label, self.legacy_geometry_widget):
@@ -236,6 +247,8 @@ class NewImageDialog(QDialog):
             self._set_translatable_label(self.help, "Creates an 80×2×21-sector FAT12 image file. Physical floppy formatting is not performed.")
         elif mode == "fat_layout":
             self._set_translatable_label(self.help, "Reads a valid FAT BPB layout from a template image and creates a new editable image; the template is never modified.")
+        elif mode == "hfs":
+            self._set_translatable_label(self.help, "Creates a new standalone classic HFS file through an explicitly available hfsutils backend. The output is verified before opening; HFS+ and physical media are not included.")
         else:
             self._set_translatable_label(self.help, "FAT images are editable and support file injection, deletion and timestamp changes.")
 
@@ -1037,6 +1050,28 @@ class MainWindow(QMainWindow):
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         kind = dialog.kind.currentData()
+        if kind == "hfs":
+            creator = HfsImageCreator()
+            report = creator.capability_report()
+            if not report.available:
+                QMessageBox.information(self, "Optional backend unavailable", report.reason)
+                return
+            output, _ = QFileDialog.getSaveFileName(
+                self, "Create classic HFS image", "untitled.hfs", "Classic HFS image (*.hfs);;All files (*)",
+            )
+            if not output:
+                return
+            target = Path(output)
+            size_bytes = dialog.hfs_size.value() * 1024
+
+            def create_hfs(progress=None, token=None):
+                return creator.create(target, size_bytes, dialog.label.text(), progress=progress, token=token)
+
+            self._run_worker(
+                "Creating verified classic HFS image", create_hfs,
+                on_result=lambda result: self._open_path(result.destination),
+            )
+            return
         if kind == "iso":
             source = Path(dialog.source.text())
             if not source.is_dir():

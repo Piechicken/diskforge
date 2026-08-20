@@ -85,6 +85,31 @@ def test_batch_designer_rejects_raw_device_recipe() -> None:
         BatchDesignerDialog(recipe={"schema": "diskforge.batch/v3", "operations": [{"kind": "write_device"}]})
 
 
+def test_batch_designer_serializes_classic_hfs_creation(tmp_path: Path) -> None:
+    _application()
+    destination = tmp_path / "created.hfs"
+    dialog = BatchDesignerDialog()
+    kind_index = dialog.kind_choice.findData("hfs_create")
+    assert kind_index >= 0
+    dialog.kind_choice.setCurrentIndex(kind_index)
+    dialog.destination.setText(str(destination))
+    dialog.size_bytes.setText(str(800 * 1024))
+    dialog.volume_label.setText("DISKFORGE")
+
+    recipe = dialog.recipe()
+    operation = recipe["operations"][0]
+
+    assert operation == {
+        "name": dialog.kind_choice.currentText(), "kind": "hfs_create",
+        "destination": str(destination), "size_bytes": 800 * 1024, "label": "DISKFORGE",
+    }
+    reopened = BatchDesignerDialog(recipe=recipe)
+    assert reopened.destination.text() == str(destination)
+    assert reopened.size_bytes.text() == str(800 * 1024)
+    assert reopened.volume_label.text() == "DISKFORGE"
+    assert "new image" in reopened._summary(operation)
+
+
 @pytest.mark.parametrize("kind", ["ntfs_inject", "ext_inject", "hfs_inject"])
 def test_batch_designer_serializes_controlled_filesystem_injection(tmp_path: Path, kind: str) -> None:
     _application()

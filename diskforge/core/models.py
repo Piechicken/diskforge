@@ -110,6 +110,7 @@ class OperationKind(str, Enum):
     NTFS_INJECT = "ntfs_inject"
     EXT_INJECT = "ext_inject"
     HFS_INJECT = "hfs_inject"
+    HFS_CREATE = "hfs_create"
 
 
 @dataclass(frozen=True)

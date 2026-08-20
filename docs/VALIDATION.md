@@ -2,7 +2,7 @@
 
 **DiskForge 的常规测试不包含第三方二进制磁盘映像。** 这是为了保持源代码仓库轻量、可审查，并避免重新分发不属于项目的样本。与真实文件系统映像有关的回归是可选验收：只有在操作者自行取得相应样本、确认其许可并在本机安装 Sleuth Kit `fls` 和 `icat` 后才会执行。
 
-> 真实样本验收确认的是 DiskForge 的**只读列举和数据 fork 提取**路径。另有独立的合成映像回归覆盖可选 NTFS/EXT/经典 HFS 受控注入：它只会创建新输出映像并验证文件内容，绝不修改源映像。经典 HFS 路径只复制原始数据 fork；该范围不授权或实现 HFS+ 写入、文件系统修复、自动挂载、资源 fork 完整保留，也不保证每一种损坏、加密、压缩或专有容器变体均可读取。
+> 真实样本验收确认的是 DiskForge 的**只读列举和数据 fork 提取**路径。另有独立的合成映像回归覆盖可选 NTFS/EXT/经典 HFS 受控注入，以及经典 HFS 的受限新建：它们只创建新输出映像并验证文件内容或签名，绝不修改源映像或物理设备。经典 HFS 注入只复制原始数据 fork；该范围不授权或实现 HFS+ 写入、文件系统修复、自动挂载、资源 fork 完整保留，也不保证每一种损坏、加密、压缩或专有容器变体均可读取。
 
 ## 可选夹具
 
@@ -34,7 +34,7 @@ ISO 回归会验证标准、Rock Ridge、UDF 和组合 profile 的重建编辑�
 
 128/256 字节扇区、GCR、变速/变扇区、硬分区、非 FAT、复制保护与 flux/bitcell 格式不进入原生 FAT 创建断言；它们仍可按原始字节进行保存、校验、比较和受控转换。测试不会根据文件大小臆测这些格式的物理来源。
 
-## v0.10 可选 NTFS/EXT/经典 HFS 受控注入验收
+## v0.10 可选 NTFS/EXT/经典 HFS 受控注入与新建验收
 
 NTFS、EXT 和经典 HFS 写入均不作为原生或跨平台保证。仅当本机明确提供所需外部后端时，常规回归才会对临时创建的独立映像执行该项验收：NTFS 使用 `mkntfs`、`ntfscp`、`ntfsls` 和 `ntfscat`；EXT 使用 `mke2fs`、`debugfs` 和 `e2fsck`；经典 HFS 使用 `hformat`、`hmount`、`hcopy` 和 `hls`。缺少任一可选工具时，对应集成用例以明确 `skipped` 状态结束；不下载、不打包任何外部二进制。[6] [7] [8] [9]
 
@@ -42,9 +42,10 @@ NTFS、EXT 和经典 HFS 写入均不作为原生或跨平台保证。仅当本�
 |---|---|---|
 | NTFS | 创建 64 MiB 独立卷；`ntfscp -n` 预演；将新常规文件写入独立输出；用 `ntfscat` 读回 SHA-256，并重新计算源 SHA-256。 | 拒绝设备、分区偏移、已有目标、覆盖、目录、ADS、ACL、元数据、改名、删除及原位写入。 |
 | EXT4 | 创建 64 MiB 独立卷；生成受限命令文件，由 `debugfs -w -f -z` 写入独立输出；`debugfs dump` 读回 SHA-256；`e2fsck -fn` 必须返回 0。 | 拒绝设备、分区偏移、已有目标、目录、链接、元数据、改名、删除及原位写入。 |
-| 经典 HFS | 创建 800 KiB 独立卷；每次操作使用独立临时 `HOME`；在新副本挂载后，必须从 `hls -1 -N` 的 stderr 检出 `no such file or directory` 再执行 `hcopy -r`；逐项 `hcopy -r` 读回 SHA-256，并重算源 SHA-256。 | 拒绝设备、分区偏移、已有目标、目录、链接、冒号/通配符名称、MFS、HFS+、元数据、资源 fork、改名、删除及原位写入。 |
+| 经典 HFS 注入 | 创建 800 KiB 独立卷；每次操作使用独立临时 `HOME`；在新副本挂载后，必须从 `hls -1 -N` 的 stderr 检出 `no such file or directory` 再执行 `hcopy -r`；逐项 `hcopy -r` 读回 SHA-256，并重算源 SHA-256。 | 拒绝设备、分区偏移、已有目标、目录、链接、冒号/通配符名称、MFS、HFS+、元数据、资源 fork、改名、删除及原位写入。 |
+| 经典 HFS 新建 | 对新的 800 KiB、512 字节对齐临时常规文件执行 `hformat -l`；使用独立临时 `HOME`；验证 HFS 签名、大小和输出 SHA-256，再原子提升。核心、CLI JSON、图形新建对话框与 v4 `hfs_create` recipe 均有回归。 | 拒绝小于 800 KiB 或非 512 对齐大小、既有目标、设备路径、分区号、`-f`、分区映射、MFS、HFS+、物理介质和不安全卷标。 |
 
-这些测试还覆盖 GUI 的新输出选择与自动打开、CLI 的 JSON 审计结果，以及批处理 v4 的 `ntfs_inject`/`ext_inject`/`hfs_inject` 预览和执行。HFS+ 仍不启用受控注入动作。详细合同见 [FILESYSTEM_INJECTION.md](FILESYSTEM_INJECTION.md)。
+这些测试还覆盖 GUI 的新输出选择与自动打开、CLI 的 JSON 审计结果，以及批处理 v4 的 `ntfs_inject`/`ext_inject`/`hfs_inject`/`hfs_create` 预览和执行。HFS+ 仍不启用受控注入或新建动作。详细合同见 [FILESYSTEM_INJECTION.md](FILESYSTEM_INJECTION.md)。
 
 ## UFI USB 软驱人工验收
 
@@ -63,7 +64,8 @@ UFI 格式化完成后，创建 FAT 文件系统是**独立操作**，需要再�
 | NPS journaled HFS+ `image.gen1.dmg` | Sleuth Kit 4.12.1 | 列举 `/file1.txt` 与 `/file2.txt`，提取 `/file1.txt`，28 字节。 |
 | 合成 standalone NTFS | ntfs-3g/ntfsprogs 2022.10.3 | 预演并向新副本添加 `PAYLOAD.TXT`；读回哈希匹配且源 SHA-256 不变。 |
 | 合成 standalone EXT4 | e2fsprogs 1.47.0 | 通过 `debugfs` undo 日志写入新副本；读回哈希匹配，`e2fsck -fn` 返回 0，源 SHA-256 不变。 |
-| 合成 standalone 经典 HFS | hfsutils 3.2.6-16 | 创建 800 KiB 卷，在隔离 `HOME` 中经 `hmount`、`hcopy -r`、`hls` 运行；新副本读回哈希匹配，源 SHA-256 不变。`hls` 对不存在目标返回 0 但在 stderr 写出缺失诊断，因此该诊断而非退出码构成无覆盖预检。 |
+| 合成 standalone 经典 HFS 注入 | hfsutils 3.2.6-16 | 创建 800 KiB 卷，在隔离 `HOME` 中经 `hmount`、`hcopy -r`、`hls` 运行；新副本读回哈希匹配，源 SHA-256 不变。`hls` 对不存在目标返回 0 但在 stderr 写出缺失诊断，因此该诊断而非退出码构成无覆盖预检。 |
+| 合成 standalone 经典 HFS 新建 | hfsutils 3.2.6-16 | 将新的 819,200 字节常规文件格式化为 `DISKFORGE` 卷；`inspect_image()` 识别为 HFS，输出 SHA-256 与审计结果一致；818,176 字节文件被 hformat 明确拒绝，隔离状态仅产生私有 `.hcwd`。 |
 
 ## References
 
@@ -76,3 +78,4 @@ UFI 格式化完成后，创建 FAT 文件系统是**独立操作**，需要再�
 [7]: https://manpages.debian.org/testing/e2fsprogs/debugfs.8.en.html "debugfs(8) — ext2/ext3/ext4 filesystem debugger"
 [8]: https://manpages.ubuntu.com/manpages/bionic/man1/hfsutils.1.html "hfsutils(1) — classic HFS utility suite"
 [9]: https://manpages.ubuntu.com/manpages/jammy/man1/hls.1.html "hls(1) — list files in an HFS directory"
+[10]: https://manpages.ubuntu.com/manpages/jammy/man1/hformat.1.html "hformat(1) — create a new HFS filesystem"

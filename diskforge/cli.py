@@ -13,6 +13,7 @@ from .core.bundle import create_bundle, extract_bundle, inspect_bundle
 from .core.compare import compare_streams
 from .core.deployment import prepare_fat_deployment
 from .core.ext_inject import ExtFileInjector
+from .core.hfs_create import HfsImageCreator
 from .core.hfs_inject import HfsFileInjector
 from .core.device_queue import DeviceReadRequest, read_device_queue
 from .core.devices import (backup_device_mbr, compare_image_with_device, format_removable_fat,
@@ -131,6 +132,12 @@ def parser() -> argparse.ArgumentParser:
     create.add_argument("--fat", choices=["12", "16", "32"], default="16")
     create.add_argument("--label", default="DISKFORGE")
 
+    create_hfs = commands.add_parser("create-hfs", help="Create a verified standalone classic HFS image")
+    create_hfs.add_argument("image", type=Path)
+    create_hfs.add_argument("--size-kib", type=int, default=800, help="Image size in KiB; at least 800 and 512-byte aligned")
+    create_hfs.add_argument("--label", default="DISKFORGE", help="Classic HFS volume label (1–27 safe ASCII characters)")
+    create_hfs.add_argument("--hformat", help="Optional explicit hformat executable")
+
     dmf = commands.add_parser("create-dmf", help="Create an 80x2x21 FAT12 DMF-layout image file")
     dmf.add_argument("image", type=Path)
     dmf.add_argument("--label", default="DISKFORGE")
@@ -221,6 +228,8 @@ def parser() -> argparse.ArgumentParser:
     hfs_status.add_argument("--hmount", help="Optional explicit hmount executable")
     hfs_status.add_argument("--hcopy", help="Optional explicit hcopy executable")
     hfs_status.add_argument("--hls", help="Optional explicit hls executable")
+    hfs_create_status = commands.add_parser("hfs-create-status", help="Show optional verified classic HFS creation capability")
+    hfs_create_status.add_argument("--hformat", help="Optional explicit hformat executable")
     dmg_status = commands.add_parser("dmg-adapter-status", help="Show optional read-only DMG conversion adapter capability")
     mount_status = commands.add_parser("mount-status", help="Show controlled read-only image mount capability")
     mount_image = commands.add_parser("mount-image", help="Mount an image read-only and write a mount-session JSON file")
@@ -548,6 +557,14 @@ def main(argv: list[str] | None = None) -> int:
             fat = FileSystemType(f"FAT{args.fat}")
             created = create_fat_image(args.image, args.size_mib * 1024 * 1024, fat, args.label)
             _emit(args, {"path": str(created)}, str(created))
+        elif args.command == "create-hfs":
+            result = HfsImageCreator(args.hformat).create(
+                args.image, args.size_kib * 1024, args.label, progress=progress,
+            )
+            _emit(args, {
+                "path": str(result.destination), "label": result.label,
+                "bytes": result.bytes_created, "sha256": result.sha256,
+            }, str(result.destination))
         elif args.command == "create-dmf":
             created = create_dmf_image(args.image, args.label)
             _emit(args, {"path": str(created), "layout": "80x2x21", "bytes": created.stat().st_size}, str(created))
@@ -647,6 +664,8 @@ def main(argv: list[str] | None = None) -> int:
             _emit(args, ExtFileInjector(args.debugfs, args.e2fsck).capability_report().as_mapping())
         elif args.command == "hfs-inject-status":
             _emit(args, HfsFileInjector(args.hmount, args.hcopy, args.hls).capability_report().as_mapping())
+        elif args.command == "hfs-create-status":
+            _emit(args, HfsImageCreator(args.hformat).capability_report().as_mapping())
         elif args.command == "dmg-adapter-status":
             _emit(args, Dmg2ImgConverter().capability_report().as_mapping())
         elif args.command == "mount-status":

@@ -412,3 +412,25 @@ def test_batch_designer_controlled_injection_is_translated_in_every_non_english_
         translated = CATALOG[language.code]
         assert required <= set(translated)
         assert all(translated[source] != source for source in required)
+
+
+def test_classic_hfs_creation_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Classic HFS image (optional hfsutils)",
+        "Classic HFS size",
+        "Creates a new standalone classic HFS file through an explicitly available hfsutils backend. The output is verified before opening; HFS+ and physical media are not included.",
+        "Create classic HFS image",
+        "Creating verified classic HFS image",
+        "Create verified classic HFS image",
+        "Create a new standalone classic HFS output through an explicitly available hfsutils backend. Choose a new destination, at least 800 KiB in 512-byte units, and a safe volume label. HFS+, physical media, partition maps, and overwrite are rejected.",
+        "Classic HFS creation requires a new destination image, byte size, and volume label.",
+        "Classic HFS creation byte size must be an integer.",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)

@@ -39,6 +39,7 @@ _EDITABLE_KINDS = (
     OperationKind.NTFS_INJECT,
     OperationKind.EXT_INJECT,
     OperationKind.HFS_INJECT,
+    OperationKind.HFS_CREATE,
     OperationKind.BUNDLE,
     OperationKind.UNBUNDLE,
 )
@@ -99,6 +100,7 @@ class BatchDesignerDialog(QDialog):
             OperationKind.NTFS_INJECT: "Inject safely into new NTFS image",
             OperationKind.EXT_INJECT: "Inject safely into new EXT image",
             OperationKind.HFS_INJECT: "Inject safely into new classic HFS image",
+            OperationKind.HFS_CREATE: "Create verified classic HFS image",
             OperationKind.BUNDLE: "Create secure image container",
             OperationKind.UNBUNDLE: "Extract image container",
         }
@@ -159,6 +161,7 @@ class BatchDesignerDialog(QDialog):
         self.sha256 = QLineEdit()
         self.compare_bytes = QLineEdit()
         self.size_bytes = QLineEdit()
+        self.volume_label = QLineEdit("DISKFORGE")
         self.comment = QLineEdit()
         self.description = QLineEdit()
         self.bundle_names = QLineEdit()
@@ -171,6 +174,7 @@ class BatchDesignerDialog(QDialog):
         editor.addRow("Expected SHA-256", self.sha256)
         editor.addRow("Bytes to compare (optional)", self.compare_bytes)
         editor.addRow("New size in bytes", self.size_bytes)
+        editor.addRow("Volume label", self.volume_label)
         editor.addRow("Container comment", self.comment)
         editor.addRow("Container description", self.description)
         editor.addRow("Container item names (optional, comma-separated)", self.bundle_names)
@@ -183,7 +187,7 @@ class BatchDesignerDialog(QDialog):
         self.preview.setWordWrap(True)
         layout.addWidget(self.preview)
         for widget in (self.source, self.destination, self.sources, self.prefix, self.suffix, self.paths,
-                       self.target_directory, self.sha256, self.compare_bytes, self.size_bytes, self.comment,
+                       self.target_directory, self.sha256, self.compare_bytes, self.size_bytes, self.volume_label, self.comment,
                        self.description, self.bundle_names):
             signal = widget.textChanged if isinstance(widget, QPlainTextEdit) else widget.textChanged
             signal.connect(self.update_preview)
@@ -220,6 +224,7 @@ class BatchDesignerDialog(QDialog):
             OperationKind.NTFS_INJECT: "Copy a standalone NTFS image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.",
             OperationKind.EXT_INJECT: "Copy a standalone EXT image into a new output, add new root-level regular files, and verify every payload. Existing destinations and in-place changes are rejected.",
             OperationKind.HFS_INJECT: "Copy a standalone classic HFS image into a new output, add new root-level raw-data-fork files, and verify every payload. Existing destinations, in-place changes, HFS+, metadata, and resource forks are rejected.",
+            OperationKind.HFS_CREATE: "Create a new standalone classic HFS output through an explicitly available hfsutils backend. Choose a new destination, at least 800 KiB in 512-byte units, and a safe volume label. HFS+, physical media, partition maps, and overwrite are rejected.",
             OperationKind.BUNDLE: "Create an unencrypted, auditable image container from selected image files.",
             OperationKind.UNBUNDLE: "Extract named or all items from an unencrypted image container.",
         }
@@ -321,6 +326,14 @@ class BatchDesignerDialog(QDialog):
             if not source or not destination or not sources:
                 raise DiskForgeError("Controlled NTFS/EXT/classic HFS injection requires a source image, new destination image, and local file paths.")
             item.update({"source": source, "destination": destination, "sources": sources})
+        elif kind == OperationKind.HFS_CREATE:
+            if not destination or not self.size_bytes.text().strip() or not self.volume_label.text().strip():
+                raise DiskForgeError("Classic HFS creation requires a new destination image, byte size, and volume label.")
+            try:
+                size_bytes = int(self.size_bytes.text().strip())
+            except ValueError as exc:
+                raise DiskForgeError("Classic HFS creation byte size must be an integer.") from exc
+            item.update({"destination": destination, "size_bytes": size_bytes, "label": self.volume_label.text().strip()})
         elif kind == OperationKind.BUNDLE:
             if not destination or not sources:
                 raise DiskForgeError("Container creation requires source images and destination.")
@@ -342,7 +355,7 @@ class BatchDesignerDialog(QDialog):
     @staticmethod
     def _summary(item: dict[str, Any]) -> str:
         kind = str(item.get("kind", "operation"))
-        source = item.get("source") or f"{len(item.get('sources', []))} source(s)"
+        source = "new image" if kind == OperationKind.HFS_CREATE.value else item.get("source") or f"{len(item.get('sources', []))} source(s)"
         destination = item.get("destination") or item.get("destination_root") or "read-only"
         return f"{kind}: {source} → {destination}"
 
@@ -414,6 +427,7 @@ class BatchDesignerDialog(QDialog):
         self.sha256.setText(str(item.get("sha256", "")))
         self.compare_bytes.setText(str(item.get("bytes_to_compare", "")))
         self.size_bytes.setText(str(item.get("size_bytes", "")))
+        self.volume_label.setText(str(item.get("label", "DISKFORGE")))
         self.comment.setText(str(item.get("comment", "")))
         self.description.setText(str(item.get("description", "")))
         self.bundle_names.setText(", ".join(str(value) for value in item.get("names", [])))

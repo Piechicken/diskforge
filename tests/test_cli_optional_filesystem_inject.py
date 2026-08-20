@@ -27,6 +27,11 @@ def test_cli_reports_optional_filesystem_inject_capabilities(capsys) -> None:  #
     assert hfs["adapter"] == "hfsutils"
     assert hfs["available"] is False
 
+    assert main(["--json", "hfs-create-status", "--hformat", "missing-hformat"]) == 0
+    hfs_create = json.loads(capsys.readouterr().out)
+    assert hfs_create["adapter"] == "hfsutils"
+    assert hfs_create["available"] is False
+
 
 @pytest.mark.skipif(not all(shutil.which(tool) for tool in ("mkntfs", "ntfscp", "ntfsls", "ntfscat")), reason="optional ntfsprogs tools unavailable")
 def test_cli_inject_ntfs_creates_verified_copy(tmp_path: Path, capsys) -> None:  # type: ignore[no-untyped-def]
@@ -62,6 +67,19 @@ def test_cli_inject_ext_creates_verified_copy(tmp_path: Path, capsys) -> None:  
     assert result["target_paths"] == ["/PAYLOAD.TXT"]
     assert result["payload_sha256"] == [sha256_file(payload)]
     assert sha256_file(source) == before
+
+
+@pytest.mark.skipif(not shutil.which("hformat"), reason="optional hfsutils hformat unavailable")
+def test_cli_create_hfs_creates_verified_image(tmp_path: Path, capsys) -> None:  # type: ignore[no-untyped-def]
+    destination = tmp_path / "created.hfs"
+
+    assert main(["--json", "create-hfs", str(destination), "--size-kib", "800", "--label", "DISKFORGE"]) == 0
+
+    result = json.loads(capsys.readouterr().out)
+    assert result["path"] == str(destination)
+    assert result["label"] == "DISKFORGE"
+    assert result["bytes"] == 800 * 1024
+    assert result["sha256"] == sha256_file(destination)
 
 
 @pytest.mark.skipif(not all(shutil.which(tool) for tool in ("hformat", "hmount", "hcopy", "hls")), reason="optional hfsutils tools unavailable")

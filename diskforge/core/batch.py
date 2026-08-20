@@ -18,6 +18,7 @@ from .filesystems import (FatImageFilesystem, IsoImageFilesystem, rebuild_iso_wi
 from .formats import (QemuImgConverter, convert_image, create_legacy_zip_image,
                       extract_legacy_zip_image, inspect_image)
 from .ext_inject import ExtFileInjector
+from .hfs_create import HfsImageCreator
 from .hfs_inject import HfsFileInjector
 from .ntfs_inject import NtfsFileInjector
 from .models import (BatchItemResult, BatchResult, ConflictPolicy, ExtractionLayout,
@@ -75,6 +76,7 @@ class BatchRunner:
             OperationKind.NTFS_INJECT: ("source", "destination", "sources"),
             OperationKind.EXT_INJECT: ("source", "destination", "sources"),
             OperationKind.HFS_INJECT: ("source", "destination", "sources"),
+            OperationKind.HFS_CREATE: ("destination", "size_bytes", "label"),
         }
         for position, raw in enumerate(spec["operations"]):
             item = raw if isinstance(raw, dict) else {}
@@ -96,6 +98,11 @@ class BatchRunner:
                 sources = item.get("sources")
                 if not isinstance(sources, list) or not sources or not all(isinstance(value, str) for value in sources):
                     raise DiskForgeError(f"Batch {kind.value} sources must be a non-empty string list.")
+            if kind == OperationKind.HFS_CREATE:
+                if isinstance(item.get("size_bytes"), bool) or not isinstance(item.get("size_bytes"), int):
+                    raise DiskForgeError("Batch hfs_create size_bytes must be an integer.")
+                if not isinstance(item.get("label"), str):
+                    raise DiskForgeError("Batch hfs_create label must be a string.")
             if kind == OperationKind.ISO_EDIT:
                 additions, delete_paths, create_directories, target_directory = self._iso_edit_values(item)
                 if not additions and not delete_paths and not create_directories:
@@ -119,7 +126,8 @@ class BatchRunner:
                                          OperationKind.BUNDLE, OperationKind.UNBUNDLE, OperationKind.EXTRACT,
                                          OperationKind.LEGACY_COMPRESS, OperationKind.LEGACY_EXTRACT,
                                          OperationKind.ISO_REPLACE, OperationKind.ISO_EDIT,
-                                         OperationKind.NTFS_INJECT, OperationKind.EXT_INJECT, OperationKind.HFS_INJECT},
+                                         OperationKind.NTFS_INJECT, OperationKind.EXT_INJECT, OperationKind.HFS_INJECT,
+                                         OperationKind.HFS_CREATE},
             })
         return preview
 
@@ -231,6 +239,11 @@ class BatchRunner:
             result = HfsFileInjector(
                 item.get("hmount_executable"), item.get("hcopy_executable"), item.get("hls_executable"),
             ).inject(item["source"], item["destination"], sources)
+            return str(result.destination)
+        if kind == OperationKind.HFS_CREATE:
+            result = HfsImageCreator(item.get("hformat_executable")).create(
+                item["destination"], int(item["size_bytes"]), str(item["label"]),
+            )
             return str(result.destination)
         if kind == OperationKind.ISO_REPLACE:
             result = replace_iso_file_safely(item["source"], str(item["iso_path"]), item["replacement"],
