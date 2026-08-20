@@ -6,7 +6,6 @@ labeled.  All large work is performed through ``FunctionWorker``.
 """
 from __future__ import annotations
 
-import html
 import os
 import shutil
 import tempfile
@@ -53,6 +52,7 @@ from diskforge.core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_
 from diskforge.core.legacy_floppy import (LEGACY_FLOPPY_PROFILES, LegacyFloppyGeometry,
                                            create_legacy_fat_floppy,
                                            create_legacy_fat_floppy_profile)
+from diskforge.core.listing import collect_directory_listing, directory_listing_html, export_directory_listing
 from diskforge.core.media import create_dmf_image, trim_zero_tail, wrap_fat_image_in_mbr
 from diskforge.core.mounts import ImageMountManager, ImageMountSession
 from diskforge.core.ntfs_inject import NtfsFileInjector
@@ -60,6 +60,7 @@ from diskforge.core.metadata import load_image_metadata, save_image_comment
 from diskforge.core.models import (ConflictPolicy, DeviceInfo, ExtractionLayout, ExtractionPolicy,
                                    DeviceKind, FileSystemType, ImageEntry, ImageFormat, OperationKind, Progress,
                                    human_bytes)
+from diskforge.core.partition_filesystems import open_partition_filesystem
 from diskforge.core.partitions import list_partitions
 from diskforge.core.preview import inspect_file_preview
 from diskforge.core.readonly_fs import SleuthKitImageFilesystem
@@ -188,12 +189,17 @@ class NewImageDialog(QDialog):
         self._update_controls()
 
     @staticmethod
+    def _localized(source: str) -> str:
+        """Translate a source string while keeping isolated GUI tests operable."""
+        try:
+            return language_manager().text(source)
+        except RuntimeError:
+            return source
+
+    @staticmethod
     def _set_translatable_label(label: QLabel, source: str) -> None:
         """Render a dynamic label using the source-string translation contract."""
-        try:
-            translated = language_manager().text(source)
-        except RuntimeError:
-            translated = source
+        translated = NewImageDialog._localized(source)
         label.setProperty("df_source_text", source)
         label.setProperty("df_source_text_rendered", translated)
         label.setText(translated)
@@ -591,6 +597,14 @@ class DeviceDialog(QDialog):
 
 
 class MainWindow(QMainWindow):
+    @staticmethod
+    def _localized(source: str) -> str:
+        """Translate a source string without requiring global GUI bootstrap in tests."""
+        try:
+            return language_manager().text(source)
+        except RuntimeError:
+            return source
+
     def __init__(self, settings: QSettings | None = None) -> None:
         super().__init__()
         self.settings = settings or QSettings("DiskForge", "DiskForge")
@@ -1354,7 +1368,7 @@ class MainWindow(QMainWindow):
                 self.log(f"Opened read-only temporary browse session for {path.name}")
             self.current_directory = "/"
             if partition_index is not None:
-                self.current_fs = FatImageFilesystem(browse_path, read_only=True, partition_index=partition_index)
+                self.current_fs = open_partition_filesystem(browse_path, partition_index, writable=False)
             elif browse_info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
                 self.current_fs = FatImageFilesystem(browse_path, read_only=self.current_browse_session is not None)
             elif browse_info.filesystem == FileSystemType.ISO9660 or browse_info.image_format == ImageFormat.ISO:
@@ -2150,21 +2164,12 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _listing_html(entries: Sequence[ImageEntry], source: Path) -> str:
-        rows = "".join(
-            f"<tr><td>{html.escape(entry.path)}</td><td>{'Directory' if entry.is_dir else 'File'}</td>"
-            f"<td>{entry.size}</td><td>{html.escape(entry.modified.strftime('%Y-%m-%d %H:%M:%S') if entry.modified else '')}</td></tr>"
-            for entry in entries
-        )
-        return (
-            f"<h2>DiskForge directory listing</h2><p>{html.escape(str(source))}</p>"
-            "<table border='1' cellspacing='0' cellpadding='4'><tr><th>Path</th><th>Type</th><th>Bytes</th><th>Modified</th></tr>"
-            f"{rows}</table>"
-        )
+        return directory_listing_html(entries, source)
 
     def _complete_listing_entries(self, token=None) -> list[ImageEntry]:
         if not self.current_fs:
             raise DiskForgeError("The current image has no browsable filesystem.")
-        return list(self.current_fs.walk_entries("/", token=token))
+        return collect_directory_listing(self.current_fs, token=token)
 
     def print_listing(self) -> None:
         if not self.current_fs or not self.current_path:
@@ -2214,7 +2219,10 @@ class MainWindow(QMainWindow):
 
     def export_listing(self) -> None:
         if not self.current_fs or not self.current_path:
-            QMessageBox.information(self, "Listing unavailable", "Open a browsable FAT, ISO, NTFS, or EXT image first.")
+            QMessageBox.information(
+                self, self._localized("Listing unavailable"),
+                self._localized("Open a browsable FAT, ISO, NTFS, EXT, HFS, or HFS+ image first."),
+            )
             return
         output, selected = QFileDialog.getSaveFileName(self, "Export image listing", f"{self.current_path.stem}-listing.html", "HTML (*.html);;Text (*.txt)")
         if not output:
@@ -2222,19 +2230,7 @@ class MainWindow(QMainWindow):
         html_output = output.lower().endswith((".html", ".htm"))
         source = self.current_path
         def job(progress=None, token=None):
-            entries = self._complete_listing_entries(token)
-            target = Path(output)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            if html_output:
-                target.write_text(self._listing_html(entries, source), encoding="utf-8")
-            else:
-                lines = [f"DiskForge directory listing: {source}", "Path\tType\tBytes\tModified"]
-                lines.extend(
-                    f"{entry.path}\t{'Directory' if entry.is_dir else 'File'}\t{entry.size}\t{entry.modified.isoformat() if entry.modified else ''}"
-                    for entry in entries
-                )
-                target.write_text("\n".join(lines) + "\n", encoding="utf-8")
-            return target
+            return export_directory_listing(self.current_fs, source, Path(output), html=html_output, token=token)
         self._run_worker("Exporting directory listing", job, on_result=lambda path: self.log(f"Exported listing: {path}"))
 
     def batch_read_physical_media(self) -> None:
@@ -2313,18 +2309,31 @@ class MainWindow(QMainWindow):
                 for part in parts
             ]
             selected, accepted = QInputDialog.getItem(
-                self, "Partition table", "Choose a FAT partition to browse (other partitions remain read-only metadata):",
+                self,
+                self._localized("Partition table"),
+                self._localized("Choose a partition to browse. FAT retains the existing edit path; NTFS, EXT, HFS, and HFS+ stay read-only."),
                 labels, 0, False,
             )
             if not accepted:
                 return
             partition = parts[labels.index(selected)]
-            if partition.filesystem not in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
-                QMessageBox.information(self, "Partition is read-only", "Only FAT partitions can be edited or browsed natively. Select a FAT partition.")
+            supported = {
+                FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32,
+                FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS, FileSystemType.HFS_PLUS,
+            }
+            if partition.filesystem not in supported:
+                QMessageBox.information(
+                    self,
+                    self._localized("Partition is unsupported"),
+                    self._localized("This partition is not a supported FAT, NTFS, EXT, HFS, or HFS+ filesystem."),
+                )
                 return
             image = self.current_path
             self._open_path(image, partition_index=partition.index)
-            self.log(f"Opened FAT partition {partition.index} from {image.name}")
+            mode = "FAT" if partition.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32} else self._localized("read-only")
+            self.log(self._localized("Opened {mode} partition {index} from {name}").format(
+                mode=mode, index=partition.index, name=image.name,
+            ))
         except Exception as exc:
             QMessageBox.critical(self, "Unable to read partitions", str(exc))
 

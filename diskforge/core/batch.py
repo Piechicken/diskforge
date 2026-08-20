@@ -20,7 +20,9 @@ from .formats import (QemuImgConverter, convert_image, create_legacy_zip_image,
 from .ext_inject import ExtFileInjector
 from .hfs_create import HfsImageCreator
 from .hfs_inject import HfsFileInjector
+from .listing import export_directory_listing
 from .ntfs_inject import NtfsFileInjector
+from .partition_filesystems import open_partition_filesystem
 from .models import (BatchItemResult, BatchResult, ConflictPolicy, ExtractionLayout,
                      ExtractionPolicy, FileSystemType, ImageFormat, OperationKind)
 from .readonly_fs import SleuthKitImageFilesystem
@@ -77,6 +79,7 @@ class BatchRunner:
             OperationKind.EXT_INJECT: ("source", "destination", "sources"),
             OperationKind.HFS_INJECT: ("source", "destination", "sources"),
             OperationKind.HFS_CREATE: ("destination", "size_bytes", "label"),
+            OperationKind.EXPORT_LISTING: ("source", "destination"),
         }
         for position, raw in enumerate(spec["operations"]):
             item = raw if isinstance(raw, dict) else {}
@@ -103,6 +106,12 @@ class BatchRunner:
                     raise DiskForgeError("Batch hfs_create size_bytes must be an integer.")
                 if not isinstance(item.get("label"), str):
                     raise DiskForgeError("Batch hfs_create label must be a string.")
+            if kind == OperationKind.EXPORT_LISTING:
+                partition_index = item.get("partition")
+                if partition_index is not None and (isinstance(partition_index, bool) or not isinstance(partition_index, int) or partition_index < 1):
+                    raise DiskForgeError("Batch export_listing partition must be a positive integer when provided.")
+                if "html" in item and not isinstance(item["html"], bool):
+                    raise DiskForgeError("Batch export_listing html must be a boolean when provided.")
             if kind == OperationKind.ISO_EDIT:
                 additions, delete_paths, create_directories, target_directory = self._iso_edit_values(item)
                 if not additions and not delete_paths and not create_directories:
@@ -127,7 +136,7 @@ class BatchRunner:
                                          OperationKind.LEGACY_COMPRESS, OperationKind.LEGACY_EXTRACT,
                                          OperationKind.ISO_REPLACE, OperationKind.ISO_EDIT,
                                          OperationKind.NTFS_INJECT, OperationKind.EXT_INJECT, OperationKind.HFS_INJECT,
-                                         OperationKind.HFS_CREATE},
+                                         OperationKind.HFS_CREATE, OperationKind.EXPORT_LISTING},
             })
         return preview
 
@@ -187,15 +196,21 @@ class BatchRunner:
         return raw_additions, raw_delete_paths, raw_directories, target_directory
 
     @staticmethod
-    def _filesystem(source: Path):
+    def _filesystem(source: Path, *, partition_index: int | None = None, writable: bool = False):
+        if partition_index is not None:
+            return open_partition_filesystem(source, partition_index, writable=writable)
         info = inspect_image(source)
         if info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
-            return FatImageFilesystem(source, read_only=False)
-        if info.filesystem == FileSystemType.ISO9660:
+            return FatImageFilesystem(source, read_only=not writable)
+        if info.filesystem == FileSystemType.ISO9660 or info.image_format == ImageFormat.ISO:
+            if writable:
+                raise DiskForgeError("Batch ISO filesystem actions are read-only.")
             return IsoImageFilesystem(source)
-        if info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT}:
+        if info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS, FileSystemType.HFS_PLUS}:
+            if writable:
+                raise DiskForgeError("Batch NTFS, EXT, HFS and HFS+ filesystem actions are read-only.")
             return SleuthKitImageFilesystem(source, info.filesystem)
-        raise DiskForgeError("Batch filesystem actions require FAT, ISO, NTFS or EXT image content.")
+        raise DiskForgeError("Batch filesystem actions require FAT, ISO, NTFS, EXT, HFS or HFS+ image content.")
 
     def _run_item(self, item: dict[str, Any], kind: OperationKind) -> str | None:
         if kind == OperationKind.CONVERT:
@@ -270,6 +285,16 @@ class BatchRunner:
             resized = resize_image(item["source"], item["destination"], int(item["size_bytes"]),
                                    overwrite=bool(item.get("overwrite", False)))
             return str(resized.destination)
+        if kind == OperationKind.EXPORT_LISTING:
+            source = Path(item["source"])
+            filesystem = self._filesystem(source, partition_index=item.get("partition"))
+            try:
+                report = export_directory_listing(
+                    filesystem, source, item["destination"], html=bool(item.get("html", False)),
+                )
+            finally:
+                filesystem.close()
+            return str(report)
         if kind == OperationKind.EXTRACT:
             paths = item.get("paths", ["/"])
             if not isinstance(paths, list) or not all(isinstance(value, str) for value in paths):
@@ -286,7 +311,7 @@ class BatchRunner:
                 source_paths = [Path(value) for value in source_values]
                 destinations = list(planned_paths(item["destination_root"], SequencePattern.from_mapping(item["sequence"]), len(source_paths)))
             for source, destination in zip(source_paths, destinations):
-                filesystem = self._filesystem(source)
+                filesystem = self._filesystem(source, partition_index=item.get("partition"))
                 try:
                     filesystem.extract(paths, destination, policy=self._policy(item))
                 finally:
@@ -297,7 +322,7 @@ class BatchRunner:
             sources = item.get("sources")
             if not isinstance(sources, list) or not all(isinstance(value, str) for value in sources):
                 raise DiskForgeError("Batch injection sources must be a string list.")
-            filesystem = self._filesystem(source)
+            filesystem = self._filesystem(source, writable=True)
             try:
                 if not isinstance(filesystem, FatImageFilesystem):
                     raise DiskForgeError("Batch injection is available only for writable FAT images.")

@@ -34,6 +34,7 @@ with warnings.catch_warnings():
     from pyfatfs.PyFatFS import PyFatFS
 
 from .eltorito import ElToritoBootImage, inspect_eltorito
+from .listing import export_directory_listing
 from .formats import inspect_image
 from .models import (ConflictPolicy, ExtractionLayout, ExtractionPolicy, FileSystemType,
                      ImageEntry, OperationKind, Progress, ProgressCallback, iter_parent_paths)
@@ -440,25 +441,8 @@ class FatImageFilesystem(ImageFilesystem):
         return normalized
 
     def export_listing(self, output: Path, html: bool = False) -> Path:
-        entries = self.all_entries()
-        output.parent.mkdir(parents=True, exist_ok=True)
-        if html:
-            rows = "\n".join(
-                f"<tr><td>{_escape(entry.path)}</td><td>{'Directory' if entry.is_dir else 'File'}</td>"
-                f"<td>{entry.size}</td><td>{entry.modified.isoformat() if entry.modified else ''}</td></tr>"
-                for entry in entries
-            )
-            output.write_text(
-                "<!doctype html><meta charset='utf-8'><title>DiskForge image listing</title>"
-                "<table><thead><tr><th>Path</th><th>Type</th><th>Bytes</th><th>Modified</th></tr></thead>"
-                f"<tbody>{rows}</tbody></table>", encoding="utf-8"
-            )
-        else:
-            output.write_text("\n".join(
-                f"{'D' if entry.is_dir else 'F'}\t{entry.size}\t{entry.modified.isoformat() if entry.modified else ''}\t{entry.path}"
-                for entry in entries
-            ) + "\n", encoding="utf-8")
-        return output
+        """Export the same complete read-only report available to every facade."""
+        return export_directory_listing(self, self.path, output, html=html)
 
 
 def _iso9660_file_path(path: str) -> str:

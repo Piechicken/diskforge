@@ -135,3 +135,34 @@ def test_batch_designer_serializes_controlled_filesystem_injection(tmp_path: Pat
         "destination": str(destination),
         "sources": [str(payload)],
     }
+
+
+def test_batch_designer_serializes_read_only_directory_report(tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "partitioned.img"
+    destination = tmp_path / "report.html"
+    source.write_bytes(b"source")
+    dialog = BatchDesignerDialog()
+    kind_index = dialog.kind_choice.findData("export_listing")
+    assert kind_index >= 0
+    dialog.kind_choice.setCurrentIndex(kind_index)
+    dialog.source.setText(str(source))
+    dialog.destination.setText(str(destination))
+    dialog.partition_index.setText("2")
+    dialog.html_listing.setChecked(True)
+
+    operation = dialog.recipe()["operations"][0]
+
+    assert operation == {
+        "name": dialog.kind_choice.currentText(),
+        "kind": "export_listing",
+        "source": str(source),
+        "destination": str(destination),
+        "html": True,
+        "partition": 2,
+    }
+    reopened = BatchDesignerDialog(recipe={"schema": "diskforge.batch/v4", "operations": [operation]})
+    assert reopened.source.text() == str(source)
+    assert reopened.destination.text() == str(destination)
+    assert reopened.partition_index.text() == "2"
+    assert reopened.html_listing.isChecked()

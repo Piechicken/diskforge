@@ -32,11 +32,11 @@ print(result.destination)
 | `client.create_fat(...)` | Create a new FAT12/16/32 image. | Creates the requested output file; an explicit `.ima` path remains a flat, writable IMA sector image. |
 | `client.convert(...)` | Convert a file image, optionally with a configured converter. | Requires an explicit destination; source remains unchanged. Native RAW/IMG/IMA conversions preserve the caller-selected target format. |
 | `client.partitions(image)` | Return validated MBR/GPT partition entries. | Never opens or writes a partition. |
-| `client.filesystem(..., partition_index=N)` | Open an explicitly selected FAT MBR/GPT partition in a context manager. | Never silently selects a different FAT volume; resources are always closed. |
+| `client.filesystem(..., partition_index=N)` | Open one explicitly selected, validated MBR/GPT partition in a context manager. | FAT retains the existing optional writable path; NTFS, EXT, classic HFS, and HFS+ are routed at their exact validated byte offset through the read-only backend. No first-partition inference occurs, and resources are always closed. |
 | `client.replace_iso_file(source, iso_path, replacement, destination)` | Replace one existing equal-size ISO9660 file into a newly written ISO. | Source ISO and replacement source stay unchanged; output is reopened and verified. |
 | `client.mount_capability()` | Report the local OS read-only mount backend. | Diagnostic only; never starts a mount. |
 | `client.mount_read_only(image)` / `client.unmount(session)` | Create and release a system-backed image mount session. | Read-only only; callers retain and explicitly release the returned session. |
-| `client.filesystem(...)` | Open an image filesystem in a context manager. | Resources are always closed. ISO, NTFS, EXT, HFS, and HFS+ sessions are read-only. |
+| `client.filesystem(...)` | Open an image filesystem in a context manager. | Resources are always closed. ISO, NTFS, EXT, HFS, and HFS+ sessions—including explicit non-FAT partitions—are read-only. |
 | `client.extract(...)` | Extract paths to a local directory. | Uses the selected extraction policy; source remains unchanged. |
 | `client.inject(...)` | Add local files or directories to FAT. | Only writable FAT sessions are accepted. |
 
@@ -56,14 +56,14 @@ with client.filesystem("lab.img", writable=True) as filesystem:
 
 ## Selected partition and ISO workflows
 
-For a partitioned FAT image, first inspect the validated table and then choose its explicit one-based table index. This prevents an automation host from accidentally acting on the first FAT partition in a multi-volume image.
+For a partitioned image, first inspect the validated table and then choose an explicit one-based table index. This prevents an automation host from accidentally acting on the first compatible volume in a multi-volume image. FAT partitions retain the established writable session when `writable=True`; NTFS, EXT, classic HFS, and HFS+ partitions are opened only through the read-only backend at the selected partition offset.
 
 ```python
 for partition in client.partitions("disk.img"):
     print(partition.index, partition.filesystem.value, partition.name)
 
 with client.filesystem("disk.img", partition_index=2, writable=False) as filesystem:
-    print(filesystem.list_entries("/"))
+    print(filesystem.list_entries("/"))  # FAT, NTFS, EXT, classic HFS, or HFS+
 ```
 
 `replace_iso_file()` is intentionally narrower than generic ISO authoring. It only replaces one existing normal ISO file whose replacement has exactly the original logical size; it creates a different output file and verifies the reopened result. The desktop and CLI additionally expose a rebuild-based ISO editor that preserves verified Rock Ridge/UDF profiles and a verified single initial El Torito entry; it remains outside the stable SDK facade during API 1.1.
@@ -75,7 +75,7 @@ ZIP-compatible legacy compressed images with `.imz` or `.wlz` extensions are rec
 
 ## Optional controlled NTFS, EXT, and classic-HFS image workflows
 
-`DiskForgeClient.filesystem(..., writable=True)` remains **FAT-only**. The desktop, CLI, batch schema v4, and the explicit core adapters `diskforge.core.ntfs_inject.NtfsFileInjector`, `diskforge.core.ext_inject.ExtFileInjector`, and `diskforge.core.hfs_inject.HfsFileInjector` offer separate optional copy-on-write workflows for NTFS, EXT, and **classic HFS**. These adapters require already installed external tools, create a new standalone output file, and accept only new root-directory regular files. They SHA-256-check the source before and after, read back each payload for SHA-256 comparison, and validate the output filesystem signature before it is promoted. They deliberately reject physical devices, partition offsets, existing targets, folders, metadata, ACL/ADS work, rename, delete, and in-place writes.
+`DiskForgeClient.filesystem(..., writable=True)` remains **FAT-only**, including explicit FAT partitions. The desktop, CLI, batch schema v4, and the explicit core adapters `diskforge.core.ntfs_inject.NtfsFileInjector`, `diskforge.core.ext_inject.ExtFileInjector`, and `diskforge.core.hfs_inject.HfsFileInjector` offer separate optional copy-on-write workflows for NTFS, EXT, and **classic HFS**. These adapters require already installed external tools, create a new standalone output file, and accept only new root-directory regular files. They SHA-256-check the source before and after, read back each payload for SHA-256 comparison, and validate the output filesystem signature before it is promoted. They deliberately reject physical devices, partition offsets, existing targets, folders, metadata, ACL/ADS work, rename, delete, and in-place writes.
 
 The adjacent core service `diskforge.core.hfs_create.HfsImageCreator` creates a **new** standalone classic-HFS regular-file image through an explicitly available `hformat` executable. Its `create(destination, size_bytes, label, progress=None, token=None)` method rejects an existing output, device-like paths, sizes below 800 KiB or not divisible by 512, and labels outside a conservative 1–27-character ASCII-safe subset. It creates a unique sibling temporary file, formats only that file with `hformat -l`, isolates `HOME`, verifies the HFS signature and output SHA-256, then atomically promotes the result. `HfsCreationResult` exposes `destination`, `label`, `bytes_created`, and `sha256`. It never passes a partition ordinal or `-f`, and it is not exposed as a writable SDK filesystem session.
 

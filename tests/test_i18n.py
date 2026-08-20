@@ -189,9 +189,13 @@ def test_safe_iso_replacement_and_partition_browsing_are_translated_in_every_non
         "Partitions",
         "Unable to read partitions",
         "No MBR or GPT partitions found. This may be a superfloppy image.",
-        "Choose a FAT partition to browse (other partitions remain read-only metadata):",
-        "Partition is read-only",
-        "Only FAT partitions can be edited or browsed natively. Select a FAT partition.",
+        "Choose a partition to browse. FAT retains the existing edit path; NTFS, EXT, HFS, and HFS+ stay read-only.",
+        "Partition is unsupported",
+        "This partition is not a supported FAT, NTFS, EXT, HFS, or HFS+ filesystem.",
+        "read-only",
+        "Opened {mode} partition {index} from {name}",
+        "Listing unavailable",
+        "Open a browsable FAT, ISO, NTFS, EXT, HFS, or HFS+ image first.",
     }
     for language in LANGUAGES:
         if language.code == "en":
@@ -427,6 +431,26 @@ def test_classic_hfs_creation_is_translated_in_every_non_english_locale() -> Non
         "Create a new standalone classic HFS output through an explicitly available hfsutils backend. Choose a new destination, at least 800 KiB in 512-byte units, and a safe volume label. HFS+, physical media, partition maps, and overwrite are rejected.",
         "Classic HFS creation requires a new destination image, byte size, and volume label.",
         "Classic HFS creation byte size must be an integer.",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_batch_directory_report_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Export read-only directory listing",
+        "Create HTML directory report",
+        "Validated partition index (optional)",
+        "Directory report format",
+        "Write a new text or HTML directory report from a browsable image or an explicitly selected validated partition. NTFS, EXT, HFS, and HFS+ remain read-only.",
+        "Directory report export requires a source image and a new report destination.",
+        "Directory report partition index must be a positive integer.",
     }
     for language in LANGUAGES:
         if language.code == "en":

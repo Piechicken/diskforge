@@ -31,6 +31,7 @@ from diskforge.core.storage import DiskForgeError
 
 _EDITABLE_KINDS = (
     OperationKind.EXTRACT,
+    OperationKind.EXPORT_LISTING,
     OperationKind.CONVERT,
     OperationKind.VERIFY,
     OperationKind.COMPARE,
@@ -92,6 +93,7 @@ class BatchDesignerDialog(QDialog):
         self.kind_choice = QComboBox()
         labels = {
             OperationKind.EXTRACT: "Extract image contents",
+            OperationKind.EXPORT_LISTING: "Export read-only directory listing",
             OperationKind.CONVERT: "Convert image format",
             OperationKind.VERIFY: "Verify SHA-256",
             OperationKind.COMPARE: "Compare image bytes",
@@ -161,6 +163,8 @@ class BatchDesignerDialog(QDialog):
         self.sha256 = QLineEdit()
         self.compare_bytes = QLineEdit()
         self.size_bytes = QLineEdit()
+        self.partition_index = QLineEdit()
+        self.html_listing = QCheckBox("Create HTML directory report")
         self.volume_label = QLineEdit("DISKFORGE")
         self.comment = QLineEdit()
         self.description = QLineEdit()
@@ -174,6 +178,8 @@ class BatchDesignerDialog(QDialog):
         editor.addRow("Expected SHA-256", self.sha256)
         editor.addRow("Bytes to compare (optional)", self.compare_bytes)
         editor.addRow("New size in bytes", self.size_bytes)
+        editor.addRow("Validated partition index (optional)", self.partition_index)
+        editor.addRow("Directory report format", self.html_listing)
         editor.addRow("Volume label", self.volume_label)
         editor.addRow("Container comment", self.comment)
         editor.addRow("Container description", self.description)
@@ -187,7 +193,7 @@ class BatchDesignerDialog(QDialog):
         self.preview.setWordWrap(True)
         layout.addWidget(self.preview)
         for widget in (self.source, self.destination, self.sources, self.prefix, self.suffix, self.paths,
-                       self.target_directory, self.sha256, self.compare_bytes, self.size_bytes, self.volume_label, self.comment,
+                       self.target_directory, self.sha256, self.compare_bytes, self.size_bytes, self.partition_index, self.volume_label, self.comment,
                        self.description, self.bundle_names):
             signal = widget.textChanged if isinstance(widget, QPlainTextEdit) else widget.textChanged
             signal.connect(self.update_preview)
@@ -216,6 +222,7 @@ class BatchDesignerDialog(QDialog):
         kind = OperationKind(str(self.kind_choice.currentData()))
         hints = {
             OperationKind.EXTRACT: "For sequential extraction, enter several source images and a destination root. For one image, use Source and Destination.",
+            OperationKind.EXPORT_LISTING: "Write a new text or HTML directory report from a browsable image or an explicitly selected validated partition. NTFS, EXT, HFS, and HFS+ remain read-only.",
             OperationKind.CONVERT: "Convert a source image into the chosen target format.",
             OperationKind.VERIFY: "Compare a source image against an explicit SHA-256 digest.",
             OperationKind.COMPARE: "Compare the source image with the destination image; no file is written.",
@@ -300,6 +307,18 @@ class BatchDesignerDialog(QDialog):
                 "layout": ExtractionLayout(str(self.layout_choice.currentData())).value,
                 "on_conflict": ConflictPolicy(str(self.conflict_choice.currentData())).value,
             })
+        elif kind == OperationKind.EXPORT_LISTING:
+            if not source or not destination:
+                raise DiskForgeError("Directory report export requires a source image and a new report destination.")
+            item.update({"source": source, "destination": destination, "html": self.html_listing.isChecked()})
+            if self.partition_index.text().strip():
+                try:
+                    partition = int(self.partition_index.text().strip())
+                except ValueError as exc:
+                    raise DiskForgeError("Directory report partition index must be a positive integer.") from exc
+                if partition < 1:
+                    raise DiskForgeError("Directory report partition index must be a positive integer.")
+                item["partition"] = partition
         elif kind == OperationKind.CONVERT:
             if not source or not destination:
                 raise DiskForgeError("Conversion requires source and destination images.")
@@ -427,6 +446,8 @@ class BatchDesignerDialog(QDialog):
         self.sha256.setText(str(item.get("sha256", "")))
         self.compare_bytes.setText(str(item.get("bytes_to_compare", "")))
         self.size_bytes.setText(str(item.get("size_bytes", "")))
+        self.partition_index.setText(str(item.get("partition", "")))
+        self.html_listing.setChecked(bool(item.get("html", False)))
         self.volume_label.setText(str(item.get("label", "DISKFORGE")))
         self.comment.setText(str(item.get("comment", "")))
         self.description.setText(str(item.get("description", "")))

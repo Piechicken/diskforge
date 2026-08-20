@@ -17,6 +17,7 @@ from .core.formats import Converter, convert_image, inspect_image
 from .core.models import (DiskPartition, ExtractionPolicy, FileSystemType, ImageFormat, ImageInfo,
                           ProgressCallback)
 from .core.mounts import ImageMountCapability, ImageMountManager, ImageMountSession
+from .core.partition_filesystems import open_partition_filesystem
 from .core.partitions import list_partitions
 from .core.readonly_fs import SleuthKitImageFilesystem
 from .core.storage import CancellationToken, DiskForgeError, sha256_file
@@ -97,7 +98,7 @@ class DiskForgeClient:
         source = Path(image)
         info = self.inspect(source)
         if partition_index is not None:
-            filesystem: ImageFilesystem = FatImageFilesystem(source, read_only=not writable, partition_index=partition_index)
+            filesystem: ImageFilesystem = open_partition_filesystem(source, partition_index, writable=writable)
         elif info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
             filesystem = FatImageFilesystem(source, read_only=not writable)
         elif info.filesystem == FileSystemType.ISO9660:

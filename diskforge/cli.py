@@ -29,12 +29,14 @@ from .core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_image, cr
 from .core.mbr import backup_mbr, reset_mbr_to_neutral, restore_mbr
 from .core.legacy_floppy import (LEGACY_FLOPPY_PROFILES, LegacyFloppyGeometry,
                                   create_legacy_fat_floppy, create_legacy_fat_floppy_profile)
+from .core.listing import export_directory_listing
 from .core.media import create_dmf_image, trim_zero_tail, wrap_fat_image_in_mbr
 from .core.mounts import ImageMountManager, ImageMountSession
 from .core.ntfs_inject import NtfsFileInjector
 from .core.metadata import load_image_metadata, save_image_comment
 from .core.models import (ConflictPolicy, DeviceInfo, DeviceKind, ExtractionLayout, ExtractionPolicy,
                           FileSystemType, ImageFormat)
+from .core.partition_filesystems import open_partition_filesystem
 from .core.partitions import inspect_gpt, list_partitions
 from .core.readonly_fs import SleuthKitImageFilesystem
 from .core.resize import resize_image
@@ -62,10 +64,10 @@ def parser() -> argparse.ArgumentParser:
     info = commands.add_parser("info", help="Inspect image metadata")
     info.add_argument("image", type=Path)
 
-    listing = commands.add_parser("list", help="List FAT, ISO, NTFS or EXT image files")
+    listing = commands.add_parser("list", help="List files in a browsable image or explicit validated partition")
     listing.add_argument("image", type=Path)
     listing.add_argument("--path", default="/")
-    listing.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
+    listing.add_argument("--partition", type=int, help="Explicit MBR/GPT partition table index; NTFS/EXT/HFS/HFS+ stay read-only")
 
     extract = commands.add_parser("extract", help="Extract files from a supported image filesystem")
     extract.add_argument("image", type=Path)
@@ -73,7 +75,7 @@ def parser() -> argparse.ArgumentParser:
     extract.add_argument("paths", nargs="+", help="Image paths to extract")
     extract.add_argument("--layout", choices=[item.value for item in ExtractionLayout], default=ExtractionLayout.PRESERVE_PATHS.value)
     extract.add_argument("--on-conflict", choices=[item.value for item in ConflictPolicy], default=ConflictPolicy.ERROR.value)
-    extract.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
+    extract.add_argument("--partition", type=int, help="Explicit MBR/GPT partition table index; NTFS/EXT/HFS/HFS+ stay read-only")
 
     inject = commands.add_parser("inject", help="Inject host files or directories into a writable FAT image")
     inject.add_argument("image", type=Path)
@@ -277,11 +279,11 @@ def parser() -> argparse.ArgumentParser:
     compare.add_argument("--bytes-to-compare", type=int)
     compare.add_argument("--ignore-trailing-zero-sectors", action="store_true", help="Report-only: ignore full trailing zero sectors when no byte limit is set")
 
-    export_listing = commands.add_parser("export-listing", help="Export a FAT directory listing as text or HTML")
+    export_listing = commands.add_parser("export-listing", help="Export a browsable image directory listing as text or HTML")
     export_listing.add_argument("image", type=Path)
     export_listing.add_argument("output", type=Path)
     export_listing.add_argument("--html", action="store_true")
-    export_listing.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
+    export_listing.add_argument("--partition", type=int, help="Explicit MBR/GPT partition table index; FAT may be writable elsewhere, NTFS/EXT/HFS/HFS+ remain read-only")
 
     defragment = commands.add_parser("defragment-fat", help="Rebuild a FAT superfloppy into a new defragmented image")
     defragment.add_argument("source", type=Path)
@@ -401,7 +403,7 @@ def _device_from_manifest(path: Path) -> DeviceInfo:
 def _filesystem(image: Path, *, writable: bool = False, partition_index: int | None = None):
     info = inspect_image(image, QemuImgConverter())
     if partition_index is not None:
-        return FatImageFilesystem(image, read_only=not writable, partition_index=partition_index)
+        return open_partition_filesystem(image, partition_index, writable=writable)
     if info.filesystem in {FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32}:
         return FatImageFilesystem(image, read_only=not writable)
     if info.filesystem == FileSystemType.ISO9660 or info.image_format == ImageFormat.ISO:
@@ -734,9 +736,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "export-listing":
             filesystem = _filesystem(args.image, partition_index=args.partition)
             try:
-                if not isinstance(filesystem, FatImageFilesystem):
-                    raise DiskForgeError("Directory listing export is currently available for FAT images only.")
-                output = filesystem.export_listing(args.output, html=args.html)
+                output = export_directory_listing(filesystem, args.image, args.output, html=args.html)
                 _emit(args, {"path": str(output), "format": "html" if args.html else "text"}, str(output))
             finally:
                 filesystem.close()

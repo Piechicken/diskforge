@@ -47,6 +47,18 @@ NTFS、EXT 和经典 HFS 写入均不作为原生或跨平台保证。仅当本�
 
 这些测试还覆盖 GUI 的新输出选择与自动打开、CLI 的 JSON 审计结果，以及批处理 v4 的 `ntfs_inject`/`ext_inject`/`hfs_inject`/`hfs_create` 预览和执行。HFS+ 仍不启用受控注入或新建动作。详细合同见 [FILESYSTEM_INJECTION.md](FILESYSTEM_INJECTION.md)。
 
+## v0.10 显式只读分区浏览与目录报告验收
+
+DiskForge 的 MBR/GPT 解析器先验证分区表，再只接受操作者指定的稳定一位索引；它不会扫描或推断“第一个可兼容分区”。FAT 分区保持已有的可写会话，而 NTFS、EXT、经典 HFS 与 HFS+ 分区仅由 Sleuth Kit `fls`/`icat` 在该分区的精确扇区偏移下打开。请求非 FAT 写入会在启动外部后端之前被拒绝；不挂载、不修改分区表、不写入源映像或物理设备。[8] [9]
+
+| 验收层 | 自动化证据 | 必须保持的边界 |
+|---|---|---|
+| 核心路由 | 合成 MBR Linux 分区验证 EXT 类型与精确字节偏移；写入请求在后端调用前失败；未知类型拒绝。 | 仅 FAT 可请求写入；NTFS/EXT/HFS/HFS+ 永远只读，且必须显式选择索引。 |
+| CLI 与 SDK | `list`、`extract`、`export-listing` 与 `DiskForgeClient.filesystem(..., partition_index=N)` 均将索引交给同一核心路由，并始终关闭会话。 | 不回退为 FAT 或 offset-0；无隐式选择、无自动挂载、无写入升级。 |
+| GUI 与报告 | 分区对话框可选已验证非 FAT 分区；导出和打印通过统一完整遍历产生新的文本/HTML 本地报告。 | 报告只写入所选报告文件；注入、删除、改名及受控写入动作仍禁用。 |
+
+通用目录报告回归还验证跨文件系统稳定排序、HTML 路径转义和取消时不创建输出文件。该机制仅序列化 `ImageFilesystem.walk_entries()` 的只读结果，不执行文件、脚本或映像内内容。
+
 ## UFI USB 软驱人工验收
 
 Linux 上的受控 UFI USB 软驱格式化要求 `ufiformat`、相应权限、真正的 UFI 兼容设备以及可丢弃介质。DiskForge 仅在 sysfs 将 `/dev/sgN` 显式关联到已发现的可移动块设备时显示候选项；随后必须由 `ufiformat -i` 报告设备与可用容量。操作者必须选择报告中的一个容量并输入 `FORMAT_FLOPPY`；执行命令固定包含 `-V` 验证，且不会使用跳过安全检查的 `-F` 选项。[5]

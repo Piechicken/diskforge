@@ -1397,3 +1397,123 @@ CATALOG["ja"].update({
     "Classic HFS creation byte size must be an integer.": "クラシック HFS 作成のバイトサイズは整数でなければなりません。",
 })
 TRANSLATABLE = _catalog_keys()
+
+# Explicit read-only partition browsing and generic directory-report coverage.
+CATALOG["zh_CN"].update({
+    "Listing unavailable": "目录清单不可用",
+    "Open a browsable FAT, ISO, NTFS, EXT, HFS, or HFS+ image first.": "请先打开可浏览的 FAT、ISO、NTFS、EXT、HFS 或 HFS+ 映像。",
+    "Partition table": "分区表",
+    "Choose a partition to browse. FAT retains the existing edit path; NTFS, EXT, HFS, and HFS+ stay read-only.": "请选择要浏览的分区。FAT 保留现有编辑路径；NTFS、EXT、HFS 和 HFS+ 始终保持只读。",
+    "Partition is unsupported": "分区不受支持",
+    "This partition is not a supported FAT, NTFS, EXT, HFS, or HFS+ filesystem.": "该分区不是受支持的 FAT、NTFS、EXT、HFS 或 HFS+ 文件系统。",
+    "read-only": "只读",
+    "Opened {mode} partition {index} from {name}": "已从 {name} 打开{mode}分区 {index}",
+})
+CATALOG["es"].update({
+    "Listing unavailable": "Listado de directorio no disponible",
+    "Open a browsable FAT, ISO, NTFS, EXT, HFS, or HFS+ image first.": "Abra primero una imagen FAT, ISO, NTFS, EXT, HFS o HFS+ que se pueda explorar.",
+    "Partition table": "Tabla de particiones",
+    "Choose a partition to browse. FAT retains the existing edit path; NTFS, EXT, HFS, and HFS+ stay read-only.": "Elija una partición para explorar. FAT conserva la ruta de edición existente; NTFS, EXT, HFS y HFS+ permanecen de solo lectura.",
+    "Partition is unsupported": "La partición no es compatible",
+    "This partition is not a supported FAT, NTFS, EXT, HFS, or HFS+ filesystem.": "Esta partición no es un sistema de archivos FAT, NTFS, EXT, HFS o HFS+ compatible.",
+    "read-only": "solo lectura",
+    "Opened {mode} partition {index} from {name}": "Se abrió la partición {mode} {index} de {name}",
+})
+CATALOG["fr"].update({
+    "Listing unavailable": "Liste de répertoires indisponible",
+    "Open a browsable FAT, ISO, NTFS, EXT, HFS, or HFS+ image first.": "Ouvrez d’abord une image FAT, ISO, NTFS, EXT, HFS ou HFS+ pouvant être parcourue.",
+    "Partition table": "Table de partitions",
+    "Choose a partition to browse. FAT retains the existing edit path; NTFS, EXT, HFS, and HFS+ stay read-only.": "Choisissez une partition à parcourir. FAT conserve le chemin d’édition existant ; NTFS, EXT, HFS et HFS+ restent en lecture seule.",
+    "Partition is unsupported": "Partition non prise en charge",
+    "This partition is not a supported FAT, NTFS, EXT, HFS, or HFS+ filesystem.": "Cette partition n’est pas un système de fichiers FAT, NTFS, EXT, HFS ou HFS+ pris en charge.",
+    "read-only": "lecture seule",
+    "Opened {mode} partition {index} from {name}": "Partition {mode} {index} ouverte depuis {name}",
+})
+CATALOG["ru"].update({
+    "Listing unavailable": "Список каталога недоступен",
+    "Open a browsable FAT, ISO, NTFS, EXT, HFS, or HFS+ image first.": "Сначала откройте доступный для просмотра образ FAT, ISO, NTFS, EXT, HFS или HFS+.",
+    "Partition table": "Таблица разделов",
+    "Choose a partition to browse. FAT retains the existing edit path; NTFS, EXT, HFS, and HFS+ stay read-only.": "Выберите раздел для просмотра. FAT сохраняет существующий путь редактирования; NTFS, EXT, HFS и HFS+ остаются доступными только для чтения.",
+    "Partition is unsupported": "Раздел не поддерживается",
+    "This partition is not a supported FAT, NTFS, EXT, HFS, or HFS+ filesystem.": "Этот раздел не является поддерживаемой файловой системой FAT, NTFS, EXT, HFS или HFS+.",
+    "read-only": "только для чтения",
+    "Opened {mode} partition {index} from {name}": "Открыт раздел {index} ({mode}) из {name}",
+})
+CATALOG["ar"].update({
+    "Listing unavailable": "قائمة الدليل غير متاحة",
+    "Open a browsable FAT, ISO, NTFS, EXT, HFS, or HFS+ image first.": "افتح أولاً صورة FAT أو ISO أو NTFS أو EXT أو HFS أو HFS+ قابلة للاستعراض.",
+    "Partition table": "جدول الأقسام",
+    "Choose a partition to browse. FAT retains the existing edit path; NTFS, EXT, HFS, and HFS+ stay read-only.": "اختر قسمًا للاستعراض. يحتفظ FAT بمسار التحرير الحالي، بينما تبقى NTFS وEXT وHFS وHFS+ للقراءة فقط.",
+    "Partition is unsupported": "القسم غير مدعوم",
+    "This partition is not a supported FAT, NTFS, EXT, HFS, or HFS+ filesystem.": "هذا القسم ليس نظام ملفات FAT أو NTFS أو EXT أو HFS أو HFS+ مدعومًا.",
+    "read-only": "للقراءة فقط",
+    "Opened {mode} partition {index} from {name}": "تم فتح القسم {index} ({mode}) من {name}",
+})
+CATALOG["ja"].update({
+    "Listing unavailable": "ディレクトリ一覧を利用できません",
+    "Open a browsable FAT, ISO, NTFS, EXT, HFS, or HFS+ image first.": "最初に閲覧可能な FAT、ISO、NTFS、EXT、HFS、または HFS+ イメージを開いてください。",
+    "Partition table": "パーティションテーブル",
+    "Choose a partition to browse. FAT retains the existing edit path; NTFS, EXT, HFS, and HFS+ stay read-only.": "閲覧するパーティションを選択してください。FAT は既存の編集経路を維持し、NTFS、EXT、HFS、HFS+ は読み取り専用のままです。",
+    "Partition is unsupported": "パーティションは未対応です",
+    "This partition is not a supported FAT, NTFS, EXT, HFS, or HFS+ filesystem.": "このパーティションは、対応する FAT、NTFS、EXT、HFS、または HFS+ ファイルシステムではありません。",
+    "read-only": "読み取り専用",
+    "Opened {mode} partition {index} from {name}": "{name} から {mode} パーティション {index} を開きました",
+})
+TRANSLATABLE = _catalog_keys()
+
+# Read-only directory-report operation in the graphical batch designer.
+CATALOG["zh_CN"].update({
+    "Export read-only directory listing": "导出只读目录清单",
+    "Create HTML directory report": "创建 HTML 目录报告",
+    "Validated partition index (optional)": "已验证分区索引（可选）",
+    "Directory report format": "目录报告格式",
+    "Write a new text or HTML directory report from a browsable image or an explicitly selected validated partition. NTFS, EXT, HFS, and HFS+ remain read-only.": "从可浏览的映像或显式选择的已验证分区创建新的文本或 HTML 目录报告。NTFS、EXT、HFS 和 HFS+ 始终保持只读。",
+    "Directory report export requires a source image and a new report destination.": "导出目录报告需要源映像和新的报告目标。",
+    "Directory report partition index must be a positive integer.": "目录报告分区索引必须是正整数。",
+})
+CATALOG["es"].update({
+    "Export read-only directory listing": "Exportar lista de directorio de solo lectura",
+    "Create HTML directory report": "Crear informe de directorio HTML",
+    "Validated partition index (optional)": "Índice de partición validado (opcional)",
+    "Directory report format": "Formato de informe de directorio",
+    "Write a new text or HTML directory report from a browsable image or an explicitly selected validated partition. NTFS, EXT, HFS, and HFS+ remain read-only.": "Escriba un nuevo informe de directorio de texto o HTML desde una imagen explorable o una partición validada elegida explícitamente. NTFS, EXT, HFS y HFS+ permanecen de solo lectura.",
+    "Directory report export requires a source image and a new report destination.": "La exportación del informe de directorio requiere una imagen de origen y un nuevo destino de informe.",
+    "Directory report partition index must be a positive integer.": "El índice de partición del informe de directorio debe ser un entero positivo.",
+})
+CATALOG["fr"].update({
+    "Export read-only directory listing": "Exporter la liste de répertoires en lecture seule",
+    "Create HTML directory report": "Créer un rapport de répertoire HTML",
+    "Validated partition index (optional)": "Index de partition validé (facultatif)",
+    "Directory report format": "Format du rapport de répertoire",
+    "Write a new text or HTML directory report from a browsable image or an explicitly selected validated partition. NTFS, EXT, HFS, and HFS+ remain read-only.": "Créez un nouveau rapport de répertoire texte ou HTML à partir d’une image parcourable ou d’une partition validée sélectionnée explicitement. NTFS, EXT, HFS et HFS+ restent en lecture seule.",
+    "Directory report export requires a source image and a new report destination.": "L’export du rapport de répertoire requiert une image source et une nouvelle destination de rapport.",
+    "Directory report partition index must be a positive integer.": "L’index de partition du rapport de répertoire doit être un entier positif.",
+})
+CATALOG["ru"].update({
+    "Export read-only directory listing": "Экспортировать список каталога только для чтения",
+    "Create HTML directory report": "Создать HTML-отчёт каталога",
+    "Validated partition index (optional)": "Проверенный индекс раздела (необязательно)",
+    "Directory report format": "Формат отчёта каталога",
+    "Write a new text or HTML directory report from a browsable image or an explicitly selected validated partition. NTFS, EXT, HFS, and HFS+ remain read-only.": "Создайте новый текстовый или HTML-отчёт каталога из доступного для просмотра образа или явно выбранного проверенного раздела. NTFS, EXT, HFS и HFS+ остаются только для чтения.",
+    "Directory report export requires a source image and a new report destination.": "Для экспорта отчёта каталога требуются исходный образ и новое назначение отчёта.",
+    "Directory report partition index must be a positive integer.": "Индекс раздела для отчёта каталога должен быть положительным целым числом.",
+})
+CATALOG["ar"].update({
+    "Export read-only directory listing": "تصدير قائمة الدليل للقراءة فقط",
+    "Create HTML directory report": "إنشاء تقرير دليل HTML",
+    "Validated partition index (optional)": "فهرس القسم المتحقق منه (اختياري)",
+    "Directory report format": "تنسيق تقرير الدليل",
+    "Write a new text or HTML directory report from a browsable image or an explicitly selected validated partition. NTFS, EXT, HFS, and HFS+ remain read-only.": "أنشئ تقرير دليل نصيًا أو HTML جديدًا من صورة قابلة للاستعراض أو قسم متحقق منه ومحدد صراحةً. تظل NTFS وEXT وHFS وHFS+ للقراءة فقط.",
+    "Directory report export requires a source image and a new report destination.": "يتطلب تصدير تقرير الدليل صورة مصدر ووجهة تقرير جديدة.",
+    "Directory report partition index must be a positive integer.": "يجب أن يكون فهرس قسم تقرير الدليل عددًا صحيحًا موجبًا.",
+})
+CATALOG["ja"].update({
+    "Export read-only directory listing": "読み取り専用ディレクトリ一覧をエクスポート",
+    "Create HTML directory report": "HTML ディレクトリレポートを作成",
+    "Validated partition index (optional)": "検証済みパーティションインデックス（任意）",
+    "Directory report format": "ディレクトリレポート形式",
+    "Write a new text or HTML directory report from a browsable image or an explicitly selected validated partition. NTFS, EXT, HFS, and HFS+ remain read-only.": "閲覧可能なイメージまたは明示的に選択した検証済みパーティションから、新しいテキストまたは HTML のディレクトリレポートを作成します。NTFS、EXT、HFS、HFS+ は読み取り専用のままです。",
+    "Directory report export requires a source image and a new report destination.": "ディレクトリレポートのエクスポートには、ソースイメージと新しいレポート保存先が必要です。",
+    "Directory report partition index must be a positive integer.": "ディレクトリレポートのパーティションインデックスは正の整数でなければなりません。",
+})
+TRANSLATABLE = _catalog_keys()
