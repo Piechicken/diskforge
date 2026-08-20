@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from PySide6.QtWidgets import QInputDialog, QMessageBox
+from PySide6.QtWidgets import QFileDialog, QInputDialog, QMessageBox
 
 from diskforge.core.filesystems import FatImageFilesystem, create_fat_image
 from diskforge.core.models import DiskPartition, FileSystemType, ImageEntry
@@ -203,3 +203,18 @@ def test_gui_imd_inspection_action_is_available_without_a_writable_image(qtbot) 
     qtbot.addWidget(window)
     window._update_action_state()
     assert window.action_imd.isEnabled()
+
+
+def test_gui_open_routes_imd_to_read_only_inspector(
+    qtbot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:  # type: ignore[no-untyped-def]
+    source = tmp_path / "legacy.imd"
+    source.write_bytes(b"IMD x\x1a")
+    window = MainWindow()
+    qtbot.addWidget(window)
+    received: list[Path] = []
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *args: (str(source), "Disk images (*.imd)"))
+    monkeypatch.setattr(window, "inspect_imd_image", lambda path=None: received.append(path))
+    monkeypatch.setattr(window, "_open_path", lambda *args, **kwargs: pytest.fail("IMD must not enter normal open routing"))
+    window.open_image()
+    assert received == [source]

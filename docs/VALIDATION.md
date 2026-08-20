@@ -77,7 +77,7 @@ IMD 被作为扇区记录容器解析，不会被自动降级为可写 RAW 映�
 |---|---|---|
 | 核心解析与导出 | 合成 IMD 覆盖普通与压缩填充扇区、描述文本、严格 CHS 证明、RAW 字节顺序、源 SHA-256 不变和已有输出拒绝。 | 无 IMD 源写入、无覆盖、无设备输出；仅创建新本地 RAW 文件。 |
 | 结构拒绝 | 覆盖截断头/轨道、未知映射、缺失/删除/坏扇区、重复轨道、非矩形几何、尾随字节和不可证明布局。 | 不猜测、补零、重排或修复扇区；不能导出不完整或非正常数据。 |
-| CLI、SDK 与桌面 | CLI JSON `imd-info`/`convert-imd`、SDK `inspect_imd()`/`export_imd_to_raw()`、离屏 GUI 工具入口和七语种文本均有严格回归。 | 不接入无人值守批处理、磁通/位流处理、IMD 写入或物理媒体读写。 |
+| CLI、SDK 与桌面 | CLI JSON `imd-info`/`convert-imd`、SDK `inspect_imd()`/`export_imd_to_raw()`、离屏 GUI 工具入口、文件选择器直达只读检查器和七语种文本均有严格回归。 | 不接入无人值守批处理、磁通/位流处理、IMD 写入或物理媒体读写。 |
 
 ## v0.10 FAT 已删除根目录单簇候选恢复验收
 
@@ -99,7 +99,7 @@ FAT 跨目录移动仅接受一个映像内常规文件和一个**已经存在**
 | CLI 与 SDK | `move-fat IMAGE SOURCE_PATH TARGET_DIRECTORY` 输出 JSON `source`/`destination`；`DiskForgeClient.move_fat()` 返回新的映像内路径。 | 仅可写 FAT；可选显式 FAT 分区由既有验证路由处理；非 FAT 不升级为可写。 |
 | 批处理与桌面 | schema v4 `move` 预览标记 `will_write: true`，执行后审计原映像；图形设计器序列化并回填映像、源条目、目标目录和分区索引；桌面动作仅在一个常规文件被选中且 FAT 会话可写时启用。 | 无人值守配方不接受设备；桌面不会对目录显示移动动作；全部七种界面语言均有无回退目录。 |
 
-在当前开发检查点，完整严格命令 `QT_QPA_PLATFORM=offscreen pytest -W error` 的结果为 **370 passed, 3 skipped**，且没有警告。跳过项仍只对应可选的真实外部文件系统夹具，不影响上述合成 FAT 移动、ZIP 单映像容器和 FAT 删除候选恢复回归。
+在当前开发检查点，完整严格命令 `QT_QPA_PLATFORM=offscreen pytest -W error` 的结果为 **371 passed, 3 skipped**，且没有警告。跳过项仍只对应可选的真实外部文件系统夹具，不影响上述合成 FAT 移动、ZIP 单映像容器和 FAT 删除候选恢复回归。
 
 ## UFI USB 软驱人工验收
 

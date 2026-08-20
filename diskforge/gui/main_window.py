@@ -77,7 +77,7 @@ from diskforge.gui.theme import apply_theme
 from diskforge.gui.workers import FunctionWorker
 
 
-IMAGE_FILTER = "Disk images (*.img *.ima *.hfs *.bin *.dd *.dmf *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
+IMAGE_FILTER = "Disk images (*.img *.ima *.imd *.hfs *.bin *.dd *.dmf *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
 
 
 class NewImageDialog(QDialog):
@@ -1184,8 +1184,13 @@ class MainWindow(QMainWindow):
     def open_image(self) -> None:
         start = str(self.settings.value("last_directory", ""))
         path, _ = QFileDialog.getOpenFileName(self, "Open disk image", start, IMAGE_FILTER)
-        if path:
-            self._open_path(Path(path))
+        if not path:
+            return
+        selected = Path(path)
+        if selected.suffix.casefold() == ".imd":
+            self.inspect_imd_image(selected)
+            return
+        self._open_path(selected)
 
     def create_editable_vhd_copy(self) -> None:
         """Create a separately stored fixed-VHD FAT copy before enabling edits."""
@@ -1899,15 +1904,16 @@ class MainWindow(QMainWindow):
         finally:
             fs.close()
 
-    def inspect_imd_image(self) -> None:
+    def inspect_imd_image(self, source_path: Path | None = None) -> None:
         """Inspect an IMD source without mutation and optionally export a proven RAW layout."""
-        current = self.current_path if self.current_path and self.current_path.suffix.casefold() == ".imd" else None
-        source_name = str(current) if current else ""
-        source, accepted = QFileDialog.getOpenFileName(self, self._localized("Inspect IMD image"), source_name,
-                                                        self._localized("ImageDisk files (*.imd);;All files (*)"))
-        if not accepted or not source:
-            return
-        source_path = Path(source)
+        if source_path is None:
+            current = self.current_path if self.current_path and self.current_path.suffix.casefold() == ".imd" else None
+            source_name = str(current) if current else ""
+            source, accepted = QFileDialog.getOpenFileName(self, self._localized("Inspect IMD image"), source_name,
+                                                            self._localized("ImageDisk files (*.imd);;All files (*)"))
+            if not accepted or not source:
+                return
+            source_path = Path(source)
         self._run_worker(
             self._localized("Inspecting IMD image"),
             lambda progress=None, token=None: inspect_imd(source_path, token),
