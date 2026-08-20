@@ -180,3 +180,33 @@ def test_cli_inventory_images_writes_new_read_only_report(tmp_path: Path, capsys
     assert result["summary"]["reported"] == 1
     assert json.loads(destination.read_text(encoding="utf-8"))["records"][0]["path"] == "fleet.img"
     assert sha256_file(image) == before
+
+
+def test_cli_td0_info_and_strict_raw_export_keep_source_unchanged(tmp_path: Path, capsys) -> None:
+    from diskforge.core.td0 import _crc16
+
+    def sector(payload: bytes) -> bytes:
+        base = bytes((0, 0, 1, 0, 0))
+        data_header = (len(payload) + 1).to_bytes(2, "little") + b"\x00"
+        return base + bytes((_crc16(base + data_header + payload) & 0xFF,)) + data_header + payload
+
+    header_prefix = b"TD" + bytes((0, 0, 0x21, 0, 1, 0, 0, 1))
+    header = header_prefix + _crc16(header_prefix).to_bytes(2, "little")
+    track_prefix = bytes((1, 0, 0))
+    source = tmp_path / "cli.td0"
+    source.write_bytes(header + track_prefix + bytes((_crc16(track_prefix) & 0xFF,)) + sector(b"T" * 128) + b"\xff")
+    before = sha256_file(source)
+
+    assert main(["--json", "td0-info", str(source)]) == 0
+    info = json.loads(capsys.readouterr().out)
+    assert info["exportable"] is True
+    assert info["raw_bytes"] == 128
+
+    destination = tmp_path / "cli-td0.img"
+    assert main(["--json", "convert-td0", str(source), str(destination)]) == 0
+    assert json.loads(capsys.readouterr().out)["destination"] == str(destination)
+    assert destination.read_bytes() == b"T" * 128
+    assert sha256_file(source) == before
+
+    assert main(["convert", str(source), str(tmp_path / "blocked.img"), "--format", "img"]) == 2
+    assert "read-only sector containers" in capsys.readouterr().err

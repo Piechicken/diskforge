@@ -169,3 +169,29 @@ def test_public_api_inventories_images_without_mutating_sources(tmp_path: Path) 
     report = client.export_image_inventory(inventory, tmp_path / "api.csv", "csv")
     assert report.destination is not None and report.destination.exists()
     assert sha256_file(image) == before
+
+
+def test_public_api_inspects_and_exports_strict_td0_layout(tmp_path: Path) -> None:
+    from diskforge.core.td0 import _crc16
+
+    header_prefix = b"TD" + bytes((0, 0, 0x21, 0, 1, 0, 0, 1))
+    header = header_prefix + _crc16(header_prefix).to_bytes(2, "little")
+    track_prefix = bytes((1, 0, 0))
+    sector_prefix = bytes((0, 0, 1, 0, 0))
+    payload = b"A" * 128
+    data_header = (129).to_bytes(2, "little") + b"\x00"
+    sector = sector_prefix + bytes((_crc16(sector_prefix + data_header + payload) & 0xFF,)) + data_header + payload
+    source = tmp_path / "api.td0"
+    source.write_bytes(header + track_prefix + bytes((_crc16(track_prefix) & 0xFF,)) + sector + b"\xff")
+    before = sha256_file(source)
+    client = DiskForgeClient()
+
+    inspection = client.inspect_td0(source)
+    assert inspection.exportable
+    result = client.export_td0_to_raw(source, tmp_path / "api-td0.img")
+    assert result.operation == "export_td0_to_raw"
+    assert result.destination is not None and result.destination.read_bytes() == payload
+    assert sha256_file(source) == before
+    with pytest.raises(DiskForgeError, match="read-only sector containers"):
+        with client.filesystem(source):
+            pass

@@ -16,6 +16,7 @@ from .core.fat_recovery import DeletedFatFileCandidate
 from .core.imd import ImdInspection, export_imd_to_raw, inspect_imd
 from .core.inventory import (ImageInventory, ImageInventoryOptions, ReportFormat,
                              export_image_inventory, inventory_images)
+from .core.td0 import Td0Inspection, export_td0_to_raw, inspect_td0
 from .core.filesystems import (FatImageFilesystem, ImageFilesystem, IsoImageFilesystem,
                                create_fat_image, replace_iso_file_safely)
 from .core.formats import Converter, convert_image, inspect_image
@@ -99,6 +100,16 @@ class DiskForgeClient:
         output = export_imd_to_raw(source, destination, token)
         return ApiResult("export_imd_to_raw", Path(source), output, "Strict IMD-to-RAW export")
 
+    def inspect_td0(self, source: Path | str, *, token: CancellationToken | None = None) -> Td0Inspection:
+        """Inspect an ordinary TD0 sector container without mutating or flattening the source."""
+        return inspect_td0(source, token)
+
+    def export_td0_to_raw(self, source: Path | str, destination: Path | str, *,
+                          token: CancellationToken | None = None) -> ApiResult:
+        """Export only a proven unflagged ordinary TD0 rectangular layout to a new RAW file."""
+        output = export_td0_to_raw(source, destination, token)
+        return ApiResult("export_td0_to_raw", Path(source), output, "Strict TD0-to-RAW export")
+
     def replace_iso_file(self, source: Path | str, iso_path: str, replacement: Path | str,
                          destination: Path | str, *, overwrite: bool = False) -> ApiResult:
         """Write an equal-length ISO file replacement to a new verified image."""
@@ -127,6 +138,8 @@ class DiskForgeClient:
         browse_session = None
         filesystem: ImageFilesystem | None = None
         try:
+            if info.image_format == ImageFormat.TD0:
+                raise DiskForgeError("TD0 images are read-only sector containers; inspect them or use strict TD0 RAW export instead of filesystem access.")
             if info.image_format == ImageFormat.ZIP:
                 if writable:
                     raise DiskForgeError("ZIP image containers are read-only; writable filesystem access is unavailable.")

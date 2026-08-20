@@ -308,6 +308,39 @@ CATALOG["ja"].update({
 })
 
 
+# v0.10 ordinary TD0 read-only inspection and strictly proven RAW export.
+CATALOG["zh_CN"].update({
+    "Inspect / export TD0…": "检查 / 导出 TD0…", "Inspect TD0 image": "检查 TD0 映像", "TeleDisk files (*.td0);;All files (*)": "TeleDisk 文件 (*.td0);;所有文件 (*)",
+    "Inspecting TD0 image": "正在检查 TD0 映像", "TD0 inspection": "TD0 检查", "Version": "版本", "Data rate": "数据速率", "Comment": "注释", "None": "无",
+    "sectors": "个扇区", "flags": "标志", "Exporting TD0 to RAW": "正在将 TD0 导出为 RAW", "Exported proven TD0 layout to {path}": "已将经证明的 TD0 布局导出到 {path}",
+})
+CATALOG["es"].update({
+    "Inspect / export TD0…": "Inspeccionar / exportar TD0…", "Inspect TD0 image": "Inspeccionar imagen TD0", "TeleDisk files (*.td0);;All files (*)": "Archivos TeleDisk (*.td0);;Todos los archivos (*)",
+    "Inspecting TD0 image": "Inspeccionando imagen TD0", "TD0 inspection": "Inspección TD0", "Version": "Versión", "Data rate": "Velocidad de datos", "Comment": "Comentario", "None": "Ninguno",
+    "sectors": "sectores", "flags": "indicadores", "Exporting TD0 to RAW": "Exportando TD0 a RAW", "Exported proven TD0 layout to {path}": "Diseño TD0 comprobado exportado a {path}",
+})
+CATALOG["fr"].update({
+    "Inspect / export TD0…": "Inspecter / exporter TD0…", "Inspect TD0 image": "Inspecter l’image TD0", "TeleDisk files (*.td0);;All files (*)": "Fichiers TeleDisk (*.td0);;Tous les fichiers (*)",
+    "Inspecting TD0 image": "Inspection de l’image TD0", "TD0 inspection": "Inspection TD0", "Version": "Version TD0", "Data rate": "Débit de données", "Comment": "Commentaire", "None": "Aucun",
+    "sectors": "secteurs", "flags": "indicateurs", "Exporting TD0 to RAW": "Exportation de TD0 vers RAW", "Exported proven TD0 layout to {path}": "Disposition TD0 prouvée exportée vers {path}",
+})
+CATALOG["ru"].update({
+    "Inspect / export TD0…": "Проверить / экспортировать TD0…", "Inspect TD0 image": "Проверить образ TD0", "TeleDisk files (*.td0);;All files (*)": "Файлы TeleDisk (*.td0);;Все файлы (*)",
+    "Inspecting TD0 image": "Проверка образа TD0", "TD0 inspection": "Проверка TD0", "Version": "Версия", "Data rate": "Скорость данных", "Comment": "Комментарий", "None": "Нет",
+    "sectors": "секторов", "flags": "флаги", "Exporting TD0 to RAW": "Экспорт TD0 в RAW", "Exported proven TD0 layout to {path}": "Проверенная структура TD0 экспортирована в {path}",
+})
+CATALOG["ar"].update({
+    "Inspect / export TD0…": "فحص / تصدير TD0…", "Inspect TD0 image": "فحص صورة TD0", "TeleDisk files (*.td0);;All files (*)": "ملفات TeleDisk (*.td0);;كل الملفات (*)",
+    "Inspecting TD0 image": "جارٍ فحص صورة TD0", "TD0 inspection": "فحص TD0", "Version": "الإصدار", "Data rate": "معدل البيانات", "Comment": "تعليق", "None": "لا يوجد",
+    "sectors": "قطاعات", "flags": "العلامات", "Exporting TD0 to RAW": "جارٍ تصدير TD0 إلى RAW", "Exported proven TD0 layout to {path}": "تم تصدير تخطيط TD0 المثبت إلى {path}",
+})
+CATALOG["ja"].update({
+    "Inspect / export TD0…": "TD0 を検査 / エクスポート…", "Inspect TD0 image": "TD0 イメージを検査", "TeleDisk files (*.td0);;All files (*)": "TeleDisk ファイル (*.td0);;すべてのファイル (*)",
+    "Inspecting TD0 image": "TD0 イメージを検査中", "TD0 inspection": "TD0 検査", "Version": "バージョン", "Data rate": "データレート", "Comment": "コメント", "None": "なし",
+    "sectors": "セクター", "flags": "フラグ", "Exporting TD0 to RAW": "TD0 を RAW にエクスポート中", "Exported proven TD0 layout to {path}": "証明済み TD0 レイアウトを {path} にエクスポートしました",
+})
+
+
 def _catalog_keys() -> set[str]:
     return {key for translations in CATALOG.values() for key in translations}
 

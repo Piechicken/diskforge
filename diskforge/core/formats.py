@@ -564,6 +564,8 @@ def inspect_image(path: Path | str, converter: Converter | None = None) -> Image
         detected = ImageFormat.QCOW2
     if head.startswith(b"KDMV"):
         detected = ImageFormat.VMDK
+    if head.startswith((b"TD", b"td")):
+        detected = ImageFormat.TD0
     vhd = parse_vhd_footer(target) if size >= VHD_FOOTER_SIZE else None
     if vhd:
         detected = ImageFormat.VHD
@@ -574,7 +576,7 @@ def inspect_image(path: Path | str, converter: Converter | None = None) -> Image
         virtual_size = int(metadata.get("virtual-size", 0)) or None
         notes.append(f"Converter reports {metadata.get('format', detected.value)}")
     fs_type = detect_filesystem(head, image_size=size)
-    writable = os.access(target, os.W_OK) and detected not in {ImageFormat.ISO, ImageFormat.DMG, ImageFormat.ZIP}
+    writable = os.access(target, os.W_OK) and detected not in {ImageFormat.ISO, ImageFormat.DMG, ImageFormat.ZIP, ImageFormat.TD0}
     return ImageInfo(target, detected, size, fs_type, writable=writable,
                      virtual_size=virtual_size, notes=tuple(notes))
 
@@ -663,6 +665,8 @@ def convert_image(source: Path | str, destination: Path | str, destination_forma
     source_info = inspect_image(source_path, converter)
     if source_info.image_format == ImageFormat.ZIP:
         raise DiskForgeError("ZIP image containers are read-only; extract or browse the single payload instead of converting the container.")
+    if source_info.image_format == ImageFormat.TD0:
+        raise DiskForgeError("TD0 images are read-only sector containers; use strict TD0 RAW export only after inspection proves a rectangular layout.")
     if destination_format in {ImageFormat.RAW, ImageFormat.IMG, ImageFormat.IMA}:
         source_limit = source_info.virtual_size if source_info.image_format == ImageFormat.VHD else None
         stream_copy(source_path, destination_path, OperationKind.CONVERT, limit=source_limit,

@@ -42,6 +42,7 @@ from diskforge.core.hfs_create import HfsImageCreator
 from diskforge.core.hfs_inject import HfsFileInjector
 from diskforge.core.imd import export_imd_to_raw, inspect_imd
 from diskforge.core.inventory import ImageInventoryOptions, export_image_inventory, inventory_images
+from diskforge.core.td0 import export_td0_to_raw, inspect_td0
 from diskforge.core.eltorito import export_boot_image, inspect_eltorito
 from diskforge.core.fat_layouts import FatImageLayout, create_fat_image_from_layout
 from diskforge.core.floppy_format import FloppyControllerFormatter
@@ -78,7 +79,7 @@ from diskforge.gui.theme import apply_theme
 from diskforge.gui.workers import FunctionWorker
 
 
-IMAGE_FILTER = "Disk images (*.img *.ima *.imd *.hfs *.bin *.dd *.dmf *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
+IMAGE_FILTER = "Disk images (*.img *.ima *.imd *.td0 *.hfs *.bin *.dd *.dmf *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
 
 
 class NewImageDialog(QDialog):
@@ -681,6 +682,7 @@ class MainWindow(QMainWindow):
         self.action_device_read_queue = self._action("Batch read physical media…", None, self.batch_read_physical_media)
         self.action_batch = self._action("Run batch recipe…", None, self.run_batch)
         self.action_imd = self._action("Inspect / export IMD…", None, self.inspect_imd_image)
+        self.action_td0 = self._action("Inspect / export TD0…", None, self.inspect_td0_image)
         self.action_inventory = self._action("Inventory images…", None, self.inventory_images)
         self.action_batch_designer = self._action("Design batch workflow…", None, self.design_batch)
         self.action_batch_edit = self._action("Edit batch recipe…", None, self.edit_batch)
@@ -727,7 +729,7 @@ class MainWindow(QMainWindow):
         menu_view = self.menuBar().addMenu("&View")
         menu_view.addActions([self.action_view_details, self.action_view_icons])
         menu_tools = self.menuBar().addMenu("&Tools")
-        menu_tools.addActions([self.action_devices, self.action_device_read_queue, self.action_imd, self.action_inventory, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
+        menu_tools.addActions([self.action_devices, self.action_device_read_queue, self.action_imd, self.action_td0, self.action_inventory, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
         menu_language = menu_tools.addMenu("&Language")
         self.language_actions: list[QAction] = []
         try:
@@ -1191,6 +1193,9 @@ class MainWindow(QMainWindow):
         selected = Path(path)
         if selected.suffix.casefold() == ".imd":
             self.inspect_imd_image(selected)
+            return
+        if selected.suffix.casefold() == ".td0":
+            self.inspect_td0_image(selected)
             return
         self._open_path(selected)
 
@@ -1967,6 +1972,70 @@ class MainWindow(QMainWindow):
             self._localized("Exporting IMD to RAW"),
             lambda progress=None, token=None: export_imd_to_raw(inspection.source, Path(destination), token),
             on_result=lambda output: self.log(self._localized("Exported proven IMD layout to {path}").format(path=output)),
+        )
+
+    def inspect_td0_image(self, source_path: Path | None = None) -> None:
+        """Inspect an ordinary TD0 source without mutation and export only a proven RAW layout."""
+        if source_path is None:
+            current = self.current_path if self.current_path and self.current_path.suffix.casefold() == ".td0" else None
+            source_name = str(current) if current else ""
+            source, accepted = QFileDialog.getOpenFileName(self, self._localized("Inspect TD0 image"), source_name,
+                                                            self._localized("TeleDisk files (*.td0);;All files (*)"))
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting TD0 image"),
+            lambda progress=None, token=None: inspect_td0(source_path, token),
+            on_result=lambda inspection: self._show_td0_inspection(inspection),
+        )
+
+    def _show_td0_inspection(self, inspection) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self._localized("TD0 inspection"))
+        dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        summary = (
+            f"{self._localized('Tracks')}: {len(inspection.tracks)}\n"
+            f"{self._localized('RAW export')}: {self._localized('Available') if inspection.exportable else self._localized('Unavailable')}\n"
+            f"{self._localized('Reason')}: {inspection.export_reason}"
+        )
+        header = QLabel(summary)
+        header.setWordWrap(True)
+        layout.addWidget(header)
+        details = QPlainTextEdit()
+        details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Version')}: {inspection.version}\n"
+            f"{self._localized('Data rate')}: {inspection.data_rate_kbps or self._localized('Unknown')} kbps\n"
+            f"{self._localized('Comment')}: {inspection.comment or self._localized('None')}\n\n" + "\n".join(
+                f"C{track.cylinder} H{track.head}: {len(track.sectors)} {self._localized('sectors')}; "
+                f"{self._localized('flags')} {', '.join(f'0x{sector.flags:02X}' for sector in track.sectors)}"
+                for track in inspection.tracks
+            )
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        if inspection.exportable:
+            export_button = buttons.addButton(self._localized("Export proven RAW…"), QDialogButtonBox.ButtonRole.ActionRole)
+            export_button.clicked.connect(lambda: self._choose_td0_raw_destination(inspection, dialog))
+        buttons.rejected.connect(dialog.reject)
+        buttons.accepted.connect(dialog.accept)
+        layout.addWidget(buttons)
+        dialog.exec()
+
+    def _choose_td0_raw_destination(self, inspection, dialog: QDialog) -> None:
+        destination, accepted = QFileDialog.getSaveFileName(
+            self, self._localized("Export proven RAW"), str(inspection.source.with_suffix(".img")),
+            self._localized("Raw image (*.img *.ima *.bin);;All files (*)"),
+        )
+        if not accepted or not destination:
+            return
+        dialog.accept()
+        self._run_worker(
+            self._localized("Exporting TD0 to RAW"),
+            lambda progress=None, token=None: export_td0_to_raw(inspection.source, Path(destination), token),
+            on_result=lambda output: self.log(self._localized("Exported proven TD0 layout to {path}").format(path=output)),
         )
 
     def move_selected(self) -> None:

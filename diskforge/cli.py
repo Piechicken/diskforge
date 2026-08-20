@@ -19,6 +19,7 @@ from .core.hfs_create import HfsImageCreator
 from .core.hfs_inject import HfsFileInjector
 from .core.imd import export_imd_to_raw, inspect_imd
 from .core.inventory import ImageInventoryOptions, export_image_inventory, inventory_images
+from .core.td0 import export_td0_to_raw, inspect_td0
 from .core.device_queue import DeviceReadRequest, read_device_queue
 from .core.devices import (backup_device_mbr, compare_image_with_device, format_removable_fat,
                            neutralize_device_mbr, restore_device_mbr)
@@ -72,6 +73,11 @@ def parser() -> argparse.ArgumentParser:
     convert_imd = commands.add_parser("convert-imd", help="Export only a strictly proven rectangular normal-data IMD layout to a new RAW image")
     convert_imd.add_argument("source", type=Path)
     convert_imd.add_argument("destination", type=Path)
+    td0_info = commands.add_parser("td0-info", help="Inspect an ordinary TD0 floppy-sector container without modifying the source")
+    td0_info.add_argument("image", type=Path)
+    convert_td0 = commands.add_parser("convert-td0", help="Export only a strictly proven unflagged ordinary TD0 layout to a new RAW image")
+    convert_td0.add_argument("source", type=Path)
+    convert_td0.add_argument("destination", type=Path)
     inventory = commands.add_parser("inventory-images", help="Read-only inventory and filter report for local image files")
     inventory.add_argument("root", type=Path, help="Existing local directory to scan")
     inventory.add_argument("destination", type=Path, help="New report file outside the scanned directory")
@@ -542,6 +548,26 @@ def main(argv: list[str] | None = None) -> int:
             }, inspection.export_reason)
         elif args.command == "convert-imd":
             destination = export_imd_to_raw(args.source, args.destination)
+            _emit(args, {"source": str(args.source), "destination": str(destination)}, str(destination))
+        elif args.command == "td0-info":
+            inspection = inspect_td0(args.image)
+            _emit(args, {
+                "source": str(inspection.source), "version": inspection.version,
+                "data_rate_kbps": inspection.data_rate_kbps, "drive_type": inspection.drive_type,
+                "sides": inspection.sides, "comment": inspection.comment, "bytes": inspection.source_bytes,
+                "tracks": len(inspection.tracks), "exportable": inspection.exportable,
+                "export_reason": inspection.export_reason, "cylinders": inspection.cylinders,
+                "heads": inspection.heads, "sectors_per_track": inspection.sectors_per_track,
+                "bytes_per_sector": inspection.bytes_per_sector, "raw_bytes": inspection.raw_bytes,
+                "track_records": [{
+                    "cylinder": track.cylinder, "head": track.head, "single_density": track.single_density,
+                    "sector_count": len(track.sectors),
+                    "sector_flags": [sector.flags for sector in track.sectors],
+                    "sector_methods": [sector.method for sector in track.sectors],
+                } for track in inspection.tracks],
+            }, inspection.export_reason)
+        elif args.command == "convert-td0":
+            destination = export_td0_to_raw(args.source, args.destination)
             _emit(args, {"source": str(args.source), "destination": str(destination)}, str(destination))
         elif args.command == "inventory-images":
             options = ImageInventoryOptions(

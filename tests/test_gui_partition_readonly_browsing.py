@@ -226,3 +226,25 @@ def test_gui_open_routes_imd_to_read_only_inspector(
     monkeypatch.setattr(window, "_open_path", lambda *args, **kwargs: pytest.fail("IMD must not enter normal open routing"))
     window.open_image()
     assert received == [source]
+
+
+def test_gui_td0_inspection_action_is_available_without_a_writable_image(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window._update_action_state()
+    assert window.action_td0.isEnabled()
+
+
+def test_gui_open_routes_td0_to_read_only_inspector(
+    qtbot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:  # type: ignore[no-untyped-def]
+    source = tmp_path / "legacy.td0"
+    source.write_bytes(b"TD")
+    window = MainWindow()
+    qtbot.addWidget(window)
+    received: list[Path] = []
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *args: (str(source), "Disk images (*.td0)"))
+    monkeypatch.setattr(window, "inspect_td0_image", lambda path=None: received.append(path))
+    monkeypatch.setattr(window, "_open_path", lambda *args, **kwargs: pytest.fail("TD0 must not enter normal open routing"))
+    window.open_image()
+    assert received == [source]

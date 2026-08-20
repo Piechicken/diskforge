@@ -31,6 +31,7 @@ class ImageFormat(str, Enum):
     IMZ = "imz"
     WLZ = "wlz"
     ZIP = "zip"
+    TD0 = "td0"
     UNKNOWN = "unknown"
 
     @classmethod

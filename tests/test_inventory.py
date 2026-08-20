@@ -75,3 +75,18 @@ def test_inventory_rejects_invalid_filter_contract(tmp_path: Path, options: Imag
     root, _ = _inventory_tree(tmp_path)
     with pytest.raises(DiskForgeError):
         inventory_images(root, options)
+
+
+def test_inventory_recognizes_td0_as_a_read_only_container(tmp_path: Path) -> None:
+    root = tmp_path / "images"
+    root.mkdir()
+    td0 = root / "legacy.td0"
+    td0.write_bytes(b"TD" + bytes(10))
+
+    inventory = inventory_images(root)
+
+    assert len(inventory.records) == 1
+    record = inventory.records[0]
+    assert record.image_format is ImageFormat.TD0
+    assert record.filesystem is FileSystemType.UNKNOWN
+    assert record.error is None

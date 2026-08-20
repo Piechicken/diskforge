@@ -556,3 +556,29 @@ def test_inventory_workflow_is_translated_in_every_non_english_locale() -> None:
         translated = CATALOG[language.code]
         assert required <= set(translated)
         assert all(translated[source] != source for source in required)
+
+
+def test_td0_read_only_inspection_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect / export TD0…",
+        "Inspect TD0 image",
+        "TeleDisk files (*.td0);;All files (*)",
+        "Inspecting TD0 image",
+        "TD0 inspection",
+        "Version",
+        "Data rate",
+        "Comment",
+        "None",
+        "sectors",
+        "flags",
+        "Exporting TD0 to RAW",
+        "Exported proven TD0 layout to {path}",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)

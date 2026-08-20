@@ -1,6 +1,6 @@
 # DiskForge Python API
 
-**DiskForge v0.10.0.dev0** exposes **SDK API 1.1**, a typed file-image API through `diskforge.api`. The public facade is deliberately narrower than the desktop application: it supports inspection, checksums, comparison, FAT creation, conversion, read-only batch image inventory, validated partition inspection, managed filesystem sessions, extraction, FAT injection and regular-file movement, safe ISO replacement, and controlled read-only mounting. It does **not** expose unattended physical-device writes, MBR changes, device formatting, or the desktop/CLI ISO rebuild editor.
+**DiskForge v0.10.0.dev0** exposes **SDK API 1.1**, a typed file-image API through `diskforge.api`. The public facade is deliberately narrower than the desktop application: it supports inspection, checksums, comparison, FAT creation, conversion, read-only TD0/IMD inspection with strictly proven RAW export, read-only batch image inventory, validated partition inspection, managed filesystem sessions, extraction, FAT injection and regular-file movement, safe ISO replacement, and controlled read-only mounting. It does **not** expose unattended physical-device writes, MBR changes, device formatting, or the desktop/CLI ISO rebuild editor.
 
 > Physical devices are a foreground desktop workflow. Capacity, mount state, system-disk protection, and the exact `ERASE` confirmation remain outside the unattended API by design.
 
@@ -36,6 +36,8 @@ print(result.destination)
 | `client.replace_iso_file(source, iso_path, replacement, destination)` | Replace one existing equal-size ISO9660 file into a newly written ISO. | Source ISO and replacement source stay unchanged; output is reopened and verified. |
 | `client.inspect_imd(source)` | Parse IMD track and sector records without source mutation. | Reports whether exact RAW flattening can be proven; it does not treat IMD as a writable filesystem. |
 | `client.export_imd_to_raw(source, destination)` | Export a proven rectangular normal-data IMD layout to a new RAW file. | Requires a new local destination; irregular/mapped/missing/deleted/bad layouts are rejected. |
+| `client.inspect_td0(source)` | Parse an ordinary uncompressed TD0 track/sector container without source mutation. | Validates the documented header/comment/track/sector CRCs and reports whether exact RAW flattening can be proven; TD0 is not a writable filesystem. |
+| `client.export_td0_to_raw(source, destination)` | Export a proven unflagged ordinary TD0 rectangular layout to a new RAW file. | Requires a new local destination; advanced compression, multi-volume, CRC failures, flagged/missing data, mixed density, irregular geometry, and ambiguous sector order are rejected. |
 | `client.inventory_images(root, options=None)` | Read local image-file metadata into a filtered `ImageInventory`. | Does not open writable filesystem sessions or modify candidates. It ignores symbolic links, regular files over 16 GiB, and unsupported suffixes; scanning is limited to 10,000 discovered regular files. |
 | `client.export_image_inventory(inventory, destination, report_format)` | Atomically write a new JSON, CSV, or HTML image-inventory report. | Destination must be a nonexisting local file outside the scanned root. It never overwrites or creates a report inside the scan tree. |
 | `client.mount_capability()` | Report the local OS read-only mount backend. | Diagnostic only; never starts a mount. |
@@ -86,6 +88,18 @@ if inspection.exportable:
 ```
 
 Irregular geometry, variable layouts, duplicate tracks, maps, missing/deleted/bad sectors, trailing bytes, source writes, output overwrite, device targets, IMD writing, and bitstream/flux reconstruction are outside this contract.
+
+## TD0 inspection and strict RAW export
+
+`inspect_td0()` reads an ordinary uncompressed `TD` TeleDisk container without modifying it. It validates the documented A097 CRCs for the file header, optional comment, every track header, and every sector record; it also validates the exact output length of raw, repeated-pattern, and RLE sector encodings. `export_td0_to_raw()` is deliberately separate from general conversion and creates a new RAW file only when the source proves a complete zero-origin rectangular CHS layout with fixed geometry, matching logical and physical sector coordinates, consecutive `1..N` IDs, no density flag or sector status flags, exact EOF, and exactly reconstructed sector data.
+
+```python
+inspection = client.inspect_td0("legacy.td0")
+if inspection.exportable:
+    result = client.export_td0_to_raw("legacy.td0", "exported.img")
+```
+
+Lowercase `td` advanced compression, multi-volume sequences, any CRC mismatch, trailing bytes, missing/duplicate/CRC-error/deleted/DOS-skipped/no-ID sectors, mixed density, variable or incomplete geometry, source writes, output overwrite, device targets, TD0 writing, filesystem editing, repair, and bitstream/flux reconstruction are outside this contract. `client.filesystem("legacy.td0")` and `client.convert("legacy.td0", ...)` are explicitly rejected rather than silently treating the container as a raw image.
 
 ## Read-only batch image inventory
 
