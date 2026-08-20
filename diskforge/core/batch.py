@@ -20,6 +20,7 @@ from .filesystems import (FatImageFilesystem, IsoImageFilesystem, rebuild_iso_wi
 from .formats import (QemuImgConverter, convert_image, create_legacy_zip_image,
                       extract_legacy_zip_image, inspect_image)
 from .ext_inject import ExtFileInjector
+from .fat_metadata import apply_fat_metadata, metadata_update_from_values
 from .hfs_create import HfsImageCreator
 from .hfs_inject import HfsFileInjector
 from .listing import export_directory_listing
@@ -83,6 +84,7 @@ class BatchRunner:
             OperationKind.HFS_CREATE: ("destination", "size_bytes", "label"),
             OperationKind.EXPORT_LISTING: ("source", "destination"),
             OperationKind.MOVE: ("source", "item_path", "target_directory"),
+            OperationKind.FAT_METADATA: ("source", "paths"),
         }
         for position, raw in enumerate(spec["operations"]):
             item = raw if isinstance(raw, dict) else {}
@@ -121,6 +123,11 @@ class BatchRunner:
                 partition_index = item.get("partition")
                 if partition_index is not None and (isinstance(partition_index, bool) or not isinstance(partition_index, int) or partition_index < 1):
                     raise DiskForgeError("Batch move partition must be a positive integer when provided.")
+            if kind == OperationKind.FAT_METADATA:
+                self._fat_metadata_update(item)
+                partition_index = item.get("partition")
+                if partition_index is not None and (isinstance(partition_index, bool) or not isinstance(partition_index, int) or partition_index < 1):
+                    raise DiskForgeError("Batch fat_metadata partition must be a positive integer when provided.")
             if kind == OperationKind.ISO_EDIT:
                 additions, delete_paths, create_directories, target_directory = self._iso_edit_values(item)
                 if not additions and not delete_paths and not create_directories:
@@ -145,7 +152,8 @@ class BatchRunner:
                                          OperationKind.LEGACY_COMPRESS, OperationKind.LEGACY_EXTRACT,
                                          OperationKind.ISO_REPLACE, OperationKind.ISO_EDIT,
                                          OperationKind.NTFS_INJECT, OperationKind.EXT_INJECT, OperationKind.HFS_INJECT,
-                                         OperationKind.HFS_CREATE, OperationKind.EXPORT_LISTING, OperationKind.MOVE},
+                                         OperationKind.HFS_CREATE, OperationKind.EXPORT_LISTING, OperationKind.MOVE,
+                                         OperationKind.FAT_METADATA},
             })
         return preview
 
@@ -236,6 +244,33 @@ class BatchRunner:
                 filesystem.close()
             session.close()
 
+    @staticmethod
+    def _fat_metadata_update(item: dict[str, Any]):
+        paths = item.get("paths")
+        if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
+            raise DiskForgeError("Batch fat_metadata paths must be a string list.")
+        parsed_times: dict[str, datetime | None] = {}
+        for field in ("created", "modified", "accessed"):
+            value = item.get(field)
+            if value is None:
+                parsed_times[field] = None
+                continue
+            if not isinstance(value, str):
+                raise DiskForgeError(f"Batch fat_metadata {field} must be an ISO-8601 local date and time string.")
+            try:
+                parsed = datetime.fromisoformat(value)
+            except ValueError as exc:
+                raise DiskForgeError(f"Batch fat_metadata {field} must be an ISO-8601 local date and time string.") from exc
+            if parsed.tzinfo is not None and parsed.utcoffset() is not None:
+                raise DiskForgeError(f"Batch fat_metadata {field} must not include a timezone offset.")
+            parsed_times[field] = parsed
+        return metadata_update_from_values(
+            paths,
+            read_only=item.get("read_only"), hidden=item.get("hidden"), system=item.get("system"),
+            archive=item.get("archive"), created=parsed_times["created"], modified=parsed_times["modified"],
+            accessed=parsed_times["accessed"],
+        )
+
     def _run_item(self, item: dict[str, Any], kind: OperationKind) -> str | None:
         if kind == OperationKind.CONVERT:
             target_format = ImageFormat(str(item["format"]))
@@ -316,6 +351,17 @@ class BatchRunner:
                     filesystem, source, item["destination"], html=bool(item.get("html", False)),
                 )
             return str(report)
+        if kind == OperationKind.FAT_METADATA:
+            source = Path(item["source"])
+            update = self._fat_metadata_update(item)
+            filesystem = self._filesystem(source, partition_index=item.get("partition"), writable=True)
+            try:
+                if not isinstance(filesystem, FatImageFilesystem):
+                    raise DiskForgeError("Batch fat_metadata is available only for writable FAT images.")
+                apply_fat_metadata(filesystem, update)
+            finally:
+                filesystem.close()
+            return str(source)
         if kind == OperationKind.MOVE:
             source = Path(item["source"])
             filesystem = self._filesystem(source, partition_index=item.get("partition"), writable=True)

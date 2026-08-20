@@ -582,3 +582,28 @@ def test_td0_read_only_inspection_workflow_is_translated_in_every_non_english_lo
         translated = CATALOG[language.code]
         assert required <= set(translated)
         assert all(translated[source] != source for source in required)
+
+
+def test_multi_entry_fat_metadata_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Modify FAT timestamps",
+        "Timestamp value",
+        "Created time",
+        "Modified time",
+        "Accessed time",
+        "Apply to {count} selected item(s)",
+        "No FAT timestamp fields selected",
+        "Select at least one FAT timestamp field to update.",
+        "Updating FAT metadata",
+        "Updated FAT metadata for {count} item(s)",
+        "No DOS attribute fields selected",
+        "Select at least one DOS attribute field to update.",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)

@@ -248,3 +248,28 @@ def test_gui_open_routes_td0_to_read_only_inspector(
     monkeypatch.setattr(window, "_open_path", lambda *args, **kwargs: pytest.fail("TD0 must not enter normal open routing"))
     window.open_image()
     assert received == [source]
+
+
+def test_gui_dos_attribute_action_allows_multiple_entries_only_in_writable_fat(
+    qtbot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:  # type: ignore[no-untyped-def]
+    image = create_fat_image(tmp_path / "metadata-gui.img", 8 * 1024 * 1024, FileSystemType.FAT16, "METAGUI")
+    writable = FatImageFilesystem(image)
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.current_path = image
+    window.current_fs = writable
+    try:
+        monkeypatch.setattr(window, "_selected_paths", lambda: ["/first.txt", "/second.txt"])
+        window._update_action_state()
+        assert window.action_attributes.isEnabled()
+    finally:
+        writable.close()
+
+    read_only = FatImageFilesystem(image, read_only=True)
+    window.current_fs = read_only
+    try:
+        window._update_action_state()
+        assert not window.action_attributes.isEnabled()
+    finally:
+        read_only.close()

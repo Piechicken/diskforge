@@ -38,6 +38,7 @@ from diskforge.core.devices import (backup_device_mbr, format_removable_fat, lis
                                       write_image_to_device)
 from diskforge.core.deployment import prepare_fat_deployment
 from diskforge.core.ext_inject import ExtFileInjector
+from diskforge.core.fat_metadata import apply_fat_metadata, metadata_update_from_values
 from diskforge.core.hfs_create import HfsImageCreator
 from diskforge.core.hfs_inject import HfsFileInjector
 from diskforge.core.imd import export_imd_to_raw, inspect_imd
@@ -977,7 +978,7 @@ class MainWindow(QMainWindow):
         self.action_recover_deleted.setEnabled(
             isinstance(self.current_fs, FatImageFilesystem) and self.current_path is not None and self.current_browse_session is None
         )
-        self.action_attributes.setEnabled(fs_writable and len(self._selected_paths()) == 1)
+        self.action_attributes.setEnabled(fs_writable and bool(self._selected_paths()))
         self.action_label.setEnabled(fs_writable)
         self.action_export.setEnabled(open_image and self.current_fs is not None)
         self.action_print.setEnabled(open_image and self.current_fs is not None)
@@ -1865,30 +1866,44 @@ class MainWindow(QMainWindow):
         if not paths:
             return
         dialog = QDialog(self)
-        dialog.setWindowTitle("Modify file timestamps")
+        dialog.setWindowTitle(self._localized("Modify FAT timestamps"))
         layout = QFormLayout(dialog)
         picker = QDateTimeEdit(QDateTime.currentDateTime())
         picker.setCalendarPopup(True)
-        layout.addRow(f"Apply to {len(paths)} selected item(s)", picker)
+        layout.addRow(self._localized("Timestamp value"), picker)
+        fields: dict[str, QCheckBox] = {}
+        for key, label, checked in (
+            ("created", "Created time", False), ("modified", "Modified time", True), ("accessed", "Accessed time", False),
+        ):
+            box = QCheckBox(self._localized(label))
+            box.setChecked(checked)
+            fields[key] = box
+            layout.addRow(box)
+        layout.addRow(QLabel(self._localized("Apply to {count} selected item(s)").format(count=len(paths))))
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Apply | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(dialog.accept)
         buttons.rejected.connect(dialog.reject)
         layout.addRow(buttons)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        timestamp = picker.dateTime().toPython()
+        values = {name: picker.dateTime().toPython() for name, box in fields.items() if box.isChecked()}
+        if not values:
+            QMessageBox.warning(self, self._localized("No FAT timestamp fields selected"), self._localized("Select at least one FAT timestamp field to update."))
+            return
         source = self.current_path
+        update = metadata_update_from_values(paths, **values)
         def job(progress=None, token=None):
             fs = FatImageFilesystem(source)
             try:
-                for item_path in paths:
-                    if token:
-                        token.raise_if_cancelled()
-                    fs.set_modified(item_path, timestamp)
-                return len(paths)
+                return apply_fat_metadata(fs, update, token)
             finally:
                 fs.close()
-        self._run_worker("Updating image timestamps", job, on_result=lambda count: self._after_fs_change(f"Updated timestamp for {count} item(s)"))
+        self._run_worker(
+            self._localized("Updating FAT metadata"), job,
+            on_result=lambda results: self._after_fs_change(
+                self._localized("Updated FAT metadata for {count} item(s)").format(count=len(results)),
+            ),
+        )
 
     def rename_selected(self) -> None:
         if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
@@ -2141,33 +2156,56 @@ class MainWindow(QMainWindow):
         if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
             return
         paths = self._selected_paths()
-        if len(paths) != 1:
+        if not paths:
             return
-        entry = next((item for item in self.current_entries if item.path == paths[0]), None)
+        selected = [entry for entry in self.current_entries if entry.path in paths]
         dialog = QDialog(self)
-        dialog.setWindowTitle("Edit DOS attributes")
+        dialog.setWindowTitle(self._localized("Edit DOS attributes"))
         form = QFormLayout(dialog)
         boxes: dict[str, QCheckBox] = {}
-        for key, label in (("read_only", "Read-only"), ("hidden", "Hidden"), ("system", "System"), ("archive", "Archive")):
-            box = QCheckBox(label)
-            box.setChecked(bool(entry and label[0] in entry.attributes))
+        for key, label, flag in (
+            ("read_only", "Read-only", "R"), ("hidden", "Hidden", "H"),
+            ("system", "System", "S"), ("archive", "Archive", "A"),
+        ):
+            box = QCheckBox(self._localized(label))
+            states = [flag in entry.attributes for entry in selected]
+            box.setTristate(len(paths) > 1)
+            if states and all(states):
+                box.setCheckState(Qt.CheckState.Checked)
+            elif states and any(states):
+                box.setCheckState(Qt.CheckState.PartiallyChecked)
+            else:
+                box.setCheckState(Qt.CheckState.Unchecked)
             boxes[key] = box
             form.addRow(box)
+        form.addRow(QLabel(self._localized("Apply to {count} selected item(s)").format(count=len(paths))))
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Apply | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(dialog.accept)
         buttons.rejected.connect(dialog.reject)
         form.addRow(buttons)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        source, path = self.current_path, paths[0]
-        values = {key: box.isChecked() for key, box in boxes.items()}
+        values = {
+            key: box.isChecked() for key, box in boxes.items()
+            if box.checkState() != Qt.CheckState.PartiallyChecked
+        }
+        if not values:
+            QMessageBox.warning(self, self._localized("No DOS attribute fields selected"), self._localized("Select at least one DOS attribute field to update."))
+            return
+        source = self.current_path
+        update = metadata_update_from_values(paths, **values)
         def job(progress=None, token=None):
             fs = FatImageFilesystem(source)
             try:
-                return fs.set_attributes(path, **values)
+                return apply_fat_metadata(fs, update, token)
             finally:
                 fs.close()
-        self._run_worker("Updating DOS attributes", job, on_result=lambda attrs: self._after_fs_change(f"Updated attributes: {attrs}"))
+        self._run_worker(
+            self._localized("Updating FAT metadata"), job,
+            on_result=lambda results: self._after_fs_change(
+                self._localized("Updated FAT metadata for {count} item(s)").format(count=len(results)),
+            ),
+        )
 
     def change_volume_label(self) -> None:
         if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:

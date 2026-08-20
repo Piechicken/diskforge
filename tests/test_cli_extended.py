@@ -210,3 +210,30 @@ def test_cli_td0_info_and_strict_raw_export_keep_source_unchanged(tmp_path: Path
 
     assert main(["convert", str(source), str(tmp_path / "blocked.img"), "--format", "img"]) == 2
     assert "read-only sector containers" in capsys.readouterr().err
+
+
+def test_cli_sets_explicit_fat_metadata_for_multiple_paths(tmp_path: Path, capsys) -> None:
+    image = tmp_path / "metadata-cli.img"
+    first = tmp_path / "FIRST.TXT"
+    second = tmp_path / "SECOND.TXT"
+    first.write_text("first", encoding="ascii")
+    second.write_text("second", encoding="ascii")
+    assert main(["create-fat", str(image), "--size-mib", "8", "--fat", "16"]) == 0
+    assert main(["inject", str(image), str(first), str(second)]) == 0
+    capsys.readouterr()
+
+    assert main([
+        "--json", "set-fat-metadata", str(image), "/FIRST.TXT", "/SECOND.TXT",
+        "--read-only", "--hidden", "--modified", "2024-06-15T12:34:56",
+    ]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert [item["path"] for item in result["updated"]] == ["/FIRST.TXT", "/SECOND.TXT"]
+    assert all(item["attributes"] == "RH" for item in result["updated"])
+    assert all(item["fields"] == ["read_only", "hidden", "modified"] for item in result["updated"])
+
+    assert main(["--json", "list", str(image)]) == 0
+    listed = {entry["path"]: entry for entry in json.loads(capsys.readouterr().out)}
+    assert listed["/FIRST.TXT"]["attributes"] == "RH"
+    assert listed["/SECOND.TXT"]["attributes"] == "RH"
+    assert main(["set-fat-metadata", str(image), "/FIRST.TXT"]) == 2
+    assert "at least one attribute" in capsys.readouterr().err

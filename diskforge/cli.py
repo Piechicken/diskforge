@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -15,6 +16,7 @@ from .core.bundle import create_bundle, extract_bundle, inspect_bundle
 from .core.compare import compare_streams
 from .core.deployment import prepare_fat_deployment
 from .core.ext_inject import ExtFileInjector
+from .core.fat_metadata import apply_fat_metadata, metadata_update_from_values
 from .core.hfs_create import HfsImageCreator
 from .core.hfs_inject import HfsFileInjector
 from .core.imd import export_imd_to_raw, inspect_imd
@@ -55,6 +57,18 @@ def _progress(event) -> None:
 
 def _policy(args: argparse.Namespace) -> ExtractionPolicy:
     return ExtractionPolicy(ExtractionLayout(args.layout), ConflictPolicy(args.on_conflict))
+
+
+def _parse_local_datetime(value: str | None, option: str) -> datetime | None:
+    if value is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise DiskForgeError(f"{option} must be an ISO-8601 local date and time.") from exc
+    if parsed.tzinfo is not None and parsed.utcoffset() is not None:
+        raise DiskForgeError(f"{option} must not include a timezone offset.")
+    return parsed
 
 
 def parser() -> argparse.ArgumentParser:
@@ -161,6 +175,16 @@ def parser() -> argparse.ArgumentParser:
     for name in ("read-only", "hidden", "system", "archive"):
         attributes.add_argument(f"--{name}", action=argparse.BooleanOptionalAction, default=None)
     attributes.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
+
+    fat_metadata = commands.add_parser("set-fat-metadata", help="Set standard DOS attributes and/or FAT times on explicit image paths")
+    fat_metadata.add_argument("image", type=Path)
+    fat_metadata.add_argument("paths", nargs="+", help="One or more explicit FAT image entry paths")
+    for name in ("read-only", "hidden", "system", "archive"):
+        fat_metadata.add_argument(f"--{name}", action=argparse.BooleanOptionalAction, default=None)
+    fat_metadata.add_argument("--created", help="ISO-8601 local creation date and time")
+    fat_metadata.add_argument("--modified", help="ISO-8601 local modification date and time")
+    fat_metadata.add_argument("--accessed", help="ISO-8601 local access date and time")
+    fat_metadata.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
 
     label = commands.add_parser("set-label", help="Set a FAT volume label")
     label.add_argument("image", type=Path)
@@ -674,6 +698,32 @@ def main(argv: list[str] | None = None) -> int:
                 value = fs.set_attributes(args.path, read_only=args.read_only, hidden=args.hidden,
                                           system=args.system, archive=args.archive)
                 _emit(args, {"attributes": value}, value)
+            finally:
+                fs.close()
+        elif args.command == "set-fat-metadata":
+            update = metadata_update_from_values(
+                args.paths,
+                read_only=args.read_only,
+                hidden=args.hidden,
+                system=args.system,
+                archive=args.archive,
+                created=_parse_local_datetime(args.created, "--created"),
+                modified=_parse_local_datetime(args.modified, "--modified"),
+                accessed=_parse_local_datetime(args.accessed, "--accessed"),
+            )
+            fs = _filesystem(args.image, writable=True, partition_index=args.partition)
+            try:
+                if not isinstance(fs, FatImageFilesystem):
+                    raise SystemExit("FAT metadata updates are available only for writable FAT images.")
+                results = apply_fat_metadata(fs, update)
+                payload = {
+                    "image": str(args.image),
+                    "updated": [
+                        {"path": result.path, "attributes": result.attributes, "fields": list(result.updated_fields)}
+                        for result in results
+                    ],
+                }
+                _emit(args, payload, "\n".join(result.path for result in results))
             finally:
                 fs.close()
         elif args.command == "set-label":

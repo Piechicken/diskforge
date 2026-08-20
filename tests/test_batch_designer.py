@@ -211,3 +211,48 @@ def test_batch_designer_rejects_invalid_fat_file_move_partition(tmp_path: Path) 
 
     with pytest.raises(DiskForgeError, match="positive integer"):
         dialog.recipe()
+
+
+def test_batch_designer_serializes_explicit_fat_metadata_update(tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "source.img"
+    source.write_bytes(b"source")
+    dialog = BatchDesignerDialog()
+    kind_index = dialog.kind_choice.findData("fat_metadata")
+    assert kind_index >= 0
+    dialog.kind_choice.setCurrentIndex(kind_index)
+    dialog.source.setText(str(source))
+    dialog.metadata_paths.setPlainText("/FIRST.TXT\n/SECOND.TXT")
+    dialog.metadata_attributes["hidden"].setCurrentIndex(1)
+    dialog.metadata_attributes["archive"].setCurrentIndex(2)
+    dialog.metadata_modified.setText("2024-06-15T12:34:56")
+    dialog.partition_index.setText("2")
+
+    operation = dialog.recipe()["operations"][0]
+
+    assert operation == {
+        "name": dialog.kind_choice.currentText(), "kind": "fat_metadata", "source": str(source),
+        "paths": ["/FIRST.TXT", "/SECOND.TXT"], "hidden": True, "archive": False,
+        "modified": "2024-06-15T12:34:56", "partition": 2,
+    }
+    reopened = BatchDesignerDialog(recipe={"schema": "diskforge.batch/v4", "operations": [operation]})
+    assert reopened.source.text() == str(source)
+    assert reopened.metadata_paths.toPlainText() == "/FIRST.TXT\n/SECOND.TXT"
+    assert reopened.metadata_attributes["hidden"].currentData() is True
+    assert reopened.metadata_attributes["archive"].currentData() is False
+    assert reopened.metadata_modified.text() == "2024-06-15T12:34:56"
+    assert reopened.partition_index.text() == "2"
+    assert reopened._summary(operation).endswith("→ 2 explicit FAT path(s)")
+
+
+def test_batch_designer_rejects_fat_metadata_without_explicit_change(tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "source.img"
+    source.write_bytes(b"source")
+    dialog = BatchDesignerDialog()
+    dialog.kind_choice.setCurrentIndex(dialog.kind_choice.findData("fat_metadata"))
+    dialog.source.setText(str(source))
+    dialog.metadata_paths.setPlainText("/FIRST.TXT")
+
+    with pytest.raises(DiskForgeError, match="at least one attribute"):
+        dialog.recipe()

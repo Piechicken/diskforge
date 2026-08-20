@@ -341,6 +341,39 @@ CATALOG["ja"].update({
 })
 
 
+# v0.10 explicit multi-entry FAT metadata editing.
+CATALOG["zh_CN"].update({
+    "Modify FAT timestamps": "修改 FAT 时间戳", "Timestamp value": "时间戳值", "Created time": "创建时间", "Modified time": "修改时间", "Accessed time": "访问时间",
+    "Apply to {count} selected item(s)": "应用到所选的 {count} 个条目", "No FAT timestamp fields selected": "未选择 FAT 时间字段", "Select at least one FAT timestamp field to update.": "请至少选择一个要更新的 FAT 时间字段。",
+    "Updating FAT metadata": "正在更新 FAT 元数据", "Updated FAT metadata for {count} item(s)": "已更新 {count} 个条目的 FAT 元数据", "No DOS attribute fields selected": "未选择 DOS 属性字段", "Select at least one DOS attribute field to update.": "请至少选择一个要更新的 DOS 属性字段。",
+})
+CATALOG["es"].update({
+    "Modify FAT timestamps": "Modificar marcas de tiempo FAT", "Timestamp value": "Valor de fecha y hora", "Created time": "Hora de creación", "Modified time": "Hora de modificación", "Accessed time": "Hora de acceso",
+    "Apply to {count} selected item(s)": "Aplicar a {count} elemento(s) seleccionado(s)", "No FAT timestamp fields selected": "No se seleccionaron campos de tiempo FAT", "Select at least one FAT timestamp field to update.": "Seleccione al menos un campo de tiempo FAT para actualizar.",
+    "Updating FAT metadata": "Actualizando metadatos FAT", "Updated FAT metadata for {count} item(s)": "Metadatos FAT actualizados para {count} elemento(s)", "No DOS attribute fields selected": "No se seleccionaron campos de atributos DOS", "Select at least one DOS attribute field to update.": "Seleccione al menos un campo de atributos DOS para actualizar.",
+})
+CATALOG["fr"].update({
+    "Modify FAT timestamps": "Modifier les horodatages FAT", "Timestamp value": "Valeur d’horodatage", "Created time": "Heure de création", "Modified time": "Heure de modification", "Accessed time": "Heure d’accès",
+    "Apply to {count} selected item(s)": "Appliquer aux {count} élément(s) sélectionné(s)", "No FAT timestamp fields selected": "Aucun champ d’horodatage FAT sélectionné", "Select at least one FAT timestamp field to update.": "Sélectionnez au moins un champ d’horodatage FAT à mettre à jour.",
+    "Updating FAT metadata": "Mise à jour des métadonnées FAT", "Updated FAT metadata for {count} item(s)": "Métadonnées FAT mises à jour pour {count} élément(s)", "No DOS attribute fields selected": "Aucun champ d’attribut DOS sélectionné", "Select at least one DOS attribute field to update.": "Sélectionnez au moins un champ d’attribut DOS à mettre à jour.",
+})
+CATALOG["ru"].update({
+    "Modify FAT timestamps": "Изменить временные метки FAT", "Timestamp value": "Значение времени", "Created time": "Время создания", "Modified time": "Время изменения", "Accessed time": "Время доступа",
+    "Apply to {count} selected item(s)": "Применить к {count} выбранным элементам", "No FAT timestamp fields selected": "Не выбраны поля времени FAT", "Select at least one FAT timestamp field to update.": "Выберите хотя бы одно поле времени FAT для обновления.",
+    "Updating FAT metadata": "Обновление метаданных FAT", "Updated FAT metadata for {count} item(s)": "Метаданные FAT обновлены для {count} элементов", "No DOS attribute fields selected": "Не выбраны поля атрибутов DOS", "Select at least one DOS attribute field to update.": "Выберите хотя бы одно поле атрибутов DOS для обновления.",
+})
+CATALOG["ar"].update({
+    "Modify FAT timestamps": "تعديل الطوابع الزمنية لـ FAT", "Timestamp value": "قيمة الطابع الزمني", "Created time": "وقت الإنشاء", "Modified time": "وقت التعديل", "Accessed time": "وقت الوصول",
+    "Apply to {count} selected item(s)": "تطبيق على {count} من العناصر المحددة", "No FAT timestamp fields selected": "لم تُحدَّد حقول وقت FAT", "Select at least one FAT timestamp field to update.": "حدد حقل وقت FAT واحداً على الأقل لتحديثه.",
+    "Updating FAT metadata": "جارٍ تحديث بيانات FAT الوصفية", "Updated FAT metadata for {count} item(s)": "تم تحديث بيانات FAT الوصفية لـ {count} من العناصر", "No DOS attribute fields selected": "لم تُحدَّد حقول سمات DOS", "Select at least one DOS attribute field to update.": "حدد حقل سمة DOS واحداً على الأقل لتحديثه.",
+})
+CATALOG["ja"].update({
+    "Modify FAT timestamps": "FAT タイムスタンプを変更", "Timestamp value": "タイムスタンプ値", "Created time": "作成日時", "Modified time": "更新日時", "Accessed time": "アクセス日時",
+    "Apply to {count} selected item(s)": "選択した {count} 件の項目に適用", "No FAT timestamp fields selected": "FAT 時刻フィールドが選択されていません", "Select at least one FAT timestamp field to update.": "更新する FAT 時刻フィールドを少なくとも一つ選択してください。",
+    "Updating FAT metadata": "FAT メタデータを更新中", "Updated FAT metadata for {count} item(s)": "{count} 件の項目の FAT メタデータを更新しました", "No DOS attribute fields selected": "DOS 属性フィールドが選択されていません", "Select at least one DOS attribute field to update.": "更新する DOS 属性フィールドを少なくとも一つ選択してください。",
+})
+
+
 def _catalog_keys() -> set[str]:
     return {key for translations in CATALOG.values() for key in translations}
 

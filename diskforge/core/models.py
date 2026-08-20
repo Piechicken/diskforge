@@ -115,6 +115,7 @@ class OperationKind(str, Enum):
     HFS_CREATE = "hfs_create"
     EXPORT_LISTING = "export_listing"
     MOVE = "move"
+    FAT_METADATA = "fat_metadata"
 
 
 @dataclass(frozen=True)

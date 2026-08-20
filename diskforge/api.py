@@ -7,11 +7,14 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Iterator, Sequence
 
 from .core.browse_session import materialize_browsable_image
 from .core.compare import ComparisonResult, compare_streams
+from .core.fat_metadata import (FatMetadataResult, apply_fat_metadata,
+                                metadata_update_from_values)
 from .core.fat_recovery import DeletedFatFileCandidate
 from .core.imd import ImdInspection, export_imd_to_raw, inspect_imd
 from .core.inventory import (ImageInventory, ImageInventoryOptions, ReportFormat,
@@ -182,6 +185,22 @@ class DiskForgeClient:
                 raise DiskForgeError("Only writable FAT images accept file injection.")
             return filesystem.inject(sources, target_directory, progress, token)
 
+
+    def set_fat_metadata(self, image: Path | str, paths: Sequence[str], *,
+                         read_only: bool | None = None, hidden: bool | None = None,
+                         system: bool | None = None, archive: bool | None = None,
+                         created: datetime | None = None, modified: datetime | None = None,
+                         accessed: datetime | None = None, partition_index: int | None = None,
+                         token: CancellationToken | None = None) -> tuple[FatMetadataResult, ...]:
+        """Update standard DOS attributes and/or FAT times for explicit existing entry paths."""
+        update = metadata_update_from_values(
+            paths, read_only=read_only, hidden=hidden, system=system, archive=archive,
+            created=created, modified=modified, accessed=accessed,
+        )
+        with self.filesystem(image, writable=True, partition_index=partition_index) as filesystem:
+            if not isinstance(filesystem, FatImageFilesystem):
+                raise DiskForgeError("Only writable FAT images support metadata updates.")
+            return apply_fat_metadata(filesystem, update, token)
 
     def move_fat(self, image: Path | str, item_path: str, target_directory: str) -> str:
         """Move one regular file into an existing directory of a writable FAT image."""

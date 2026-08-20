@@ -46,6 +46,7 @@ print(result.destination)
 | `client.extract(...)` | Extract paths to a local directory. | Uses the selected extraction policy; source remains unchanged. |
 | `client.inject(...)` | Add local files or directories to FAT. | Only writable FAT sessions are accepted. |
 | `client.move_fat(image, item_path, target_directory)` | Move one regular FAT image file into an existing image directory. | Only writable FAT images are accepted. The target must already be a directory; root movement, collisions, missing/non-directory targets, read-only sessions, and all directory moves are rejected before the backend mutation. |
+| `client.set_fat_metadata(image, paths, ..., partition_index=None)` | Apply requested standard DOS attributes and/or FAT creation, modification, access times to explicit existing paths. | Writable FAT only. Paths must be nonempty, unique, and non-root; values are explicit, timezone-free FAT times or standard DOS booleans. The ordered updates are observable, but not claimed as a multi-entry transaction. |
 | `client.list_deleted_fat(image, partition_index=None)` | List conservative FAT12/FAT16 deleted fixed-root-file candidates. | Read-only. Only ordinary 8.3 slots are listed; candidate recovery is available solely for one currently free single cluster. |
 | `client.recover_deleted_fat(image, slot_index, destination, partition_index=None)` | Copy one revalidated deleted-file candidate to a new local path. | Never writes the image; `destination` must not exist. The result is a candidate copy, not a name or integrity guarantee. |
 
@@ -130,6 +131,24 @@ output = client.recover_deleted_fat("legacy.img", candidate.slot_index, "recover
 ```
 
 The deleted first filename character is unrecoverable from a normal FAT deletion record. A free cluster can nevertheless contain stale or overwritten bytes, so neither original name nor file integrity is asserted. FAT32, subdirectories, long names, zero-length entries, multi-cluster chains, non-free clusters, source-image writes, output overwrite, device recovery, and batch recovery are deliberately unsupported.
+
+## Explicit FAT metadata updates
+
+`set_fat_metadata()` applies caller-selected standard DOS attributes (`read_only`, `hidden`, `system`, `archive`) and/or FAT `created`, `modified`, and `accessed` times to one or more **explicit** paths. Every requested attribute is a boolean; every requested time is a naive `datetime` with a year from 1980 through 2107. Omitted fields stay unchanged. The method returns one `FatMetadataResult` per completed path in caller order and accepts an explicit FAT partition index when needed.
+
+```python
+from datetime import datetime
+
+results = client.set_fat_metadata(
+    "lab.img",
+    ["/README.TXT", "/DOCS/NOTES.TXT"],
+    hidden=True,
+    modified=datetime(2024, 6, 15, 12, 34, 56),
+)
+print([result.path for result in results])
+```
+
+The SDK rejects an empty/no-op request, duplicate or root paths, timezone-aware or FAT-unrepresentable times, read-only sessions, non-FAT images, and non-FAT selected partitions. It does not interpret wildcards, recurse through directories, infer a current time, change content/ACLs/ownership, write devices, or claim atomic rollback across multiple directory entries.
 
 ## FAT regular-file movement
 

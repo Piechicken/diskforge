@@ -195,3 +195,30 @@ def test_public_api_inspects_and_exports_strict_td0_layout(tmp_path: Path) -> No
     with pytest.raises(DiskForgeError, match="read-only sector containers"):
         with client.filesystem(source):
             pass
+
+
+def test_public_api_updates_explicit_fat_metadata_paths(tmp_path: Path) -> None:
+    from datetime import datetime
+
+    client = DiskForgeClient()
+    image = tmp_path / "metadata-api.img"
+    client.create_fat(image, size_bytes=8 * 1024 * 1024, filesystem=FileSystemType.FAT16, label="METAAPI")
+    first = tmp_path / "FIRST.TXT"
+    second = tmp_path / "SECOND.TXT"
+    first.write_text("first", encoding="ascii")
+    second.write_text("second", encoding="ascii")
+    client.inject(image, [first, second])
+
+    results = client.set_fat_metadata(
+        image, ["/FIRST.TXT", "/SECOND.TXT"], hidden=True,
+        modified=datetime(2024, 6, 15, 12, 34, 56),
+    )
+
+    assert [result.path for result in results] == ["/FIRST.TXT", "/SECOND.TXT"]
+    assert all(result.attributes == "H" for result in results)
+    assert all(result.updated_fields == ("hidden", "modified") for result in results)
+    with client.filesystem(image) as filesystem:
+        entries = {entry.path: entry for entry in filesystem.list_entries("/")}
+    assert all(entries[path].attributes == "H" for path in ("/FIRST.TXT", "/SECOND.TXT"))
+    with pytest.raises(DiskForgeError, match="at least one attribute"):
+        client.set_fat_metadata(image, ["/FIRST.TXT"])

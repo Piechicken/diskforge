@@ -44,6 +44,7 @@ _EDITABLE_KINDS = (
     OperationKind.BUNDLE,
     OperationKind.UNBUNDLE,
     OperationKind.MOVE,
+    OperationKind.FAT_METADATA,
 )
 
 
@@ -107,6 +108,7 @@ class BatchDesignerDialog(QDialog):
             OperationKind.BUNDLE: "Create secure image container",
             OperationKind.UNBUNDLE: "Extract image container",
             OperationKind.MOVE: "Move regular FAT file",
+            OperationKind.FAT_METADATA: "Update explicit FAT metadata",
         }
         for kind in _EDITABLE_KINDS:
             self.kind_choice.addItem(labels[kind], kind.value)
@@ -157,6 +159,23 @@ class BatchDesignerDialog(QDialog):
         editor.addRow("Image paths to extract (one per line)", self.paths)
         editor.addRow("Image file to move", self.item_path)
         editor.addRow("FAT target directory", self.target_directory)
+        self.metadata_paths = QPlainTextEdit()
+        self.metadata_paths.setFixedHeight(70)
+        editor.addRow("FAT metadata paths (one per line)", self.metadata_paths)
+        self.metadata_attributes: dict[str, QComboBox] = {}
+        for key, label in (("read_only", "Read-only"), ("hidden", "Hidden"), ("system", "System"), ("archive", "Archive")):
+            choice = QComboBox()
+            choice.addItem("No change", None)
+            choice.addItem("Set", True)
+            choice.addItem("Clear", False)
+            self.metadata_attributes[key] = choice
+            editor.addRow(f"{label} attribute", choice)
+        self.metadata_created = QLineEdit()
+        self.metadata_modified = QLineEdit()
+        self.metadata_accessed = QLineEdit()
+        editor.addRow("Created time (ISO local, optional)", self.metadata_created)
+        editor.addRow("Modified time (ISO local, optional)", self.metadata_modified)
+        editor.addRow("Accessed time (ISO local, optional)", self.metadata_accessed)
         editor.addRow("Extraction layout", self.layout_choice)
         editor.addRow("Existing files", self.conflict_choice)
 
@@ -198,11 +217,14 @@ class BatchDesignerDialog(QDialog):
         layout.addWidget(self.preview)
         for widget in (self.source, self.destination, self.sources, self.prefix, self.suffix, self.paths,
                        self.item_path, self.target_directory, self.sha256, self.compare_bytes, self.size_bytes, self.partition_index, self.volume_label, self.comment,
-                       self.description, self.bundle_names):
+                       self.description, self.bundle_names, self.metadata_paths, self.metadata_created,
+                       self.metadata_modified, self.metadata_accessed):
             signal = widget.textChanged if isinstance(widget, QPlainTextEdit) else widget.textChanged
             signal.connect(self.update_preview)
         for widget in (self.start, self.width, self.step, self.compression_level):
             widget.valueChanged.connect(self.update_preview)
+        for widget in self.metadata_attributes.values():
+            widget.currentIndexChanged.connect(self.update_preview)
         self.kind_choice.currentIndexChanged.connect(self.update_preview)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
@@ -239,6 +261,7 @@ class BatchDesignerDialog(QDialog):
             OperationKind.BUNDLE: "Create an unencrypted, auditable image container from selected image files.",
             OperationKind.UNBUNDLE: "Extract named or all items from an unencrypted image container.",
             OperationKind.MOVE: "Move one regular file within a writable FAT image to an existing image directory. Existing targets are never overwritten and directory moves are deliberately rejected because they are not atomic.",
+            OperationKind.FAT_METADATA: "Update explicitly listed entries in one writable FAT image. Each DOS attribute is independently set, cleared, or left unchanged; ISO local timestamp fields are optional. The recipe previews a write and does not recursively select entries or access devices.",
         }
         self.preview.setText(hints[kind])
 
@@ -356,6 +379,28 @@ class BatchDesignerDialog(QDialog):
                 if partition < 1:
                     raise DiskForgeError("FAT file move partition index must be a positive integer.")
                 item["partition"] = partition
+        elif kind == OperationKind.FAT_METADATA:
+            metadata_paths = [value.strip() for value in self.metadata_paths.toPlainText().splitlines() if value.strip()]
+            if not source or not metadata_paths:
+                raise DiskForgeError("FAT metadata update requires a source image and one or more explicit image paths.")
+            item.update({"source": source, "paths": metadata_paths})
+            for key, choice in self.metadata_attributes.items():
+                value = choice.currentData()
+                if value is not None:
+                    item[key] = bool(value)
+            for key, field in (("created", self.metadata_created), ("modified", self.metadata_modified), ("accessed", self.metadata_accessed)):
+                if field.text().strip():
+                    item[key] = field.text().strip()
+            if not any(key in item for key in (*self.metadata_attributes, "created", "modified", "accessed")):
+                raise DiskForgeError("FAT metadata update requires at least one attribute or timestamp field.")
+            if self.partition_index.text().strip():
+                try:
+                    partition = int(self.partition_index.text().strip())
+                except ValueError as exc:
+                    raise DiskForgeError("FAT metadata partition index must be a positive integer.") from exc
+                if partition < 1:
+                    raise DiskForgeError("FAT metadata partition index must be a positive integer.")
+                item["partition"] = partition
         elif kind == OperationKind.INJECT:
             if not destination or not sources:
                 raise DiskForgeError("Injection requires a FAT destination image and local file paths.")
@@ -394,6 +439,8 @@ class BatchDesignerDialog(QDialog):
     def _summary(item: dict[str, Any]) -> str:
         kind = str(item.get("kind", "operation"))
         source = "new image" if kind == OperationKind.HFS_CREATE.value else item.get("source") or f"{len(item.get('sources', []))} source(s)"
+        if kind == OperationKind.FAT_METADATA.value:
+            return f"{kind}: {source} → {len(item.get('paths', []))} explicit FAT path(s)"
         destination = item.get("destination") or item.get("target_directory") or item.get("destination_root") or "read-only"
         return f"{kind}: {source} → {destination}"
 
@@ -460,6 +507,12 @@ class BatchDesignerDialog(QDialog):
         self.paths.setText("\n".join(str(value) for value in item.get("paths", ["/"])))
         self.item_path.setText(str(item.get("item_path", "")))
         self.target_directory.setText(str(item.get("target_directory", "/")))
+        self.metadata_paths.setPlainText("\n".join(str(value) for value in item.get("paths", [])))
+        for key, choice in self.metadata_attributes.items():
+            self._set_combo_data(choice, item[key] if key in item else None)
+        self.metadata_created.setText(str(item.get("created", "")))
+        self.metadata_modified.setText(str(item.get("modified", "")))
+        self.metadata_accessed.setText(str(item.get("accessed", "")))
         self._set_combo_data(self.layout_choice, item.get("layout", ExtractionLayout.PRESERVE_PATHS.value))
         self._set_combo_data(self.conflict_choice, item.get("on_conflict", ConflictPolicy.ERROR.value))
         self._set_combo_data(self.format_choice, item.get("format", ImageFormat.IMG.value))
@@ -479,7 +532,9 @@ class BatchDesignerDialog(QDialog):
 
     @staticmethod
     def _set_combo_data(combo: QComboBox, value: object) -> None:
-        index = combo.findData(str(value))
+        index = combo.findData(value)
+        if index < 0:
+            index = combo.findData(str(value))
         if index >= 0:
             combo.setCurrentIndex(index)
 
