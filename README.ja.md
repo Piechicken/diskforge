@@ -48,6 +48,10 @@ ISO の内容編集は常に別出力への再構築で実行され、ステー�
 
 > 128/256 バイトセクター、GCR や可変セクター符号化、ハードセクター媒体、非 FAT ファイルシステム、コピー保護トラック、flux/bitcell キャプチャは、RAW バイトの保存、検査、ハッシュ、比較の対象にとどまります。DiskForge はこれらを安全にファイルレベル編集できる FAT イメージとは表明しません。
 
+### 歴史コンテナーの読み取り専用サポート
+
+v0.10 では HFE、DC42、2MG/2IMG、APRIDISK、CopyQM、SAP、MSA、PSI、PRI、および制限された 86F v2.12 サブセットに、形式固有の構造検査を追加しました。DC42 と 2MG/2IMG は検証済みデータ領域だけをエクスポートし、APRIDISK、CopyQM、SAP、MSA、PSI はパーサーが通常の完全な矩形レイアウトを証明した場合だけ新規 RAW を作成します。HFE、PRI、86F はビットストリーム構造の検査のみで、トラックをデコードせず RAW も生成しません。これらの経路はすべて、元ファイル書き込み、汎用変換、ファイルシステムセッション、修復、デバイス、上書き、未検証の変種を拒否します。
+
 ## 主な機能
 
 DiskForge は実用的なイメージ管理の流れを一つの UI に統合します。メインウィンドウにはイメージエクスプローラー、ディレクトリ表、メタデータパネル、アクティビティログ、キャンセル可能な進捗表示があります。破壊的な操作は通常の閲覧操作から分離して表示されます。
@@ -55,7 +59,7 @@ DiskForge は実用的なイメージ管理の流れを一つの UI に統合し
 | ワークフロー | ネイティブ機能 | 備考 |
 |---|---|---|
 | イメージ作成 | RAW/IMG/IMA、FAT12、FAT16、FAT32、検証済み旧式 FAT12 フロッピープロファイル、DMF レイアウト FAT12、ISO9660/Joliet/Rock Ridge/UDF、任意のクラシック HFS | 編集可能な FAT、明示的な IMG/IMA プロファイルまたは対応カスタム CHS、DMF、任意の El Torito ブートメディア付き ISO を作成できます。`hformat` が明示的に利用可能な場合、DiskForge は 800 KiB 以上の新しい独立したクラシック HFS 通常ファイルイメージを作成できます。HFS+ は読み取り専用のままです。 |
-| 閲覧と抽出 | 検証済みの表示ラベルなし旧式 DOS フロッピーを含む FAT12/16/32、保守的な FAT12/FAT16 削除済みルートファイル候補、読み取り専用 IMD および通常 TD0 セクター検査、ISO9660/Joliet、安全な単一イメージ ZIP コンテナー、固定 VHD データビュー、任意の NTFS/EXT/クラシック HFS/HFS+ 読み取り専用バックエンド | 通常の ZIP は、安全なルートレベルのイメージペイロードがちょうど一つある場合だけ、自動削除されるプライベートな読み取り専用セッションに物化されます。書き込み可能または変換可能なイメージにはなりません。ツリーと表は決定的なページングと並べ替えキャッシュを使用します。検証済みの MBR/GPT パーティションは常に明示的な表インデックスで選択されます。FAT は既存の編集経路を維持し、NTFS/EXT/クラシック HFS/HFS+ は読み取り専用バックエンドで正確に検証されたオフセットにのみ開かれます。ダブルクリックすると、テキスト、画像、一般的なアーカイブ、旧式パッケージ、実行ファイル、バイナリデータ用の非実行文書ワークスペースが開きます。テキストは検索、コピー保存ができ、書き込み可能な FAT 項目だけ編集してイメージへ保存し戻せます。固定 VHD はフッターを除く一時 RAW 読み取り専用ビューで開きます。 |
+| 閲覧と抽出 | 検証済みの表示ラベルなし旧式 DOS フロッピーを含む FAT12/16/32、保守的な FAT12/FAT16 削除済みルートファイル候補、読み取り専用 IMD、TD0、CPC DSK、D88、APRIDISK、CopyQM、SAP、MSA、PSI、DC42、2MG/2IMG、HFE、PRI、制限付き 86F の検査、ISO9660/Joliet、安全な単一イメージ ZIP コンテナー、固定 VHD データビュー、任意の NTFS/EXT/クラシック HFS/HFS+ 読み取り専用バックエンド | 通常の ZIP は、安全なルートレベルのイメージペイロードがちょうど一つある場合だけ、自動削除されるプライベートな読み取り専用セッションに物化されます。書き込み可能または変換可能なイメージにはなりません。ツリーと表は決定的なページングと並べ替えキャッシュを使用します。検証済みの MBR/GPT パーティションは常に明示的な表インデックスで選択されます。FAT は既存の編集経路を維持し、NTFS/EXT/クラシック HFS/HFS+ は読み取り専用バックエンドで正確に検証されたオフセットにのみ開かれます。ダブルクリックすると、テキスト、画像、一般的なアーカイブ、旧式パッケージ、実行ファイル、バイナリデータ用の非実行文書ワークスペースが開きます。テキストは検索、コピー保存ができ、書き込み可能な FAT 項目だけ編集してイメージへ保存し戻せます。固定 VHD はフッターを除く一時 RAW 読み取り専用ビューで開きます。 |
 | イメージディレクトリの棚卸し | JSON、CSV、HTML レポート付きの読み取り専用ローカルイメージメタデータ走査 | 一つのローカルディレクトリを任意で再帰走査し、既知のイメージ候補を拡張子、認識済み形式、ファイルシステム、バイト範囲、SHA-256 プレフィックスで絞り込めます。項目ごとの SHA-256 とパーティション概要は任意です。すべてのレポートは走査ルート外の新規ファイルであり、候補イメージは変更されません。 |
 | 内容の変更 | FAT ファイル/フォルダーの注入、削除、名前変更、通常ファイルのディレクトリ間移動、時刻変更、安全な再構築式 ISO 編集、任意の制御済み NTFS/EXT/クラシック HFS 注入 | FAT IMG と IMA は同じ編集ワークフローを共有します。通常ファイルは既存ディレクトリへ上書きなしで移動できます。ルート、存在しないまたはディレクトリでない移動先、名前競合、読み取り専用セッション、およびすべてのディレクトリ移動は、イメージ変更前に拒否されます。同一ディレクトリ内の名前変更は別操作のままです。ISO 編集は常に新規イメージを出力し、内容を検証して Rock Ridge/UDF を維持します。検証済み単一初期 El Torito エントリのみ保持し、複数ブート、ハイブリッド、曖昧な構成は拒否します。`ntfsprogs`、`e2fsprogs`、または `hfsutils` が明示的に利用可能な場合、NTFS/EXT/クラシック HFS は検証済みの独立出力イメージのルートへ新しい通常ファイルだけを追加できます。元イメージ、パーティションオフセット、メタデータ、名前変更、削除、上書きは許可されません。クラシック HFS の注入は生データフォークだけを転送し、HFS+ は読み取り専用のままです。 |
 | 形式変換 | RAW/IMG/IMA と固定 VHD をネイティブ変換 | IMG と IMA は明示的に選択した拡張子を保持します。VHDX、VMDK、QCOW2 は明示的に設定した `qemu-img` アダプターを使用します。 |
@@ -102,6 +106,17 @@ diskforge-cli imd-info legacy.imd  # 読み取り専用のトラック/セクタ
 diskforge-cli convert-imd legacy.imd exported.img  # 証明済みの矩形通常データレイアウトのみ
 diskforge-cli td0-info legacy.td0  # 読み取り専用の通常 TD0 トラック/セクター監査
 diskforge-cli convert-td0 legacy.td0 exported.img  # 証明済みのフラグなし通常矩形レイアウトのみ
+diskforge-cli dc42-info disk.dc42  # ヘッダー、フォーク、チェックサムを検証
+diskforge-cli convert-dc42 disk.dc42 exported.img  # 検証済みデータフォークのみ
+diskforge-cli twoimg-info apple.2mg  # 標準 2MG/2IMG 構造を検証
+diskforge-cli convert-twoimg apple.2mg exported.img  # DOS/ProDOS データブロックのみ
+diskforge-cli apridisk-info legacy.dsk  # 署名に基づく APRIDISK 監査
+diskforge-cli copyqm-info archive.qm  # チェックサム済み CopyQM 監査
+diskforge-cli sap-info thomson.sap  # CRC 検証済み SAP 監査
+diskforge-cli msa-info atari.msa  # MSA トラックを完全にデコードして検証
+diskforge-cli psi-info media.psi  # CRC 検証済み PSI セクターストリーム
+diskforge-cli pri-info capture.pri  # CRC 検証済み PRI ビットストリーム構造
+diskforge-cli 86f-info capture.86f  # 制限付き 86F v2.12 ビットストリーム構造
 diskforge-cli inventory-images ./image-library image-library-report.json --recursive --include-sha256  # 読み取り専用。レポートは走査ルート外に必要です
 diskforge-cli create-iso folder bootable.iso --boot-image boot.img --boot-media noemul
 diskforge-cli inject-ntfs standalone.ntfs revised.ntfs PAYLOAD.TXT

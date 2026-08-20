@@ -607,3 +607,227 @@ def test_multi_entry_fat_metadata_workflow_is_translated_in_every_non_english_lo
         translated = CATALOG[language.code]
         assert required <= set(translated)
         assert all(translated[source] != source for source in required)
+
+
+def test_dc42_read_only_inspection_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect / export DC42…",
+        "Inspect DC42 image",
+        "DC42 files (*.dc42);;All files (*)",
+        "Inspecting DC42 image",
+        "DC42 inspection",
+        "Data fork",
+        "Tag fork",
+        "Encoding",
+        "Format",
+        "Exporting DC42 data fork to RAW",
+        "Exported DC42 data fork to {path}",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_twoimg_read_only_inspection_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect / export 2MG…",
+        "Inspect 2MG image",
+        "2MG files (*.2mg *.2img);;All files (*)",
+        "Inspecting 2MG image",
+        "2MG inspection",
+        "Data block",
+        "Volume number",
+        "Write protected",
+        "Creator data",
+        "Exporting 2MG data block to RAW",
+        "Exported 2MG data block to {path}",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_apridisk_read_only_inspection_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect / export APRIDISK…",
+        "Inspect APRIDISK image",
+        "APRIDISK files (*.dsk);;All files (*)",
+        "Inspecting APRIDISK image",
+        "APRIDISK inspection",
+        "Records",
+        "Geometry",
+        "Bytes per sector",
+        "Deleted records",
+        "Exporting APRIDISK to RAW",
+        "Exported proven APRIDISK layout to {path}",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_copyqm_read_only_inspection_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect / export CopyQM…",
+        "Inspect CopyQM image",
+        "CopyQM files (*.qm);;All files (*)",
+        "Inspecting CopyQM image",
+        "CopyQM inspection",
+        "Data CRC",
+        "Media description",
+        "Density",
+        "Validated bytes",
+        "Exporting CopyQM to RAW",
+        "Exported verified CopyQM image to {path}",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_sap_read_only_inspection_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect / export SAP…",
+        "Inspect SAP image",
+        "SAP files (*.sap);;All files (*)",
+        "Inspecting SAP image",
+        "SAP inspection",
+        "Disk type",
+        "CRC errors",
+        "Protected sectors",
+        "Tracks per side",
+        "Heads",
+        "Sector records",
+        "Exporting SAP to RAW",
+        "Exported verified SAP layout to {path}",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_msa_read_only_inspection_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect / export MSA…",
+        "Inspect MSA image",
+        "MSA files (*.msa);;All files (*)",
+        "Inspecting MSA image",
+        "MSA inspection",
+        "Track range",
+        "Compressed tracks",
+        "Sectors per track",
+        "Track records",
+        "Exporting MSA to RAW",
+        "Exported verified MSA tracks to {path}",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_psi_read_only_inspection_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect / export PSI…",
+        "Inspect PSI image",
+        "PSI files (*.psi);;All files (*)",
+        "Inspecting PSI image",
+        "PSI inspection",
+        "Compressed sectors",
+        "Default format",
+        "Comment chunks",
+        "Metadata chunks",
+        "Exporting PSI to RAW",
+        "Exported verified PSI layout to {path}",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_pri_structural_inspection_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect PRI structure…",
+        "Inspect PRI structure",
+        "PRI files (*.pri);;All files (*)",
+        "Inspecting PRI structure",
+        "PRI structural inspection",
+        "Tracks with data",
+        "Total bits",
+        "Clock range",
+        "Read-only bitstream",
+        "No decoding or RAW export is available.",
+        "Fuzzy events",
+        "Clock events",
+        "Weak events",
+        "Unknown chunks",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_86f_structural_inspection_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect 86F structure…",
+        "Inspect 86F structure",
+        "86F files (*.86f);;All files (*)",
+        "Inspecting 86F structure",
+        "86F structural inspection",
+        "Missing tracks",
+        "Sides",
+        "Total bitcells",
+        "Disk flags",
+        "Surface description",
+        "Offset table entries",
+        "Encoded bytes",
+        "Read-only bitstream",
+        "No decoding or RAW export is available.",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)

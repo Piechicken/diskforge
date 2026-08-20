@@ -34,6 +34,16 @@ class ImageFormat(str, Enum):
     TD0 = "td0"
     CPC_DSK = "cpc_dsk"
     D88 = "d88"
+    HFE = "hfe"
+    DC42 = "dc42"
+    TWOIMG = "2mg"
+    APRIDISK = "apridisk"
+    COPYQM = "copyqm"
+    SAP = "sap"
+    MSA = "msa"
+    PSI = "psi"
+    PRI = "pri"
+    EIGHTYSIXF = "86f"
     UNKNOWN = "unknown"
 
     @classmethod

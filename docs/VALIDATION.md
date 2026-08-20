@@ -149,7 +149,24 @@ FAT 跨目录移动仅接受一个映像内常规文件和一个**已经存在**
 | CLI 与 SDK | `move-fat IMAGE SOURCE_PATH TARGET_DIRECTORY` 输出 JSON `source`/`destination`；`DiskForgeClient.move_fat()` 返回新的映像内路径。 | 仅可写 FAT；可选显式 FAT 分区由既有验证路由处理；非 FAT 不升级为可写。 |
 | 批处理与桌面 | schema v4 `move` 预览标记 `will_write: true`，执行后审计原映像；图形设计器序列化并回填映像、源条目、目标目录和分区索引；桌面动作仅在一个常规文件被选中且 FAT 会话可写时启用。 | 无人值守配方不接受设备；桌面不会对目录显示移动动作；全部七种界面语言均有无回退目录。 |
 
-在当前开发检查点，完整严格命令 `QT_QPA_PLATFORM=offscreen pytest -W error` 的结果为 **434 passed, 3 skipped**，且没有警告。跳过项仍只对应可选的真实外部文件系统夹具，不影响上述合成 FAT 元数据/移动、ZIP 单映像容器、FAT 删除候选恢复、IMD、TD0 和批量映像清单回归。
+在当前开发检查点，完整严格命令 `QT_QPA_PLATFORM=offscreen pytest -W error` 的结果为 **541 passed, 3 skipped**，且没有警告。跳过项仍只对应可选的真实外部文件系统夹具，不影响上述合成 FAT 元数据/移动、ZIP 单映像容器、FAT 删除候选恢复、IMD、TD0、批量映像清单和以下历史容器回归。
+
+## v0.10 历史容器只读检查与受限 RAW 导出验收
+
+本组能力将每一种容器独立解析，且不因扩展名将它们降级为可写 RAW 或 FAT 映像。所有合成测试同时覆盖格式识别、通用转换拒绝、只读清单发现、CLI JSON、SDK、文件系统会话拒绝、桌面直达专用检查器和七语种用户可见文本。可导出的项目只在源不变、目标此前不存在且结构能证明安全平面化时创建新的本地 RAW；位流项目不提供扇区解码或 RAW 输出。
+
+| 格式 | 核心自动化证据 | 明确边界 |
+|---|---|---|
+| HFE | 验证 v1/v2/v3 签名、512 字节头、LUT、块对齐范围和双侧交错统计。 | 只做结构检查；不解码位流、不导出 RAW、不浏览或写入。 |
+| DC42 | 验证 84 字节头、精确数据/标签 fork、数据校验与历史标签跳过规则；验证数据 fork 原样新 RAW 输出。 | 不修改源或标签 fork；无容器写入、文件系统或通用转换。 |
+| 2MG/2IMG | 验证 64 字节头、格式/flags、连续注释/创建者块及 DOS/ProDOS 数据块输出。 | NIB 与不规则布局仅可检查；不写回容器。 |
+| APRIDISK | 覆盖固定头、普通/RLE 扇区、注释/创建者、删除记录以及严格矩形排序输出。 | 删除/不规则扇区不导出；不把 `.dsk` 后缀当作格式保证。 |
+| CopyQM | 覆盖可校验头、注释、符号长度 RLE、掩码 CRC 和固定 DOS 几何 RAW。 | 仅完整校验布局可导出；不支持不明变体或写回。 |
+| SAP | 覆盖 Pukall 头/CRC、数据去混淆、保护状态和常规 256B 矩形扇区输出。 | 有保护、CRC 或布局异常时只拒绝，不猜测或修复。 |
+| MSA | 覆盖大端头、未压缩/E5-RLE 轨道、真实 E5 数据、双面顺序和精确 EOF。 | 不完整轨道、RLE 异常和尾随数据均不导出。 |
+| PSI | 覆盖每个 chunk CRC、SECT/DATA、压缩填充、元数据、严格矩形 geometry 和新 RAW。 | weak/alternate/坏 CRC/不规则或未知路径不扁平化。 |
+| PRI | 覆盖每个 chunk CRC、轨道位数/时钟、DATA、FUZZ/BCLK/WEAK 事件范围与无数据轨报告。 | 仅结构检查；不解码位流、不导出 RAW、不浏览或写入。 |
+| 86F | 覆盖 v2.12 固定 RPM/总 bitcell 子集、单/双面偏移表、surface 描述及精确轨范围。 | zoned、压缩、非总 bitcell/变速变体和所有解码/RAW/写入路径均拒绝。[10] |
 
 ## UFI USB 软驱人工验收
 
@@ -178,6 +195,7 @@ UFI 格式化完成后，创建 FAT 文件系统是**独立操作**，需要再�
 [3]: https://digitalcorpora.org/corpora/disk-images/ "Digital Corpora Disk Images"
 [4]: https://downloads.digitalcorpora.org/corpora/drives/nps-2009-hfsjtest1/ "NPS HFS Journal Test Image Directory"
 [5]: https://manpages.ubuntu.com/manpages/jammy/man8/ufiformat.8.html "ufiformat manual"
+[10]: https://86box.readthedocs.io/en/v6.0/dev/formats/86f.html "86F Specification for v2.12 Extended"
 [6]: https://linux.die.net/man/8/ntfscp "ntfscp(8) — copy file to an NTFS volume"
 [7]: https://manpages.debian.org/testing/e2fsprogs/debugfs.8.en.html "debugfs(8) — ext2/ext3/ext4 filesystem debugger"
 [8]: https://manpages.ubuntu.com/manpages/bionic/man1/hfsutils.1.html "hfsutils(1) — classic HFS utility suite"

@@ -45,7 +45,17 @@ from diskforge.core.imd import export_imd_to_raw, inspect_imd
 from diskforge.core.inventory import ImageInventoryOptions, export_image_inventory, inventory_images
 from diskforge.core.td0 import export_td0_to_raw, inspect_td0
 from diskforge.core.cpc_dsk import export_cpc_dsk_to_raw, inspect_cpc_dsk
+from diskforge.core.apridisk import export_apridisk_to_raw, inspect_apridisk
+from diskforge.core.copyqm import export_copyqm_to_raw, inspect_copyqm
+from diskforge.core.sap import export_sap_to_raw, inspect_sap
+from diskforge.core.msa import export_msa_to_raw, inspect_msa
+from diskforge.core.psi import export_psi_to_raw, inspect_psi
+from diskforge.core.pri import inspect_pri
+from diskforge.core.eightysixf import inspect_86f
 from diskforge.core.d88 import export_d88_to_raw, inspect_d88
+from diskforge.core.dc42 import export_dc42_data_to_raw, inspect_dc42
+from diskforge.core.twoimg import export_twoimg_to_raw, inspect_twoimg
+from diskforge.core.hfe import inspect_hfe
 from diskforge.core.eltorito import export_boot_image, inspect_eltorito
 from diskforge.core.fat_layouts import FatImageLayout, create_fat_image_from_layout
 from diskforge.core.floppy_format import FloppyControllerFormatter
@@ -82,7 +92,7 @@ from diskforge.gui.theme import apply_theme
 from diskforge.gui.workers import FunctionWorker
 
 
-IMAGE_FILTER = "Disk images (*.img *.ima *.imd *.td0 *.dsk *.d88 *.1dd *.2dd *.hfs *.bin *.dd *.dmf *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
+IMAGE_FILTER = "Disk images (*.img *.ima *.imd *.td0 *.dsk *.d88 *.1dd *.2dd *.hfe *.dc42 *.2mg *.2img *.qm *.sap *.msa *.psi *.pri *.86f *.hfs *.bin *.dd *.dmf *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
 
 
 class NewImageDialog(QDialog):
@@ -688,6 +698,16 @@ class MainWindow(QMainWindow):
         self.action_td0 = self._action("Inspect / export TD0…", None, self.inspect_td0_image)
         self.action_cpc_dsk = self._action("Inspect / export CPC DSK…", None, self.inspect_cpc_dsk_image)
         self.action_d88 = self._action("Inspect / export D88…", None, self.inspect_d88_image)
+        self.action_hfe = self._action("Inspect HFE structure…", None, self.inspect_hfe_image)
+        self.action_dc42 = self._action("Inspect / export DC42…", None, self.inspect_dc42_image)
+        self.action_twoimg = self._action("Inspect / export 2MG…", None, self.inspect_twoimg_image)
+        self.action_apridisk = self._action("Inspect / export APRIDISK…", None, self.inspect_apridisk_image)
+        self.action_copyqm = self._action("Inspect / export CopyQM…", None, self.inspect_copyqm_image)
+        self.action_sap = self._action("Inspect / export SAP…", None, self.inspect_sap_image)
+        self.action_msa = self._action("Inspect / export MSA…", None, self.inspect_msa_image)
+        self.action_psi = self._action("Inspect / export PSI…", None, self.inspect_psi_image)
+        self.action_pri = self._action("Inspect PRI structure…", None, self.inspect_pri_image)
+        self.action_86f = self._action("Inspect 86F structure…", None, self.inspect_86f_image)
         self.action_inventory = self._action("Inventory images…", None, self.inventory_images)
         self.action_batch_designer = self._action("Design batch workflow…", None, self.design_batch)
         self.action_batch_edit = self._action("Edit batch recipe…", None, self.edit_batch)
@@ -734,7 +754,7 @@ class MainWindow(QMainWindow):
         menu_view = self.menuBar().addMenu("&View")
         menu_view.addActions([self.action_view_details, self.action_view_icons])
         menu_tools = self.menuBar().addMenu("&Tools")
-        menu_tools.addActions([self.action_devices, self.action_device_read_queue, self.action_imd, self.action_td0, self.action_cpc_dsk, self.action_d88, self.action_inventory, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
+        menu_tools.addActions([self.action_devices, self.action_device_read_queue, self.action_imd, self.action_td0, self.action_cpc_dsk, self.action_d88, self.action_hfe, self.action_dc42, self.action_twoimg, self.action_apridisk, self.action_copyqm, self.action_sap, self.action_msa, self.action_psi, self.action_pri, self.action_86f, self.action_inventory, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
         menu_language = menu_tools.addMenu("&Language")
         self.language_actions: list[QAction] = []
         try:
@@ -1203,10 +1223,43 @@ class MainWindow(QMainWindow):
             self.inspect_td0_image(selected)
             return
         if selected.suffix.casefold() == ".dsk":
-            self.inspect_cpc_dsk_image(selected)
+            try:
+                if inspect_image(selected).image_format == ImageFormat.APRIDISK:
+                    self.inspect_apridisk_image(selected)
+                else:
+                    self.inspect_cpc_dsk_image(selected)
+            except OSError:
+                self.inspect_cpc_dsk_image(selected)
             return
         if selected.suffix.casefold() in {".d88", ".1dd", ".2dd"}:
             self.inspect_d88_image(selected)
+            return
+        if selected.suffix.casefold() == ".hfe":
+            self.inspect_hfe_image(selected)
+            return
+        if selected.suffix.casefold() == ".dc42":
+            self.inspect_dc42_image(selected)
+            return
+        if selected.suffix.casefold() == ".qm":
+            self.inspect_copyqm_image(selected)
+            return
+        if selected.suffix.casefold() == ".sap":
+            self.inspect_sap_image(selected)
+            return
+        if selected.suffix.casefold() == ".msa":
+            self.inspect_msa_image(selected)
+            return
+        if selected.suffix.casefold() == ".psi":
+            self.inspect_psi_image(selected)
+            return
+        if selected.suffix.casefold() == ".pri":
+            self.inspect_pri_image(selected)
+            return
+        if selected.suffix.casefold() == ".86f":
+            self.inspect_86f_image(selected)
+            return
+        if selected.suffix.casefold() in {".2mg", ".2img"}:
+            self.inspect_twoimg_image(selected)
             return
         self._open_path(selected)
 
@@ -2155,6 +2208,477 @@ class MainWindow(QMainWindow):
             return
         dialog.accept()
         self._run_worker(self._localized("Exporting D88 to RAW"), lambda progress=None, token=None: export_d88_to_raw(inspection.source, Path(destination), token), on_result=lambda output: self.log(self._localized("Exported proven D88 layout to {path}").format(path=output)))
+
+    def inspect_hfe_image(self, source_path: Path | None = None) -> None:
+        """Inspect HFE container structure without decoding its bitstreams."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(self, self._localized("Inspect HFE structure"), "", self._localized("HFE files (*.hfe);;All files (*)"))
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(self._localized("Inspecting HFE structure"), lambda progress=None, token=None: inspect_hfe(source_path, token), on_result=lambda inspection: self._show_hfe_inspection(inspection))
+
+    def _show_hfe_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("HFE structure")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(f"{self._localized('Tracks')}: {inspection.tracks}\\n{self._localized('Sides')}: {inspection.sides}\\n{self._localized('Bitstream decoding')}: {self._localized('Not available')}")
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(f"{self._localized('Version')}: {inspection.version}\\n{self._localized('Bitrate')}: {inspection.bitrate_kbps} kbps\\n{self._localized('RPM')}: {inspection.rpm}\\n{self._localized('Unreferenced bytes')}: {inspection.unreferenced_bytes}\\n\\n" + "\\n".join(f"T{item.index}: {item.declared_bytes} {self._localized('bytes')} @ 0x{item.offset_bytes:X}" for item in inspection.track_records))
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close); buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def inspect_dc42_image(self, source_path: Path | None = None) -> None:
+        """Inspect a DC42 data/tag container without mutation and export only verified data."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect DC42 image"), "",
+                self._localized("DC42 files (*.dc42);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting DC42 image"),
+            lambda progress=None, token=None: inspect_dc42(source_path, token),
+            on_result=lambda inspection: self._show_dc42_inspection(inspection),
+        )
+
+    def _show_dc42_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("DC42 inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Data fork')}: {human_bytes(inspection.data_bytes)}\\n"
+            f"{self._localized('Tag fork')}: {human_bytes(inspection.tag_bytes)}\\n"
+            f"{self._localized('RAW export')}: {self._localized('Available')}"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Name')}: {inspection.name or self._localized('None')}\\n"
+            f"{self._localized('Encoding')}: {inspection.encoding}\\n"
+            f"{self._localized('Format')}: 0x{inspection.format_byte:02X}\\n"
+            f"{self._localized('Data fork')}: {inspection.data_bytes} {self._localized('bytes')}\\n"
+            f"{self._localized('Tag fork')}: {inspection.tag_bytes} {self._localized('bytes')}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        export_button = buttons.addButton(self._localized("Export proven RAW…"), QDialogButtonBox.ButtonRole.ActionRole)
+        export_button.clicked.connect(lambda: self._choose_dc42_raw_destination(inspection, dialog))
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def _choose_dc42_raw_destination(self, inspection, dialog: QDialog) -> None:
+        destination, accepted = QFileDialog.getSaveFileName(
+            self, self._localized("Export proven RAW"), str(inspection.source.with_suffix(".img")),
+            self._localized("Raw image (*.img *.ima *.bin);;All files (*)"),
+        )
+        if not accepted or not destination:
+            return
+        dialog.accept()
+        self._run_worker(
+            self._localized("Exporting DC42 data fork to RAW"),
+            lambda progress=None, token=None: export_dc42_data_to_raw(inspection.source, Path(destination), token),
+            on_result=lambda output: self.log(self._localized("Exported DC42 data fork to {path}").format(path=output)),
+        )
+
+    def inspect_twoimg_image(self, source_path: Path | None = None) -> None:
+        """Inspect a 2MG/2IMG container and export only verified sector data."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect 2MG image"), "",
+                self._localized("2MG files (*.2mg *.2img);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting 2MG image"),
+            lambda progress=None, token=None: inspect_twoimg(source_path, token),
+            on_result=lambda inspection: self._show_twoimg_inspection(inspection),
+        )
+
+    def _show_twoimg_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("2MG inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Format')}: {inspection.format_name}\\n"
+            f"{self._localized('Data block')}: {human_bytes(inspection.data_bytes)}\\n"
+            f"{self._localized('RAW export')}: {self._localized('Available') if inspection.exportable else self._localized('Unavailable')}\\n"
+            f"{self._localized('Reason')}: {inspection.export_reason}"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        volume = str(inspection.volume_number) if inspection.volume_number is not None else self._localized("None")
+        details.setPlainText(
+            f"{self._localized('Creator')}: {inspection.creator_id}\\n"
+            f"{self._localized('Format')}: {inspection.format_name}\\n"
+            f"{self._localized('Volume number')}: {volume}\\n"
+            f"{self._localized('Write protected')}: {self._localized('Yes') if inspection.write_protected else self._localized('No')}\\n"
+            f"{self._localized('Data block')}: {inspection.data_bytes} {self._localized('bytes')}\\n"
+            f"{self._localized('Comment')}: {inspection.comment or self._localized('None')}\\n"
+            f"{self._localized('Creator data')}: {inspection.creator_data_bytes} {self._localized('bytes')}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        if inspection.exportable:
+            export_button = buttons.addButton(self._localized("Export proven RAW…"), QDialogButtonBox.ButtonRole.ActionRole)
+            export_button.clicked.connect(lambda: self._choose_twoimg_raw_destination(inspection, dialog))
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def _choose_twoimg_raw_destination(self, inspection, dialog: QDialog) -> None:
+        destination, accepted = QFileDialog.getSaveFileName(
+            self, self._localized("Export proven RAW"), str(inspection.source.with_suffix(".img")),
+            self._localized("Raw image (*.img *.ima *.bin);;All files (*)"),
+        )
+        if not accepted or not destination:
+            return
+        dialog.accept()
+        self._run_worker(
+            self._localized("Exporting 2MG data block to RAW"),
+            lambda progress=None, token=None: export_twoimg_to_raw(inspection.source, Path(destination), token),
+            on_result=lambda output: self.log(self._localized("Exported 2MG data block to {path}").format(path=output)),
+        )
+
+    def inspect_apridisk_image(self, source_path: Path | None = None) -> None:
+        """Inspect APRIDISK records without mutation and export only a proven RAW layout."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect APRIDISK image"), "",
+                self._localized("APRIDISK files (*.dsk);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting APRIDISK image"),
+            lambda progress=None, token=None: inspect_apridisk(source_path, token),
+            on_result=lambda inspection: self._show_apridisk_inspection(inspection),
+        )
+
+    def _show_apridisk_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("APRIDISK inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Records')}: {len(inspection.sectors)}\\n"
+            f"{self._localized('RAW export')}: {self._localized('Available') if inspection.exportable else self._localized('Unavailable')}\\n"
+            f"{self._localized('Reason')}: {inspection.export_reason}"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        geometry = (f"{inspection.cylinders} × {inspection.heads} × {inspection.sectors_per_track}"
+                    if inspection.cylinders is not None else self._localized("Unavailable"))
+        details.setPlainText(
+            f"{self._localized('Geometry')}: {geometry}\\n"
+            f"{self._localized('Bytes per sector')}: {inspection.bytes_per_sector or 0}\\n"
+            f"{self._localized('Deleted records')}: {inspection.deleted_records}\\n"
+            f"{self._localized('Creator data')}: {inspection.creator_data_bytes} {self._localized('bytes')}\\n"
+            f"{self._localized('Comment')}: {inspection.comment or self._localized('None')}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        if inspection.exportable:
+            export_button = buttons.addButton(self._localized("Export proven RAW…"), QDialogButtonBox.ButtonRole.ActionRole)
+            export_button.clicked.connect(lambda: self._choose_apridisk_raw_destination(inspection, dialog))
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def _choose_apridisk_raw_destination(self, inspection, dialog: QDialog) -> None:
+        destination, accepted = QFileDialog.getSaveFileName(
+            self, self._localized("Export proven RAW"), str(inspection.source.with_suffix(".img")),
+            self._localized("Raw image (*.img *.ima *.bin);;All files (*)"),
+        )
+        if not accepted or not destination:
+            return
+        dialog.accept()
+        self._run_worker(
+            self._localized("Exporting APRIDISK to RAW"),
+            lambda progress=None, token=None: export_apridisk_to_raw(inspection.source, Path(destination), token),
+            on_result=lambda output: self.log(self._localized("Exported proven APRIDISK layout to {path}").format(path=output)),
+        )
+
+    def inspect_copyqm_image(self, source_path: Path | None = None) -> None:
+        """Inspect a CopyQM container and export only fully checksum-verified RAW data."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect CopyQM image"), "",
+                self._localized("CopyQM files (*.qm);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting CopyQM image"),
+            lambda progress=None, token=None: inspect_copyqm(source_path, token),
+            on_result=lambda inspection: self._show_copyqm_inspection(inspection),
+        )
+
+    def _show_copyqm_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("CopyQM inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Geometry')}: {inspection.tracks} × {inspection.heads} × {inspection.sectors_per_track}\\n"
+            f"{self._localized('Data CRC')}: {inspection.data_crc:08X}\\n"
+            f"{self._localized('RAW export')}: {self._localized('Available')}"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Media description')}: {inspection.media_description or self._localized('None')}\\n"
+            f"{self._localized('Volume label')}: {inspection.volume_label or self._localized('None')}\\n"
+            f"{self._localized('Density')}: {inspection.density}\\n"
+            f"{self._localized('Bytes per sector')}: {inspection.sector_size}\\n"
+            f"{self._localized('Comment')}: {inspection.comment or self._localized('None')}\\n"
+            f"{self._localized('Validated bytes')}: {human_bytes(inspection.raw_bytes)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        export_button = buttons.addButton(self._localized("Export proven RAW…"), QDialogButtonBox.ButtonRole.ActionRole)
+        export_button.clicked.connect(lambda: self._choose_copyqm_raw_destination(inspection, dialog))
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def _choose_copyqm_raw_destination(self, inspection, dialog: QDialog) -> None:
+        destination, accepted = QFileDialog.getSaveFileName(
+            self, self._localized("Export proven RAW"), str(inspection.source.with_suffix(".img")),
+            self._localized("Raw image (*.img *.ima *.bin);;All files (*)"),
+        )
+        if not accepted or not destination:
+            return
+        dialog.accept()
+        self._run_worker(
+            self._localized("Exporting CopyQM to RAW"),
+            lambda progress=None, token=None: export_copyqm_to_raw(inspection.source, Path(destination), token),
+            on_result=lambda output: self.log(self._localized("Exported verified CopyQM image to {path}").format(path=output)),
+        )
+
+    def inspect_sap_image(self, source_path: Path | None = None) -> None:
+        """Inspect SAP sector records and export only a fully regular CRC-valid layout."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect SAP image"), "",
+                self._localized("SAP files (*.sap);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting SAP image"),
+            lambda progress=None, token=None: inspect_sap(source_path, token),
+            on_result=lambda inspection: self._show_sap_inspection(inspection),
+        )
+
+    def _show_sap_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("SAP inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Disk type')}: {inspection.disk_type}\\n"
+            f"{self._localized('CRC errors')}: {inspection.crc_error_count}; {self._localized('Protected sectors')}: {inspection.protected_sector_count}\\n"
+            f"{self._localized('RAW export')}: {self._localized('Available') if inspection.exportable else self._localized('Unavailable')}\\n"
+            f"{self._localized('Reason')}: {inspection.export_reason}"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Tracks per side')}: {inspection.tracks_per_side}\\n"
+            f"{self._localized('Heads')}: {inspection.heads}\\n"
+            f"{self._localized('Sector records')}: {len(inspection.sectors)}\\n"
+            f"{self._localized('Validated bytes')}: {human_bytes(inspection.raw_bytes or 0)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        if inspection.exportable:
+            export_button = buttons.addButton(self._localized("Export proven RAW…"), QDialogButtonBox.ButtonRole.ActionRole)
+            export_button.clicked.connect(lambda: self._choose_sap_raw_destination(inspection, dialog))
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def _choose_sap_raw_destination(self, inspection, dialog: QDialog) -> None:
+        destination, accepted = QFileDialog.getSaveFileName(
+            self, self._localized("Export proven RAW"), str(inspection.source.with_suffix(".img")),
+            self._localized("Raw image (*.img *.ima *.bin);;All files (*)"),
+        )
+        if not accepted or not destination:
+            return
+        dialog.accept()
+        self._run_worker(
+            self._localized("Exporting SAP to RAW"),
+            lambda progress=None, token=None: export_sap_to_raw(inspection.source, Path(destination), token),
+            on_result=lambda output: self.log(self._localized("Exported verified SAP layout to {path}").format(path=output)),
+        )
+
+    def inspect_msa_image(self, source_path: Path | None = None) -> None:
+        """Inspect MSA tracks and export only a fully decoded structural RAW view."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect MSA image"), "",
+                self._localized("MSA files (*.msa);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting MSA image"),
+            lambda progress=None, token=None: inspect_msa(source_path, token),
+            on_result=lambda inspection: self._show_msa_inspection(inspection),
+        )
+
+    def _show_msa_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("MSA inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Track range')}: {inspection.start_track}–{inspection.end_track}; {self._localized('Heads')}: {inspection.heads}\\n"
+            f"{self._localized('Compressed tracks')}: {inspection.compressed_track_count} / {len(inspection.tracks)}\\n"
+            f"{self._localized('RAW export')}: {self._localized('Available')}"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Sectors per track')}: {inspection.sectors_per_track}\\n"
+            f"{self._localized('Track records')}: {len(inspection.tracks)}\\n"
+            f"{self._localized('Validated bytes')}: {human_bytes(inspection.raw_bytes)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        export_button = buttons.addButton(self._localized("Export proven RAW…"), QDialogButtonBox.ButtonRole.ActionRole)
+        export_button.clicked.connect(lambda: self._choose_msa_raw_destination(inspection, dialog))
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def _choose_msa_raw_destination(self, inspection, dialog: QDialog) -> None:
+        destination, accepted = QFileDialog.getSaveFileName(
+            self, self._localized("Export proven RAW"), str(inspection.source.with_suffix(".st")),
+            self._localized("Raw image (*.img *.ima *.bin *.st);;All files (*)"),
+        )
+        if not accepted or not destination:
+            return
+        dialog.accept()
+        self._run_worker(
+            self._localized("Exporting MSA to RAW"),
+            lambda progress=None, token=None: export_msa_to_raw(inspection.source, Path(destination), token),
+            on_result=lambda output: self.log(self._localized("Exported verified MSA tracks to {path}").format(path=output)),
+        )
+
+    def inspect_psi_image(self, source_path: Path | None = None) -> None:
+        """Inspect all PSI chunks and export only a complete normal sector layout."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect PSI image"), "",
+                self._localized("PSI files (*.psi);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting PSI image"),
+            lambda progress=None, token=None: inspect_psi(source_path, token),
+            on_result=lambda inspection: self._show_psi_inspection(inspection),
+        )
+
+    def _show_psi_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("PSI inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Sector records')}: {len(inspection.sectors)}; {self._localized('Compressed sectors')}: {inspection.compressed_sector_count}\\n"
+            f"{self._localized('RAW export')}: {self._localized('Available') if inspection.exportable else self._localized('Unavailable')}\\n"
+            f"{self._localized('Reason')}: {inspection.export_reason}"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Default format')}: 0x{inspection.default_format:04X}\\n"
+            f"{self._localized('Comment chunks')}: {inspection.comment_count}\\n"
+            f"{self._localized('Metadata chunks')}: {inspection.metadata_chunk_count}\\n"
+            f"{self._localized('Validated bytes')}: {human_bytes(inspection.raw_bytes or 0)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        if inspection.exportable:
+            export_button = buttons.addButton(self._localized("Export proven RAW…"), QDialogButtonBox.ButtonRole.ActionRole)
+            export_button.clicked.connect(lambda: self._choose_psi_raw_destination(inspection, dialog))
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def _choose_psi_raw_destination(self, inspection, dialog: QDialog) -> None:
+        destination, accepted = QFileDialog.getSaveFileName(
+            self, self._localized("Export proven RAW"), str(inspection.source.with_suffix(".img")),
+            self._localized("Raw image (*.img *.ima *.bin);;All files (*)"),
+        )
+        if not accepted or not destination:
+            return
+        dialog.accept()
+        self._run_worker(
+            self._localized("Exporting PSI to RAW"),
+            lambda progress=None, token=None: export_psi_to_raw(inspection.source, Path(destination), token),
+            on_result=lambda output: self.log(self._localized("Exported verified PSI layout to {path}").format(path=output)),
+        )
+
+    def inspect_pri_image(self, source_path: Path | None = None) -> None:
+        """Inspect PRI bitstream chunks without decoding or modifying them."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect PRI structure"), "",
+                self._localized("PRI files (*.pri);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting PRI structure"),
+            lambda progress=None, token=None: inspect_pri(source_path, token),
+            on_result=lambda inspection: self._show_pri_inspection(inspection),
+        )
+
+    def _show_pri_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("PRI structural inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Track records')}: {len(inspection.tracks)}; {self._localized('Tracks with data')}: {inspection.complete_data_track_count}\\n"
+            f"{self._localized('Total bits')}: {inspection.total_bits}; {self._localized('Clock range')}: {inspection.clock_min_hz or 0}–{inspection.clock_max_hz or 0} Hz\\n"
+            f"{self._localized('Read-only bitstream')}: {self._localized('No decoding or RAW export is available.') }"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Fuzzy events')}: {inspection.fuzz_event_count}\\n"
+            f"{self._localized('Clock events')}: {inspection.clock_event_count}\\n"
+            f"{self._localized('Weak events')}: {inspection.weak_event_count}\\n"
+            f"{self._localized('Comment chunks')}: {inspection.comment_count}\\n"
+            f"{self._localized('Unknown chunks')}: {inspection.unknown_chunk_count}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def inspect_86f_image(self, source_path: Path | None = None) -> None:
+        """Inspect the restricted 86F v2.12 bitstream layout without decoding it."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect 86F structure"), "",
+                self._localized("86F files (*.86f);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting 86F structure"),
+            lambda progress=None, token=None: inspect_86f(source_path, token),
+            on_result=lambda inspection: self._show_86f_inspection(inspection),
+        )
+
+    def _show_86f_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("86F structural inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Track records')}: {len(inspection.tracks)}; {self._localized('Missing tracks')}: {inspection.missing_track_count}\\n"
+            f"{self._localized('Sides')}: {inspection.sides}; {self._localized('Total bitcells')}: {inspection.total_bitcells}\\n"
+            f"{self._localized('Read-only bitstream')}: {self._localized('No decoding or RAW export is available.') }"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Disk flags')}: 0x{inspection.disk_flags:04X}\\n"
+            f"{self._localized('Surface description')}: {self._localized('Yes') if inspection.has_surface_description else self._localized('No')}\\n"
+            f"{self._localized('Offset table entries')}: {inspection.table_entries}\\n"
+            f"{self._localized('Encoded bytes')}: {human_bytes(inspection.total_encoded_bytes)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
 
     def move_selected(self) -> None:
         """Move a selected regular file to an existing FAT directory without overwrite."""

@@ -15,7 +15,16 @@ from .core.bootsector import apply_boot_template, edit_fat_boot_properties, impo
 from .core.bundle import create_bundle, extract_bundle, inspect_bundle
 from .core.compare import compare_streams
 from .core.cpc_dsk import export_cpc_dsk_to_raw, inspect_cpc_dsk
+from .core.apridisk import export_apridisk_to_raw, inspect_apridisk
+from .core.copyqm import export_copyqm_to_raw, inspect_copyqm
+from .core.sap import export_sap_to_raw, inspect_sap
+from .core.msa import export_msa_to_raw, inspect_msa
+from .core.psi import export_psi_to_raw, inspect_psi
+from .core.pri import inspect_pri
+from .core.eightysixf import inspect_86f
 from .core.d88 import export_d88_to_raw, inspect_d88
+from .core.dc42 import export_dc42_data_to_raw, inspect_dc42
+from .core.hfe import inspect_hfe
 from .core.deployment import prepare_fat_deployment
 from .core.ext_inject import ExtFileInjector
 from .core.fat_metadata import apply_fat_metadata, metadata_update_from_values
@@ -24,6 +33,7 @@ from .core.hfs_inject import HfsFileInjector
 from .core.imd import export_imd_to_raw, inspect_imd
 from .core.inventory import ImageInventoryOptions, export_image_inventory, inventory_images
 from .core.td0 import export_td0_to_raw, inspect_td0
+from .core.twoimg import export_twoimg_to_raw, inspect_twoimg
 from .core.device_queue import DeviceReadRequest, read_device_queue
 from .core.devices import (backup_device_mbr, compare_image_with_device, format_removable_fat,
                            neutralize_device_mbr, restore_device_mbr)
@@ -104,6 +114,47 @@ def parser() -> argparse.ArgumentParser:
     convert_d88 = commands.add_parser("convert-d88", help="Export only a strictly proven normal D88 layout to a new RAW image")
     convert_d88.add_argument("source", type=Path)
     convert_d88.add_argument("destination", type=Path)
+    hfe_info = commands.add_parser("hfe-info", help="Inspect an HFE bitstream container without decoding, converting, or modifying it")
+    hfe_info.add_argument("image", type=Path)
+    dc42_info = commands.add_parser("dc42-info", help="Inspect a checksum-validated DC42 container without modifying its source or tags")
+    dc42_info.add_argument("image", type=Path)
+    convert_dc42 = commands.add_parser("convert-dc42", help="Export only a fully checksum-validated DC42 data fork to a new RAW image")
+    convert_dc42.add_argument("source", type=Path)
+    convert_dc42.add_argument("destination", type=Path)
+    twoimg_info = commands.add_parser("twoimg-info", help="Inspect a standard 2MG/2IMG container without modifying its data or optional blocks")
+    twoimg_info.add_argument("image", type=Path)
+    convert_twoimg = commands.add_parser("convert-twoimg", help="Export only a structurally validated DOS/ProDOS 2MG data block to a new RAW image")
+    convert_twoimg.add_argument("source", type=Path)
+    convert_twoimg.add_argument("destination", type=Path)
+    apridisk_info = commands.add_parser("apridisk-info", help="Inspect APRIDISK sector records without modifying the source")
+    apridisk_info.add_argument("image", type=Path)
+    convert_apridisk = commands.add_parser("convert-apridisk", help="Export only a strictly proven rectangular APRIDISK layout to a new RAW image")
+    convert_apridisk.add_argument("source", type=Path)
+    convert_apridisk.add_argument("destination", type=Path)
+    copyqm_info = commands.add_parser("copyqm-info", help="Inspect a checksum-validated CopyQM container without modifying the source")
+    copyqm_info.add_argument("image", type=Path)
+    convert_copyqm = commands.add_parser("convert-copyqm", help="Export only a checksum-verified CopyQM image to a new RAW file")
+    convert_copyqm.add_argument("source", type=Path)
+    convert_copyqm.add_argument("destination", type=Path)
+    sap_info = commands.add_parser("sap-info", help="Inspect SAP sector records and CRCs without modifying the source")
+    sap_info.add_argument("image", type=Path)
+    convert_sap = commands.add_parser("convert-sap", help="Export only a fully validated regular SAP layout to a new RAW image")
+    convert_sap.add_argument("source", type=Path)
+    convert_sap.add_argument("destination", type=Path)
+    msa_info = commands.add_parser("msa-info", help="Inspect and fully decode MSA tracks without modifying the source")
+    msa_info.add_argument("image", type=Path)
+    convert_msa = commands.add_parser("convert-msa", help="Export only a structurally validated MSA track stream to a new RAW image")
+    convert_msa.add_argument("source", type=Path)
+    convert_msa.add_argument("destination", type=Path)
+    psi_info = commands.add_parser("psi-info", help="Inspect a checksummed PSI sector stream without modifying the source")
+    psi_info.add_argument("image", type=Path)
+    convert_psi = commands.add_parser("convert-psi", help="Export only a complete normal PSI layout to a new RAW image")
+    convert_psi.add_argument("source", type=Path)
+    convert_psi.add_argument("destination", type=Path)
+    pri_info = commands.add_parser("pri-info", help="Inspect a CRC-validated PRI bitstream container without decoding or modifying it")
+    pri_info.add_argument("image", type=Path)
+    eightysixf_info = commands.add_parser("86f-info", help="Inspect a restricted 86F v2.12 bitstream layout without decoding or modifying it")
+    eightysixf_info.add_argument("image", type=Path)
     inventory = commands.add_parser("inventory-images", help="Read-only inventory and filter report for local image files")
     inventory.add_argument("root", type=Path, help="Existing local directory to scan")
     inventory.add_argument("destination", type=Path, help="New report file outside the scanned directory")
@@ -637,6 +688,152 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "convert-d88":
             destination = export_d88_to_raw(args.source, args.destination)
             _emit(args, {"source": str(args.source), "destination": str(destination)}, str(destination))
+        elif args.command == "hfe-info":
+            inspection = inspect_hfe(args.image)
+            _emit(args, {"source": str(inspection.source), "version": inspection.version,
+                          "revision": inspection.revision, "tracks": inspection.tracks,
+                          "sides": inspection.sides, "track_encoding": inspection.track_encoding,
+                          "bitrate_kbps": inspection.bitrate_kbps, "rpm": inspection.rpm,
+                          "interface_mode": inspection.interface_mode,
+                          "write_protected": inspection.write_protected,
+                          "track_list_offset": inspection.track_list_offset_bytes,
+                          "bytes": inspection.source_bytes,
+                          "unreferenced_bytes": inspection.unreferenced_bytes,
+                          "track_records": [{"index": item.index, "offset": item.offset_bytes,
+                                             "declared_bytes": item.declared_bytes,
+                                             "stored_bytes": item.stored_bytes,
+                                             "sides": item.side_count} for item in inspection.track_records]},
+                  "HFE structure inspected without bitstream decoding.")
+        elif args.command == "dc42-info":
+            inspection = inspect_dc42(args.image)
+            _emit(args, {"source": str(inspection.source), "name": inspection.name,
+                          "bytes": inspection.source_bytes, "data_bytes": inspection.data_bytes,
+                          "tag_bytes": inspection.tag_bytes, "data_checksum": inspection.data_checksum,
+                          "tag_checksum": inspection.tag_checksum, "encoding": inspection.encoding,
+                          "format_byte": inspection.format_byte},
+                  "DC42 data and tag checksums validated without modifying the source.")
+        elif args.command == "convert-dc42":
+            destination = export_dc42_data_to_raw(args.source, args.destination)
+            _emit(args, {"source": str(args.source), "destination": str(destination)}, str(destination))
+        elif args.command == "twoimg-info":
+            inspection = inspect_twoimg(args.image)
+            _emit(args, {"source": str(inspection.source), "creator_id": inspection.creator_id,
+                          "format": inspection.image_format, "format_name": inspection.format_name,
+                          "write_protected": inspection.write_protected,
+                          "volume_number": inspection.volume_number, "bytes": inspection.source_bytes,
+                          "data_bytes": inspection.data_bytes, "prodos_blocks": inspection.prodos_blocks,
+                          "comment": inspection.comment, "comment_bytes": inspection.comment_bytes,
+                          "creator_data_bytes": inspection.creator_data_bytes,
+                          "exportable": inspection.exportable, "export_reason": inspection.export_reason},
+                  inspection.export_reason)
+        elif args.command == "convert-twoimg":
+            destination = export_twoimg_to_raw(args.source, args.destination)
+            _emit(args, {"source": str(args.source), "destination": str(destination)}, str(destination))
+        elif args.command == "apridisk-info":
+            inspection = inspect_apridisk(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "records": len(inspection.sectors), "deleted_records": inspection.deleted_records,
+                          "comment": inspection.comment, "creator_data_bytes": inspection.creator_data_bytes,
+                          "exportable": inspection.exportable, "export_reason": inspection.export_reason,
+                          "cylinders": inspection.cylinders, "heads": inspection.heads,
+                          "sectors_per_track": inspection.sectors_per_track,
+                          "bytes_per_sector": inspection.bytes_per_sector, "raw_bytes": inspection.raw_bytes,
+                          "sector_records": [{"cylinder": item.cylinder, "head": item.head,
+                                              "sector": item.sector, "bytes": len(item.data),
+                                              "compressed": item.compressed} for item in inspection.sectors]},
+                  inspection.export_reason)
+        elif args.command == "convert-apridisk":
+            destination = export_apridisk_to_raw(args.source, args.destination)
+            _emit(args, {"source": str(args.source), "destination": str(destination)}, str(destination))
+        elif args.command == "copyqm-info":
+            inspection = inspect_copyqm(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "comment": inspection.comment, "media_description": inspection.media_description,
+                          "volume_label": inspection.volume_label, "sector_size": inspection.sector_size,
+                          "sectors_per_track": inspection.sectors_per_track, "heads": inspection.heads,
+                          "tracks": inspection.tracks, "total_sectors": inspection.total_sectors,
+                          "density": inspection.density, "data_crc": inspection.data_crc,
+                          "calculated_crc": inspection.calculated_crc, "raw_bytes": inspection.raw_bytes},
+                  f"CopyQM {inspection.tracks}×{inspection.heads}×{inspection.sectors_per_track} validated")
+        elif args.command == "convert-copyqm":
+            destination = export_copyqm_to_raw(args.source, args.destination)
+            _emit(args, {"source": str(args.source), "destination": str(destination)}, str(destination))
+        elif args.command == "sap-info":
+            inspection = inspect_sap(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "disk_type": inspection.disk_type, "tracks_per_side": inspection.tracks_per_side,
+                          "heads": inspection.heads, "sector_records": len(inspection.sectors),
+                          "crc_error_count": inspection.crc_error_count,
+                          "protected_sector_count": inspection.protected_sector_count,
+                          "exportable": inspection.exportable, "export_reason": inspection.export_reason,
+                          "raw_bytes": inspection.raw_bytes,
+                          "sectors": [{"cylinder": item.cylinder, "head": item.head,
+                                       "sector": item.sector, "bytes": item.sector_size,
+                                       "mode": item.mode, "protection": item.protection,
+                                       "crc_valid": item.crc_valid} for item in inspection.sectors]},
+                  inspection.export_reason)
+        elif args.command == "convert-sap":
+            destination = export_sap_to_raw(args.source, args.destination)
+            _emit(args, {"source": str(args.source), "destination": str(destination)}, str(destination))
+        elif args.command == "msa-info":
+            inspection = inspect_msa(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "sectors_per_track": inspection.sectors_per_track, "heads": inspection.heads,
+                          "start_track": inspection.start_track, "end_track": inspection.end_track,
+                          "track_count": len(inspection.tracks), "compressed_track_count": inspection.compressed_track_count,
+                          "raw_bytes": inspection.raw_bytes,
+                          "tracks": [{"cylinder": item.cylinder, "head": item.head,
+                                      "stored_bytes": item.stored_bytes, "compressed": item.compressed,
+                                      "decoded_bytes": len(item.data)} for item in inspection.tracks]},
+                  f"MSA {inspection.start_track}-{inspection.end_track}, {inspection.heads} side(s), validated")
+        elif args.command == "convert-msa":
+            destination = export_msa_to_raw(args.source, args.destination)
+            _emit(args, {"source": str(args.source), "destination": str(destination)}, str(destination))
+        elif args.command == "psi-info":
+            inspection = inspect_psi(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "default_format": inspection.default_format, "comment_count": inspection.comment_count,
+                          "metadata_chunk_count": inspection.metadata_chunk_count,
+                          "sector_count": len(inspection.sectors),
+                          "compressed_sector_count": inspection.compressed_sector_count,
+                          "exportable": inspection.exportable, "export_reason": inspection.export_reason,
+                          "raw_bytes": inspection.raw_bytes,
+                          "sectors": [{"cylinder": item.cylinder, "head": item.head,
+                                       "sector": item.sector, "bytes": item.data_bytes,
+                                       "compressed": item.compressed} for item in inspection.sectors]},
+                  inspection.export_reason)
+        elif args.command == "convert-psi":
+            destination = export_psi_to_raw(args.source, args.destination)
+            _emit(args, {"source": str(args.source), "destination": str(destination)}, str(destination))
+        elif args.command == "pri-info":
+            inspection = inspect_pri(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "comment_count": inspection.comment_count, "unknown_chunk_count": inspection.unknown_chunk_count,
+                          "track_count": len(inspection.tracks), "complete_data_track_count": inspection.complete_data_track_count,
+                          "total_bits": inspection.total_bits, "clock_min_hz": inspection.clock_min_hz,
+                          "clock_max_hz": inspection.clock_max_hz, "fuzz_event_count": inspection.fuzz_event_count,
+                          "clock_event_count": inspection.clock_event_count, "weak_event_count": inspection.weak_event_count,
+                          "tracks": [{"cylinder": item.cylinder, "head": item.head,
+                                       "bits": item.bit_count, "clock_hz": item.clock_hz,
+                                       "data_present": item.data_present, "fuzz_events": item.fuzz_events,
+                                       "clock_events": item.clock_events, "weak_events": item.weak_events}
+                                     for item in inspection.tracks]},
+                  f"PRI structure validated: {len(inspection.tracks)} track(s), {inspection.total_bits} bit(s)")
+        elif args.command == "86f-info":
+            inspection = inspect_86f(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "disk_flags": f"0x{inspection.disk_flags:04X}", "sides": inspection.sides,
+                          "has_surface_description": inspection.has_surface_description,
+                          "table_entries": inspection.table_entries, "track_count": len(inspection.tracks),
+                          "missing_track_count": inspection.missing_track_count, "total_bitcells": inspection.total_bitcells,
+                          "total_encoded_bytes": inspection.total_encoded_bytes,
+                          "tracks": [{"logical_index": item.logical_index, "cylinder": item.cylinder,
+                                       "head": item.head, "offset": item.offset, "bitcells": item.bitcells,
+                                       "index_hole": item.index_hole, "encoding": item.encoding,
+                                       "bit_rate_kbps": item.bit_rate_kbps, "rpm": item.rpm,
+                                       "data_bytes": item.data_bytes, "has_surface_description": item.has_surface_description}
+                                     for item in inspection.tracks]},
+                  f"86F v2.12 structure validated: {len(inspection.tracks)} track(s), {inspection.total_bitcells} bitcell(s)")
         elif args.command == "inventory-images":
             options = ImageInventoryOptions(
                 recursive=args.recursive, suffixes=tuple(args.suffix),

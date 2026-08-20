@@ -14,7 +14,16 @@ from typing import Iterator, Sequence
 from .core.browse_session import materialize_browsable_image
 from .core.compare import ComparisonResult, compare_streams
 from .core.cpc_dsk import CpcDskInspection, export_cpc_dsk_to_raw, inspect_cpc_dsk
+from .core.apridisk import ApriDiskInspection, export_apridisk_to_raw, inspect_apridisk
+from .core.copyqm import CopyQmInspection, export_copyqm_to_raw, inspect_copyqm
+from .core.sap import SapInspection, export_sap_to_raw, inspect_sap
+from .core.msa import MsaInspection, export_msa_to_raw, inspect_msa
+from .core.psi import PsiInspection, export_psi_to_raw, inspect_psi
+from .core.pri import PriInspection, inspect_pri
+from .core.eightysixf import EightySixFInspection, inspect_86f
 from .core.d88 import D88Inspection, export_d88_to_raw, inspect_d88
+from .core.dc42 import Dc42Inspection, export_dc42_data_to_raw, inspect_dc42
+from .core.hfe import HfeInspection, inspect_hfe
 from .core.fat_metadata import (FatMetadataResult, apply_fat_metadata,
                                 metadata_update_from_values)
 from .core.fat_recovery import DeletedFatFileCandidate
@@ -22,6 +31,7 @@ from .core.imd import ImdInspection, export_imd_to_raw, inspect_imd
 from .core.inventory import (ImageInventory, ImageInventoryOptions, ReportFormat,
                              export_image_inventory, inventory_images)
 from .core.td0 import Td0Inspection, export_td0_to_raw, inspect_td0
+from .core.twoimg import TwoImgInspection, export_twoimg_to_raw, inspect_twoimg
 from .core.filesystems import (FatImageFilesystem, ImageFilesystem, IsoImageFilesystem,
                                create_fat_image, replace_iso_file_safely)
 from .core.formats import Converter, convert_image, inspect_image
@@ -135,6 +145,88 @@ class DiskForgeClient:
         output = export_d88_to_raw(source, destination, token)
         return ApiResult("export_d88_to_raw", Path(source), output, "Strict D88-to-RAW export")
 
+    def inspect_hfe(self, source: Path | str, *, token: CancellationToken | None = None) -> HfeInspection:
+        """Inspect an HFE bitstream container without decoding or mutation."""
+        return inspect_hfe(source, token)
+
+    def inspect_dc42(self, source: Path | str, *, token: CancellationToken | None = None) -> Dc42Inspection:
+        """Validate a DC42 data and optional tag fork without mutating either."""
+        return inspect_dc42(source, token)
+
+    def export_dc42_data_to_raw(self, source: Path | str, destination: Path | str, *,
+                                token: CancellationToken | None = None) -> ApiResult:
+        """Export only a fully checksum-validated DC42 data fork to a new RAW file."""
+        output = export_dc42_data_to_raw(source, destination, token)
+        return ApiResult("export_dc42_data_to_raw", Path(source), output, "Verified DC42 data-fork RAW export")
+
+    def inspect_apridisk(self, source: Path | str, *, token: CancellationToken | None = None) -> ApriDiskInspection:
+        """Inspect APRIDISK sector records without mutation or sector flattening."""
+        return inspect_apridisk(source, token)
+
+    def export_apridisk_to_raw(self, source: Path | str, destination: Path | str, *,
+                               token: CancellationToken | None = None) -> ApiResult:
+        """Export only a proven normal rectangular APRIDISK sector layout to a new RAW file."""
+        output = export_apridisk_to_raw(source, destination, token)
+        return ApiResult("export_apridisk_to_raw", Path(source), output, "Strict APRIDISK-to-RAW export")
+
+    def inspect_copyqm(self, source: Path | str, *, token: CancellationToken | None = None) -> CopyQmInspection:
+        """Inspect a CopyQM container only when its fixed geometry and decoded data CRC validate."""
+        return inspect_copyqm(source, token)
+
+    def export_copyqm_to_raw(self, source: Path | str, destination: Path | str, *,
+                             token: CancellationToken | None = None) -> ApiResult:
+        """Export a checksum-verified CopyQM image to a separately created RAW output."""
+        output = export_copyqm_to_raw(source, destination, token)
+        return ApiResult("export_copyqm_to_raw", Path(source), output, "Checksum-verified CopyQM RAW export")
+
+    def inspect_sap(self, source: Path | str, *, token: CancellationToken | None = None) -> SapInspection:
+        """Inspect all SAP sectors, protection states, and Pukall CRCs without mutation."""
+        return inspect_sap(source, token)
+
+    def export_sap_to_raw(self, source: Path | str, destination: Path | str, *,
+                          token: CancellationToken | None = None) -> ApiResult:
+        """Export only a fully regular, unprotected, CRC-valid SAP layout to new RAW output."""
+        output = export_sap_to_raw(source, destination, token)
+        return ApiResult("export_sap_to_raw", Path(source), output, "Strict CRC-validated SAP RAW export")
+
+    def inspect_msa(self, source: Path | str, *, token: CancellationToken | None = None) -> MsaInspection:
+        """Inspect and fully decode an MSA track stream without source mutation."""
+        return inspect_msa(source, token)
+
+    def export_msa_to_raw(self, source: Path | str, destination: Path | str, *,
+                          token: CancellationToken | None = None) -> ApiResult:
+        """Export only a structurally complete and fully decoded MSA stream to a new RAW file."""
+        output = export_msa_to_raw(source, destination, token)
+        return ApiResult("export_msa_to_raw", Path(source), output, "Strict MSA track-validated RAW export")
+
+    def inspect_psi(self, source: Path | str, *, token: CancellationToken | None = None) -> PsiInspection:
+        """Inspect a fully checksummed PSI sector chunk stream without mutation."""
+        return inspect_psi(source, token)
+
+    def export_psi_to_raw(self, source: Path | str, destination: Path | str, *,
+                          token: CancellationToken | None = None) -> ApiResult:
+        """Export only a complete normal PSI sector layout to a separate RAW file."""
+        output = export_psi_to_raw(source, destination, token)
+        return ApiResult("export_psi_to_raw", Path(source), output, "Strict PSI block-validated RAW export")
+
+    def inspect_pri(self, source: Path | str, *, token: CancellationToken | None = None) -> PriInspection:
+        """Inspect a CRC-validated PRI bitstream container without decoding or mutating it."""
+        return inspect_pri(source, token)
+
+    def inspect_86f(self, source: Path | str, *, token: CancellationToken | None = None) -> EightySixFInspection:
+        """Inspect a restricted 86F v2.12 bitstream layout without decoding or mutation."""
+        return inspect_86f(source, token)
+
+    def inspect_twoimg(self, source: Path | str, *, token: CancellationToken | None = None) -> TwoImgInspection:
+        """Inspect a standard 2MG/2IMG container without mutating any of its blocks."""
+        return inspect_twoimg(source, token)
+
+    def export_twoimg_to_raw(self, source: Path | str, destination: Path | str, *,
+                             token: CancellationToken | None = None) -> ApiResult:
+        """Export only a validated DOS/ProDOS 2MG data block to a new RAW file."""
+        output = export_twoimg_to_raw(source, destination, token)
+        return ApiResult("export_twoimg_to_raw", Path(source), output, "Verified 2MG data-block RAW export")
+
     def replace_iso_file(self, source: Path | str, iso_path: str, replacement: Path | str,
                          destination: Path | str, *, overwrite: bool = False) -> ApiResult:
         """Write an equal-length ISO file replacement to a new verified image."""
@@ -169,6 +261,26 @@ class DiskForgeClient:
                 raise DiskForgeError("CPC DSK images are read-only sector containers; inspect them or use strict CPC DSK RAW export instead of filesystem access.")
             if info.image_format == ImageFormat.D88:
                 raise DiskForgeError("D88 images are read-only sector containers; inspect them or use strict D88 RAW export instead of filesystem access.")
+            if info.image_format == ImageFormat.HFE:
+                raise DiskForgeError("HFE images are read-only bitstream containers; inspect structure instead of opening a filesystem session.")
+            if info.image_format == ImageFormat.DC42:
+                raise DiskForgeError("DC42 images are read-only containers; inspect them or use verified DC42 data-fork RAW export instead of filesystem access.")
+            if info.image_format == ImageFormat.TWOIMG:
+                raise DiskForgeError("2MG/2IMG images are read-only containers; inspect them or use verified 2MG data-block RAW export instead of filesystem access.")
+            if info.image_format == ImageFormat.APRIDISK:
+                raise DiskForgeError("APRIDISK images are read-only sector containers; inspect them or use strict APRIDISK RAW export instead of filesystem access.")
+            if info.image_format == ImageFormat.COPYQM:
+                raise DiskForgeError("CopyQM images are read-only compressed containers; inspect them or use checksum-verified CopyQM RAW export instead of filesystem access.")
+            if info.image_format == ImageFormat.SAP:
+                raise DiskForgeError("SAP images are read-only sector containers; inspect them or use strict CRC-validated SAP RAW export instead of filesystem access.")
+            if info.image_format == ImageFormat.MSA:
+                raise DiskForgeError("MSA images are read-only compressed track containers; inspect them or use strict MSA track-validated RAW export instead of filesystem access.")
+            if info.image_format == ImageFormat.PSI:
+                raise DiskForgeError("PSI images are read-only checksummed sector containers; inspect them or use strict PSI block-validated RAW export instead of filesystem access.")
+            if info.image_format == ImageFormat.PRI:
+                raise DiskForgeError("PRI images are read-only bitstream containers; inspect their CRC-validated structure instead of filesystem access.")
+            if info.image_format == ImageFormat.EIGHTYSIXF:
+                raise DiskForgeError("86F images are read-only bitstream containers; inspect their validated v2.12 structure instead of filesystem access.")
             if info.image_format == ImageFormat.ZIP:
                 if writable:
                     raise DiskForgeError("ZIP image containers are read-only; writable filesystem access is unavailable.")

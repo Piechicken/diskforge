@@ -48,6 +48,10 @@ ISO 内容编辑采用单独输出的重建方式。它会核验暂存文件哈�
 
 > 对于 128/256 字节扇区、GCR 或变速扇区、硬分区、非 FAT、复制保护轨道及 flux/bitcell 捕获等历史格式，DiskForge 仅承诺原始字节保存、检查、校验与比较；不会将其虚报为可安全文件级编辑的 FAT 映像。
 
+### 历史容器只读能力
+
+v0.10 新增 HFE、DC42、2MG/2IMG、APRIDISK、CopyQM、SAP、MSA、PSI、PRI 及受限 86F v2.12 子集的格式专用结构检查。DC42 与 2MG/2IMG 只会导出已经独立验证的数据区域；APRIDISK、CopyQM、SAP、MSA、PSI 仅在解析器证明数据为正常、完整、矩形布局时创建新的 RAW 文件。HFE、PRI 与 86F 仅检查位流结构，不解码轨道，也不输出 RAW。所有这些路径均拒绝源写入、通用转换、文件系统会话、修复、设备目标、覆盖输出及未经验证的变体。
+
 ## 核心能力
 
 DiskForge 将专业映像管理流程整合到统一界面。主窗口包含映像资源树、目录表格、映像信息面板、活动日志以及可取消进度区；破坏性操作会与常规浏览操作分开呈现。
@@ -55,7 +59,7 @@ DiskForge 将专业映像管理流程整合到统一界面。主窗口包含映�
 | 工作流 | 原生能力 | 说明 |
 |---|---|---|
 | 创建映像 | RAW/IMG/IMA、FAT12、FAT16、FAT32、经过验证的老式 FAT12 软盘预设、DMF 布局 FAT12、ISO9660/Joliet/Rock Ridge/UDF、可选经典 HFS | 可创建标准可编辑 FAT 映像、明确的 IMG/IMA 老式软盘预设或受支持自定义 CHS 几何、DMF 映像，以及含可选 El Torito 启动介质的 ISO。显式可用 `hformat` 时，DiskForge 可从 800 KiB 起创建新的独立经典 HFS 常规文件映像；HFS+ 始终保持只读。 |
-| 浏览与提取 | FAT12/16/32（包含经过验证的无显示标签旧式 DOS 软盘）、保守的 FAT12/FAT16 已删除根目录文件候选、只读 IMD 与普通 TD0 扇区检查、ISO9660/Joliet、安全单映像 ZIP 容器、固定 VHD 数据视图，以及可选 NTFS/EXT/经典 HFS/HFS+ 只读后端 | 普通 ZIP 仅在恰有一个安全的根级映像载荷时，才会物化到自动清理的私有只读会话；它绝不会变为可写或可转换映像。目录树和表格采用确定性分页与排序缓存，不会无界加载大目录。经验证的 MBR/GPT 分区始终按显式表索引选择：FAT 保留现有编辑路径，NTFS/EXT/经典 HFS/HFS+ 仅按精确验证偏移经只读后端打开。双击会打开无需系统默认程序的文档式工作区：文本可查找、另存副本，且仅在可写 FAT 条目中可编辑后保存回映像；图像、常见压缩包、传统安装包、可执行文件和二进制数据均以安全、不执行的方式检查。固定 VHD 以排除尾部元数据的临时 RAW 只读视图打开。 |
+| 浏览与提取 | FAT12/16/32（包含经过验证的无显示标签旧式 DOS 软盘）、保守的 FAT12/FAT16 已删除根目录文件候选、只读 IMD、TD0、CPC DSK、D88、APRIDISK、CopyQM、SAP、MSA、PSI、DC42、2MG/2IMG、HFE、PRI 与受限 86F 检查、ISO9660/Joliet、安全单映像 ZIP 容器、固定 VHD 数据视图，以及可选 NTFS/EXT/经典 HFS/HFS+ 只读后端 | 普通 ZIP 仅在恰有一个安全的根级映像载荷时，才会物化到自动清理的私有只读会话；它绝不会变为可写或可转换映像。目录树和表格采用确定性分页与排序缓存，不会无界加载大目录。经验证的 MBR/GPT 分区始终按显式表索引选择：FAT 保留现有编辑路径，NTFS/EXT/经典 HFS/HFS+ 仅按精确验证偏移经只读后端打开。双击会打开无需系统默认程序的文档式工作区：文本可查找、另存副本，且仅在可写 FAT 条目中可编辑后保存回映像；图像、常见压缩包、传统安装包、可执行文件和二进制数据均以安全、不执行的方式检查。固定 VHD 以排除尾部元数据的临时 RAW 只读视图打开。 |
 | 批量盘点映像目录 | 只读本地映像元数据扫描，可导出 JSON、CSV 或 HTML 报告 | 扫描一个本地目录，可选递归；按扩展名、已识别格式、文件系统、字节范围或 SHA-256 前缀筛选已知映像候选。每条记录的 SHA-256 与分区摘要均可选。所有报告均为扫描根目录外的新文件；绝不修改候选映像。 |
 | 修改映像内容 | FAT 文件/目录注入、删除、改名、跨目录移动常规文件、时间属性编辑；安全的 ISO 重建编辑；可选 NTFS/EXT/经典 HFS 受控注入 | FAT IMG 与 IMA 共享完整可编辑工作流。常规文件可移动到已有目录而不覆盖；根目录、缺失或非目录目标、同名冲突、只读会话和所有目录移动均会在修改前被拒绝。同目录改名仍是独立操作。ISO 编辑始终输出新的重建映像并核验暂存内容，保留 Rock Ridge/UDF；仅可保留已验证的单初始 El Torito 条目，多启动、混合或歧义启动布局会被拒绝。若显式提供 `ntfsprogs`、`e2fsprogs` 或 `hfsutils` 后端，NTFS/EXT/经典 HFS 只能将新的根目录常规文件写入独立且已验证的输出映像；不允许原映像、分区偏移、元数据、改名、删除或覆盖写入。经典 HFS 仅传输原始数据 fork；HFS+ 保持只读。 |
 | 格式转换 | 原生 RAW/IMG/IMA 与固定 VHD | IMG 与 IMA 转换会保留用户明确选择的原始映像扩展名；VHDX、VMDK、QCOW2 通过显式配置的 `qemu-img` 适配器处理。 |
@@ -102,6 +106,17 @@ diskforge-cli imd-info legacy.imd  # 只读磁道/扇区审计
 diskforge-cli convert-imd legacy.imd exported.img  # 仅导出已证明的矩形正常数据布局
 diskforge-cli td0-info legacy.td0  # 只读普通 TD0 磁道/扇区审计
 diskforge-cli convert-td0 legacy.td0 exported.img  # 仅导出已证明的无标志普通矩形布局
+diskforge-cli dc42-info disk.dc42  # 验证头、双 fork 与校验和
+diskforge-cli convert-dc42 disk.dc42 exported.img  # 仅验证后的数据 fork
+diskforge-cli twoimg-info apple.2mg  # 验证标准 2MG/2IMG 结构
+diskforge-cli convert-twoimg apple.2mg exported.img  # 仅 DOS/ProDOS 数据块
+diskforge-cli apridisk-info legacy.dsk  # 基于签名的 APRIDISK 审计
+diskforge-cli copyqm-info archive.qm  # 带校验和的 CopyQM 审计
+diskforge-cli sap-info thomson.sap  # 经 CRC 验证的 SAP 审计
+diskforge-cli msa-info atari.msa  # 完整解码并验证 MSA 轨道
+diskforge-cli psi-info media.psi  # 经 CRC 验证的 PSI 扇区流
+diskforge-cli pri-info capture.pri  # 经 CRC 验证的 PRI 位流结构
+diskforge-cli 86f-info capture.86f  # 受限 86F v2.12 位流结构
 diskforge-cli inventory-images ./映像库 映像库报告.json --recursive --include-sha256  # 只读；报告必须位于扫描根目录外
 diskforge-cli create-legacy-floppy win16-disk --profile pc525_dsdd_360 --format ima
 diskforge-cli create-legacy-floppy custom-disk --format img --cylinders 80 --heads 2 --sectors-per-track 9

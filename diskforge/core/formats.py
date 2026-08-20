@@ -568,8 +568,40 @@ def inspect_image(path: Path | str, converter: Converter | None = None) -> Image
         detected = ImageFormat.TD0
     if head.startswith((b"MV - CPCEMU Disk-File\r\nDisk-Info\r\n", b"EXTENDED CPC DSK File\r\nDisk-Info\r\n")):
         detected = ImageFormat.CPC_DSK
+    apridisk_magic = b"ACT Apricot disk image\x1a\x04"
+    if (target.suffix.casefold() == ".dsk" and len(head) >= 128 and head[:len(apridisk_magic)] == apridisk_magic
+            and head[len(apridisk_magic):128] == b"\0" * (128 - len(apridisk_magic))):
+        detected = ImageFormat.APRIDISK
     if target.suffix.casefold() in {".d88", ".1dd", ".2dd"} and len(head) >= 0x24 and int.from_bytes(head[0x20:0x24], "little") in {0x2A0, 0x2B0}:
         detected = ImageFormat.D88
+    if head.startswith((b"HXCPICFE", b"HXCHFEV3")):
+        detected = ImageFormat.HFE
+    if (target.suffix.casefold() == ".dc42" and len(head) >= 0x54
+            and head[0] <= 63 and head[0x52:0x54] == b"\x01\x00"):
+        detected = ImageFormat.DC42
+    if (target.suffix.casefold() in {".2mg", ".2img"} and len(head) >= 64
+            and head[:4] == b"2IMG" and int.from_bytes(head[8:10], "little") == 64
+            and int.from_bytes(head[10:12], "little") == 1):
+        detected = ImageFormat.TWOIMG
+    if target.suffix.casefold() == ".qm" and len(head) >= 133 and head[:3] == b"CQ\x14" and not (sum(head[:133]) & 0xFF):
+        detected = ImageFormat.COPYQM
+    sap_magic = b"SYSTEME D'ARCHIVAGE PUKALL S.A.P. (c) Alexandre PUKALL Avril 1998"
+    if (target.suffix.casefold() == ".sap" and len(head) >= 66 and not (head[0] & 0x7C)
+            and head[1:66] == sap_magic):
+        detected = ImageFormat.SAP
+    if (target.suffix.casefold() == ".msa" and len(head) >= 10 and head[:2] == b"\x0e\x0f"
+            and 1 <= int.from_bytes(head[2:4], "big") <= 32 and int.from_bytes(head[4:6], "big") in {0, 1}
+            and int.from_bytes(head[6:8], "big") <= int.from_bytes(head[8:10], "big") <= 85):
+        detected = ImageFormat.MSA
+    if (target.suffix.casefold() == ".psi" and len(head) >= 12 and head[:4] == b"PSI "
+            and int.from_bytes(head[4:8], "big") == 4 and head[8:10] == b"\0\0"):
+        detected = ImageFormat.PSI
+    if (target.suffix.casefold() == ".pri" and len(head) >= 12 and head[:4] == b"PRI "
+            and int.from_bytes(head[4:8], "big") == 4 and head[8:10] == b"\0\0"):
+        detected = ImageFormat.PRI
+    if (target.suffix.casefold() == ".86f" and len(head) >= 8 and head[:4] == b"86BF" and head[4:6] == b"\x0c\x02"
+            and (int.from_bytes(head[6:8], "little") & 0x1080) == 0x1080):
+        detected = ImageFormat.EIGHTYSIXF
     vhd = parse_vhd_footer(target) if size >= VHD_FOOTER_SIZE else None
     if vhd:
         detected = ImageFormat.VHD
@@ -580,7 +612,7 @@ def inspect_image(path: Path | str, converter: Converter | None = None) -> Image
         virtual_size = int(metadata.get("virtual-size", 0)) or None
         notes.append(f"Converter reports {metadata.get('format', detected.value)}")
     fs_type = detect_filesystem(head, image_size=size)
-    writable = os.access(target, os.W_OK) and detected not in {ImageFormat.ISO, ImageFormat.DMG, ImageFormat.ZIP, ImageFormat.TD0, ImageFormat.CPC_DSK, ImageFormat.D88}
+    writable = os.access(target, os.W_OK) and detected not in {ImageFormat.ISO, ImageFormat.DMG, ImageFormat.ZIP, ImageFormat.TD0, ImageFormat.CPC_DSK, ImageFormat.D88, ImageFormat.HFE, ImageFormat.DC42, ImageFormat.TWOIMG, ImageFormat.APRIDISK, ImageFormat.COPYQM, ImageFormat.SAP, ImageFormat.MSA, ImageFormat.PSI, ImageFormat.PRI, ImageFormat.EIGHTYSIXF}
     return ImageInfo(target, detected, size, fs_type, writable=writable,
                      virtual_size=virtual_size, notes=tuple(notes))
 
@@ -675,6 +707,26 @@ def convert_image(source: Path | str, destination: Path | str, destination_forma
         raise DiskForgeError("CPC DSK images are read-only sector containers; use strict CPC DSK RAW export only after inspection proves a rectangular layout.")
     if source_info.image_format == ImageFormat.D88:
         raise DiskForgeError("D88 images are read-only sector containers; use strict D88 RAW export only after inspection proves a rectangular layout.")
+    if source_info.image_format == ImageFormat.HFE:
+        raise DiskForgeError("HFE images are read-only bitstream containers; inspect their structure rather than converting, browsing, or flattening them.")
+    if source_info.image_format == ImageFormat.DC42:
+        raise DiskForgeError("DC42 images are read-only containers; inspect them and use the verified DC42 data-fork RAW export instead of generic conversion.")
+    if source_info.image_format == ImageFormat.TWOIMG:
+        raise DiskForgeError("2MG/2IMG images are read-only containers; inspect them and use the verified 2MG data-block RAW export instead of generic conversion.")
+    if source_info.image_format == ImageFormat.APRIDISK:
+        raise DiskForgeError("APRIDISK images are read-only sector containers; use strict APRIDISK RAW export only after inspection proves a rectangular layout.")
+    if source_info.image_format == ImageFormat.COPYQM:
+        raise DiskForgeError("CopyQM images are read-only compressed containers; use checksum-verified CopyQM RAW export instead of generic conversion.")
+    if source_info.image_format == ImageFormat.SAP:
+        raise DiskForgeError("SAP images are read-only sector containers; use strict CRC-validated SAP RAW export instead of generic conversion.")
+    if source_info.image_format == ImageFormat.MSA:
+        raise DiskForgeError("MSA images are read-only compressed track containers; use strict MSA track-validated RAW export instead of generic conversion.")
+    if source_info.image_format == ImageFormat.PSI:
+        raise DiskForgeError("PSI images are read-only checksummed sector containers; use strict PSI block-validated RAW export instead of generic conversion.")
+    if source_info.image_format == ImageFormat.PRI:
+        raise DiskForgeError("PRI images are read-only bitstream containers; inspect their CRC-validated structure rather than converting, browsing, or flattening them.")
+    if source_info.image_format == ImageFormat.EIGHTYSIXF:
+        raise DiskForgeError("86F images are read-only bitstream containers; inspect their validated v2.12 structure rather than converting, browsing, or flattening them.")
     if destination_format in {ImageFormat.RAW, ImageFormat.IMG, ImageFormat.IMA}:
         source_limit = source_info.virtual_size if source_info.image_format == ImageFormat.VHD else None
         stream_copy(source_path, destination_path, OperationKind.CONVERT, limit=source_limit,
