@@ -45,6 +45,7 @@ from diskforge.core.imd import export_imd_to_raw, inspect_imd
 from diskforge.core.inventory import ImageInventoryOptions, export_image_inventory, inventory_images
 from diskforge.core.td0 import export_td0_to_raw, inspect_td0
 from diskforge.core.cpc_dsk import export_cpc_dsk_to_raw, inspect_cpc_dsk
+from diskforge.core.d88 import export_d88_to_raw, inspect_d88
 from diskforge.core.eltorito import export_boot_image, inspect_eltorito
 from diskforge.core.fat_layouts import FatImageLayout, create_fat_image_from_layout
 from diskforge.core.floppy_format import FloppyControllerFormatter
@@ -81,7 +82,7 @@ from diskforge.gui.theme import apply_theme
 from diskforge.gui.workers import FunctionWorker
 
 
-IMAGE_FILTER = "Disk images (*.img *.ima *.imd *.td0 *.dsk *.hfs *.bin *.dd *.dmf *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
+IMAGE_FILTER = "Disk images (*.img *.ima *.imd *.td0 *.dsk *.d88 *.1dd *.2dd *.hfs *.bin *.dd *.dmf *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
 
 
 class NewImageDialog(QDialog):
@@ -686,6 +687,7 @@ class MainWindow(QMainWindow):
         self.action_imd = self._action("Inspect / export IMD…", None, self.inspect_imd_image)
         self.action_td0 = self._action("Inspect / export TD0…", None, self.inspect_td0_image)
         self.action_cpc_dsk = self._action("Inspect / export CPC DSK…", None, self.inspect_cpc_dsk_image)
+        self.action_d88 = self._action("Inspect / export D88…", None, self.inspect_d88_image)
         self.action_inventory = self._action("Inventory images…", None, self.inventory_images)
         self.action_batch_designer = self._action("Design batch workflow…", None, self.design_batch)
         self.action_batch_edit = self._action("Edit batch recipe…", None, self.edit_batch)
@@ -732,7 +734,7 @@ class MainWindow(QMainWindow):
         menu_view = self.menuBar().addMenu("&View")
         menu_view.addActions([self.action_view_details, self.action_view_icons])
         menu_tools = self.menuBar().addMenu("&Tools")
-        menu_tools.addActions([self.action_devices, self.action_device_read_queue, self.action_imd, self.action_td0, self.action_cpc_dsk, self.action_inventory, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
+        menu_tools.addActions([self.action_devices, self.action_device_read_queue, self.action_imd, self.action_td0, self.action_cpc_dsk, self.action_d88, self.action_inventory, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
         menu_language = menu_tools.addMenu("&Language")
         self.language_actions: list[QAction] = []
         try:
@@ -1202,6 +1204,9 @@ class MainWindow(QMainWindow):
             return
         if selected.suffix.casefold() == ".dsk":
             self.inspect_cpc_dsk_image(selected)
+            return
+        if selected.suffix.casefold() in {".d88", ".1dd", ".2dd"}:
+            self.inspect_d88_image(selected)
             return
         self._open_path(selected)
 
@@ -2120,6 +2125,36 @@ class MainWindow(QMainWindow):
             lambda progress=None, token=None: export_cpc_dsk_to_raw(inspection.source, Path(destination), token),
             on_result=lambda output: self.log(self._localized("Exported proven CPC DSK layout to {path}").format(path=output)),
         )
+
+    def inspect_d88_image(self, source_path: Path | None = None) -> None:
+        """Inspect one D88 container without mutation and export only a proven RAW layout."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(self, self._localized("Inspect D88 image"), "", self._localized("D88 files (*.d88 *.1dd *.2dd);;All files (*)"))
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(self._localized("Inspecting D88 image"), lambda progress=None, token=None: inspect_d88(source_path, token), on_result=lambda inspection: self._show_d88_inspection(inspection))
+
+    def _show_d88_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("D88 inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(f"{self._localized('Tracks')}: {len(inspection.tracks)}\\n{self._localized('RAW export')}: {self._localized('Available') if inspection.exportable else self._localized('Unavailable')}\\n{self._localized('Reason')}: {inspection.export_reason}")
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(f"{self._localized('Name')}: {inspection.name or self._localized('None')}\\n{self._localized('Media type')}: {inspection.media_type}\\n\\n" + "\\n".join(f"T{track.slot}: {len(track.sectors)} {self._localized('sectors')}" for track in inspection.tracks))
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        if inspection.exportable:
+            export_button = buttons.addButton(self._localized("Export proven RAW…"), QDialogButtonBox.ButtonRole.ActionRole)
+            export_button.clicked.connect(lambda: self._choose_d88_raw_destination(inspection, dialog))
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def _choose_d88_raw_destination(self, inspection, dialog: QDialog) -> None:
+        destination, accepted = QFileDialog.getSaveFileName(self, self._localized("Export proven RAW"), str(inspection.source.with_suffix(".img")), self._localized("Raw image (*.img *.ima *.bin);;All files (*)"))
+        if not accepted or not destination:
+            return
+        dialog.accept()
+        self._run_worker(self._localized("Exporting D88 to RAW"), lambda progress=None, token=None: export_d88_to_raw(inspection.source, Path(destination), token), on_result=lambda output: self.log(self._localized("Exported proven D88 layout to {path}").format(path=output)))
 
     def move_selected(self) -> None:
         """Move a selected regular file to an existing FAT directory without overwrite."""
