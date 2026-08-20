@@ -12,6 +12,7 @@ from typing import Iterator, Sequence
 
 from .core.browse_session import materialize_browsable_image
 from .core.compare import ComparisonResult, compare_streams
+from .core.fat_recovery import DeletedFatFileCandidate
 from .core.filesystems import (FatImageFilesystem, ImageFilesystem, IsoImageFilesystem,
                                create_fat_image, replace_iso_file_safely)
 from .core.formats import Converter, convert_image, inspect_image
@@ -150,3 +151,18 @@ class DiskForgeClient:
             if not isinstance(filesystem, FatImageFilesystem):
                 raise DiskForgeError("Only writable FAT images support file movement.")
             return filesystem.move(item_path, target_directory)
+
+    def list_deleted_fat(self, image: Path | str, *, partition_index: int | None = None) -> list[DeletedFatFileCandidate]:
+        """List conservative FAT12/FAT16 deleted fixed-root-file candidates without mutating the image."""
+        with self.filesystem(image, partition_index=partition_index) as filesystem:
+            if not isinstance(filesystem, FatImageFilesystem):
+                raise DiskForgeError("Deleted-file candidates are available only for FAT images.")
+            return filesystem.deleted_root_file_candidates()
+
+    def recover_deleted_fat(self, image: Path | str, slot_index: int, destination: Path | str, *,
+                            partition_index: int | None = None) -> Path:
+        """Copy one revalidated single-cluster FAT deleted-file candidate to a new local output file."""
+        with self.filesystem(image, partition_index=partition_index) as filesystem:
+            if not isinstance(filesystem, FatImageFilesystem):
+                raise DiskForgeError("Deleted-file recovery is available only for FAT images.")
+            return filesystem.recover_deleted_root_file(slot_index, destination)

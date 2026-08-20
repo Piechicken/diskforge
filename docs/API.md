@@ -40,6 +40,8 @@ print(result.destination)
 | `client.extract(...)` | Extract paths to a local directory. | Uses the selected extraction policy; source remains unchanged. |
 | `client.inject(...)` | Add local files or directories to FAT. | Only writable FAT sessions are accepted. |
 | `client.move_fat(image, item_path, target_directory)` | Move one regular FAT image file into an existing image directory. | Only writable FAT images are accepted. The target must already be a directory; root movement, collisions, missing/non-directory targets, read-only sessions, and all directory moves are rejected before the backend mutation. |
+| `client.list_deleted_fat(image, partition_index=None)` | List conservative FAT12/FAT16 deleted fixed-root-file candidates. | Read-only. Only ordinary 8.3 slots are listed; candidate recovery is available solely for one currently free single cluster. |
+| `client.recover_deleted_fat(image, slot_index, destination, partition_index=None)` | Copy one revalidated deleted-file candidate to a new local path. | Never writes the image; `destination` must not exist. The result is a candidate copy, not a name or integrity guarantee. |
 
 ## Managed filesystem session
 
@@ -68,6 +70,18 @@ outputs = client.extract("archive.zip", ["/README.TXT"], "extracted")
 ```
 
 `client.filesystem("archive.zip", writable=True)`, `client.inject("archive.zip", ...)`, `client.move_fat("archive.zip", ...)`, and `client.convert("archive.zip", ...)` are deliberately rejected. ZIP containers are not generic archives, recursive image sources, or filesystem-editing targets; multiple entries, directories, unsafe names, encryption, unknown compression methods, empty/oversized/unrecognizable payloads, and all ZIP writes are rejected.
+
+## FAT deleted root-file candidate recovery
+
+`list_deleted_fat()` and `recover_deleted_fat()` expose a deliberately narrow read-only convenience for FAT12/FAT16 **fixed root-directory** deletion records. They do not mutate the image. A candidate must be an ordinary deleted 8.3 slot with a positive declared size that fits one data cluster; before copying, the SDK rereads the slot and requires the start-cluster FAT item to be currently free. Recovery writes exactly the declared byte count to a **new local file** and returns its `Path`.
+
+```python
+candidates = client.list_deleted_fat("legacy.img")
+candidate = next(item for item in candidates if item.recoverable)
+output = client.recover_deleted_fat("legacy.img", candidate.slot_index, "recovered.bin")
+```
+
+The deleted first filename character is unrecoverable from a normal FAT deletion record. A free cluster can nevertheless contain stale or overwritten bytes, so neither original name nor file integrity is asserted. FAT32, subdirectories, long names, zero-length entries, multi-cluster chains, non-free clusters, source-image writes, output overwrite, device recovery, and batch recovery are deliberately unsupported.
 
 ## FAT regular-file movement
 

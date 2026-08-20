@@ -146,3 +146,52 @@ def test_gui_move_worker_preserves_explicit_fat_partition_index(
         "image": source, "partition_index": 2, "item_path": "/payload.txt",
         "target_directory": "/archive", "closed": True,
     }
+
+
+
+def test_gui_deleted_fat_recovery_action_requires_direct_fat_session(
+    qtbot, tmp_path: Path,
+) -> None:  # type: ignore[no-untyped-def]
+    image = create_fat_image(tmp_path / "recover.img", 8 * 1024 * 1024, FileSystemType.FAT16, "RECOVERGUI")
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.current_path = image
+    direct = FatImageFilesystem(image, read_only=True)
+    window.current_fs = direct
+    try:
+        window._update_action_state()
+        assert window.action_recover_deleted.isEnabled()
+        window.current_browse_session = object()  # Container/virtual view: not a direct recovery source.
+        window._update_action_state()
+        assert not window.action_recover_deleted.isEnabled()
+    finally:
+        window.current_browse_session = None
+        direct.close()
+
+
+def test_gui_deleted_fat_recovery_worker_preserves_read_only_partition_route(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "partitioned.img"
+    destination = tmp_path / "recovered.bin"
+    source.write_bytes(b"image")
+    received: dict[str, object] = {}
+
+    class _StubFatFilesystem:
+        def __init__(self, image: Path, *, read_only: bool = False, partition_index: int | None = None) -> None:
+            received.update({"image": image, "read_only": read_only, "partition_index": partition_index})
+
+        def recover_deleted_root_file(self, slot_index: int, output: Path, token=None) -> Path:  # type: ignore[no-untyped-def]
+            received.update({"slot_index": slot_index, "destination": output, "token": token})
+            return output
+
+        def close(self) -> None:
+            received["closed"] = True
+
+    monkeypatch.setattr(window_module, "FatImageFilesystem", _StubFatFilesystem)
+
+    assert MainWindow._recover_deleted_fat_file(source, 17, destination, 2, "token") == destination
+    assert received == {
+        "image": source, "read_only": True, "partition_index": 2, "slot_index": 17,
+        "destination": destination, "token": "token", "closed": True,
+    }

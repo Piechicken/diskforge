@@ -96,3 +96,40 @@ def test_public_api_reads_zip_image_container_and_rejects_writable_session(tmp_p
             pass
     with pytest.raises(DiskForgeError, match="read-only"):
         client.inject(archive, [payload])
+
+
+
+def test_public_api_lists_and_recovers_conservative_deleted_fat_candidate(tmp_path: Path) -> None:
+    from diskforge.core.fat_recovery import _layout
+    from diskforge.core.storage import sha256_file
+
+    client = DiskForgeClient()
+    image = tmp_path / "deleted-api.img"
+    client.create_fat(image, size_bytes=8 * 1024 * 1024, filesystem=FileSystemType.FAT16, label="RECOVER")
+    payload = tmp_path / "SHORT.TXT"
+    payload.write_bytes(b"SDK deleted-file recovery payload")
+    client.inject(image, [payload])
+    layout = _layout(image, 0)
+    for slot in range(layout.root_directory_entries):
+        with image.open("r+b") as handle:
+            handle.seek(layout.root_directory_offset + slot * 32)
+            entry = handle.read(32)
+            if entry[:11] != b"SHORT   TXT":
+                continue
+            cluster = int.from_bytes(entry[26:28], "little")
+            handle.seek(layout.root_directory_offset + slot * 32)
+            handle.write(b"\xe5")
+            copies = (layout.root_directory_offset - layout.first_fat_offset) // layout.fat_bytes
+            for copy_index in range(copies):
+                handle.seek(layout.first_fat_offset + copy_index * layout.fat_bytes + cluster * 2)
+                handle.write(b"\x00\x00")
+            break
+    else:
+        raise AssertionError("expected injected root entry")
+    before = sha256_file(image)
+
+    candidate = next(item for item in client.list_deleted_fat(image) if item.display_name == "?HORT.TXT")
+    assert candidate.recoverable
+    output = client.recover_deleted_fat(image, candidate.slot_index, tmp_path / "recovered-api.bin")
+    assert output.read_bytes() == payload.read_bytes()
+    assert sha256_file(image) == before

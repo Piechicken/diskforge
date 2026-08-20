@@ -114,6 +114,15 @@ def parser() -> argparse.ArgumentParser:
     move_fat.add_argument("target_directory", help="Existing image directory receiving the file")
     move_fat.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
 
+    list_deleted = commands.add_parser("list-deleted-fat", help="List conservative deleted FAT12/FAT16 root-file recovery candidates")
+    list_deleted.add_argument("image", type=Path)
+    list_deleted.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
+    recover_deleted = commands.add_parser("recover-deleted-fat", help="Recover one conservative FAT deleted-file candidate to a new local file")
+    recover_deleted.add_argument("image", type=Path)
+    recover_deleted.add_argument("slot", type=int, help="Deleted root-directory slot index reported by list-deleted-fat")
+    recover_deleted.add_argument("destination", type=Path, help="New local output file; it must not already exist")
+    recover_deleted.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
+
     rename = commands.add_parser("rename", help="Rename one FAT image entry")
     rename.add_argument("image", type=Path)
     rename.add_argument("path")
@@ -549,6 +558,28 @@ def main(argv: list[str] | None = None) -> int:
                     raise SystemExit("Only FAT images support file movement.")
                 destination = fs.move(args.source_path, args.target_directory)
                 _emit(args, {"source": args.source_path, "destination": destination}, destination)
+            finally:
+                fs.close()
+        elif args.command == "list-deleted-fat":
+            fs = _filesystem(args.image, partition_index=args.partition)
+            try:
+                if not isinstance(fs, FatImageFilesystem):
+                    raise DiskForgeError("Deleted-file candidates are available only for FAT images.")
+                candidates = fs.deleted_root_file_candidates()
+                _emit(args, {"candidates": [candidate.__dict__ for candidate in candidates]}, "\n".join(
+                    f"{candidate.slot_index}\t{candidate.display_name}\t{candidate.bytes}\t"
+                    f"{'recoverable' if candidate.recoverable else 'unavailable'}\t{candidate.reason}"
+                    for candidate in candidates
+                ))
+            finally:
+                fs.close()
+        elif args.command == "recover-deleted-fat":
+            fs = _filesystem(args.image, partition_index=args.partition)
+            try:
+                if not isinstance(fs, FatImageFilesystem):
+                    raise DiskForgeError("Deleted-file recovery is available only for FAT images.")
+                destination = fs.recover_deleted_root_file(args.slot, args.destination)
+                _emit(args, {"image": str(args.image), "slot": args.slot, "destination": str(destination)}, str(destination))
             finally:
                 fs.close()
         elif args.command == "rename":

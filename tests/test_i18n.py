@@ -483,3 +483,27 @@ def test_fat_file_move_workflow_is_translated_in_every_non_english_locale() -> N
         translated = CATALOG[language.code]
         assert required <= set(translated)
         assert all(translated[source] != source for source in required)
+
+
+
+def test_deleted_fat_recovery_workflow_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Recover deleted FAT file…",
+        "Scanning deleted FAT files",
+        "Deleted FAT recovery candidates",
+        "No recoverable deleted FAT12/FAT16 root-directory file candidates are available.",
+        "Candidate recovery only copies one currently free cluster; it does not prove original contents, name, or integrity.",
+        "Recover selected candidate",
+        "Recover deleted FAT file",
+        "Recovered files (*)",
+        "Recovering deleted FAT file",
+        "Recovered deleted-file candidate to {path}",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)

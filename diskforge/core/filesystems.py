@@ -34,6 +34,8 @@ with warnings.catch_warnings():
     from pyfatfs.PyFatFS import PyFatFS
 
 from .eltorito import ElToritoBootImage, inspect_eltorito
+from .fat_recovery import (DeletedFatFileCandidate, list_deleted_root_files,
+                           recover_deleted_root_file)
 from .listing import export_directory_listing
 from .formats import inspect_image
 from .models import (ConflictPolicy, ExtractionLayout, ExtractionPolicy, FileSystemType,
@@ -300,6 +302,15 @@ class FatImageFilesystem(ImageFilesystem):
                 if token:
                     token.raise_if_cancelled()
                 dst.write(block)
+
+    def deleted_root_file_candidates(self, token: CancellationToken | None = None) -> list[DeletedFatFileCandidate]:
+        """List conservative FAT12/FAT16 deleted root-file recovery candidates without mutation."""
+        return list_deleted_root_files(self.path, offset=self.offset, token=token)
+
+    def recover_deleted_root_file(self, slot_index: int, destination: Path | str,
+                                  token: CancellationToken | None = None) -> Path:
+        """Restore one revalidated single-cluster deleted-file candidate to a new local file."""
+        return recover_deleted_root_file(self.path, slot_index, destination, offset=self.offset, token=token)
 
     def inject(self, sources: Sequence[Path | str], target_directory: str = "/",
                progress: ProgressCallback | None = None,

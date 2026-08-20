@@ -1575,3 +1575,55 @@ CATALOG["ja"].update({
     "FAT file move partition index must be a positive integer.": "FAT ファイル移動のパーティションインデックスは正の整数でなければなりません。",
 })
 TRANSLATABLE = _catalog_keys()
+
+
+# v0.10 conservative FAT deleted-file candidate recovery.
+CATALOG["zh_CN"].update({
+    "Recover deleted FAT file…": "恢复已删除的 FAT 文件…", "Scanning deleted FAT files": "正在扫描已删除的 FAT 文件",
+    "Deleted FAT recovery candidates": "已删除 FAT 文件恢复候选", "No recoverable deleted FAT12/FAT16 root-directory file candidates are available.": "没有可恢复的 FAT12/FAT16 根目录已删除文件候选。",
+    "Candidate recovery only copies one currently free cluster; it does not prove original contents, name, or integrity.": "候选恢复只复制一个当前空闲的簇；它不证明原始内容、名称或完整性。",
+    "Recover selected candidate": "恢复所选候选项", "Recover deleted FAT file": "恢复已删除的 FAT 文件",
+    "Recovered files (*)": "已恢复文件 (*)", "Recovering deleted FAT file": "正在恢复已删除的 FAT 文件",
+    "Recovered deleted-file candidate to {path}": "已将已删除文件候选恢复至 {path}",
+})
+CATALOG["es"].update({
+    "Recover deleted FAT file…": "Recuperar archivo FAT eliminado…", "Scanning deleted FAT files": "Buscando archivos FAT eliminados",
+    "Deleted FAT recovery candidates": "Candidatos de recuperación FAT eliminados", "No recoverable deleted FAT12/FAT16 root-directory file candidates are available.": "No hay candidatos recuperables de archivos eliminados en el directorio raíz FAT12/FAT16.",
+    "Candidate recovery only copies one currently free cluster; it does not prove original contents, name, or integrity.": "La recuperación de candidatos solo copia un clúster actualmente libre; no demuestra el contenido, nombre ni la integridad originales.",
+    "Recover selected candidate": "Recuperar candidato seleccionado", "Recover deleted FAT file": "Recuperar archivo FAT eliminado",
+    "Recovered files (*)": "Archivos recuperados (*)", "Recovering deleted FAT file": "Recuperando archivo FAT eliminado",
+    "Recovered deleted-file candidate to {path}": "Candidato de archivo eliminado recuperado en {path}",
+})
+CATALOG["fr"].update({
+    "Recover deleted FAT file…": "Récupérer un fichier FAT supprimé…", "Scanning deleted FAT files": "Analyse des fichiers FAT supprimés",
+    "Deleted FAT recovery candidates": "Candidats de récupération FAT supprimés", "No recoverable deleted FAT12/FAT16 root-directory file candidates are available.": "Aucun candidat récupérable de fichier supprimé dans le répertoire racine FAT12/FAT16 n’est disponible.",
+    "Candidate recovery only copies one currently free cluster; it does not prove original contents, name, or integrity.": "La récupération d’un candidat copie seulement un cluster actuellement libre ; elle ne prouve ni le contenu, ni le nom, ni l’intégrité d’origine.",
+    "Recover selected candidate": "Récupérer le candidat sélectionné", "Recover deleted FAT file": "Récupérer un fichier FAT supprimé",
+    "Recovered files (*)": "Fichiers récupérés (*)", "Recovering deleted FAT file": "Récupération du fichier FAT supprimé",
+    "Recovered deleted-file candidate to {path}": "Candidat de fichier supprimé récupéré vers {path}",
+})
+CATALOG["ru"].update({
+    "Recover deleted FAT file…": "Восстановить удалённый файл FAT…", "Scanning deleted FAT files": "Поиск удалённых файлов FAT",
+    "Deleted FAT recovery candidates": "Кандидаты на восстановление удалённых FAT-файлов", "No recoverable deleted FAT12/FAT16 root-directory file candidates are available.": "Нет доступных кандидатов для восстановления удалённых файлов в корневом каталоге FAT12/FAT16.",
+    "Candidate recovery only copies one currently free cluster; it does not prove original contents, name, or integrity.": "Восстановление кандидата копирует только один свободный кластер; оно не подтверждает исходные содержимое, имя или целостность.",
+    "Recover selected candidate": "Восстановить выбранный кандидат", "Recover deleted FAT file": "Восстановить удалённый файл FAT",
+    "Recovered files (*)": "Восстановленные файлы (*)", "Recovering deleted FAT file": "Восстановление удалённого файла FAT",
+    "Recovered deleted-file candidate to {path}": "Кандидат удалённого файла восстановлен в {path}",
+})
+CATALOG["ar"].update({
+    "Recover deleted FAT file…": "استعادة ملف FAT محذوف…", "Scanning deleted FAT files": "جارٍ فحص ملفات FAT المحذوفة",
+    "Deleted FAT recovery candidates": "مرشحو استعادة ملفات FAT المحذوفة", "No recoverable deleted FAT12/FAT16 root-directory file candidates are available.": "لا تتوفر أي مرشحات قابلة للاستعادة لملفات محذوفة في الدليل الجذر لـ FAT12/FAT16.",
+    "Candidate recovery only copies one currently free cluster; it does not prove original contents, name, or integrity.": "تنسخ استعادة المرشح عنقوداً واحداً حراً حالياً فقط؛ ولا تثبت المحتوى أو الاسم أو السلامة الأصلية.",
+    "Recover selected candidate": "استعادة المرشح المحدد", "Recover deleted FAT file": "استعادة ملف FAT محذوف",
+    "Recovered files (*)": "الملفات المستعادة (*)", "Recovering deleted FAT file": "جارٍ استعادة ملف FAT المحذوف",
+    "Recovered deleted-file candidate to {path}": "تمت استعادة مرشح الملف المحذوف إلى {path}",
+})
+CATALOG["ja"].update({
+    "Recover deleted FAT file…": "削除した FAT ファイルを復元…", "Scanning deleted FAT files": "削除した FAT ファイルをスキャン中",
+    "Deleted FAT recovery candidates": "削除した FAT ファイルの復元候補", "No recoverable deleted FAT12/FAT16 root-directory file candidates are available.": "復元可能な FAT12/FAT16 ルートディレクトリの削除済みファイル候補はありません。",
+    "Candidate recovery only copies one currently free cluster; it does not prove original contents, name, or integrity.": "候補の復元では現在空いている 1 クラスターだけをコピーします。元の内容、名前、完全性を証明するものではありません。",
+    "Recover selected candidate": "選択した候補を復元", "Recover deleted FAT file": "削除した FAT ファイルを復元",
+    "Recovered files (*)": "復元したファイル (*)", "Recovering deleted FAT file": "削除した FAT ファイルを復元中",
+    "Recovered deleted-file candidate to {path}": "削除済みファイル候補を {path} に復元しました",
+})
+TRANSLATABLE = _catalog_keys()

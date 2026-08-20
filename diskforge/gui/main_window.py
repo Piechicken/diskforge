@@ -650,6 +650,7 @@ class MainWindow(QMainWindow):
         self.action_properties = self._action("Modify selected timestamp…", None, self.modify_timestamp)
         self.action_rename = self._action("Rename selected…", "F2", self.rename_selected)
         self.action_move = self._action("Move to directory…", None, self.move_selected)
+        self.action_recover_deleted = self._action("Recover deleted FAT file…", None, self.recover_deleted_fat)
         self.action_attributes = self._action("Edit DOS attributes…", None, self.edit_attributes)
         self.action_label = self._action("Change volume label…", None, self.change_volume_label)
         self.action_comment = self._action("Edit image comment…", None, self.edit_image_comment)
@@ -710,7 +711,7 @@ class MainWindow(QMainWindow):
         menu_file.addAction("Exit", self.close)
         menu_image = self.menuBar().addMenu("&Image")
         menu_image.addActions([self.action_extract, self.action_inject, self.action_controlled_inject, self.action_preview, self.action_delete, self.action_properties,
-                               self.action_rename, self.action_move, self.action_attributes, self.action_label, self.action_comment])
+                               self.action_rename, self.action_move, self.action_recover_deleted, self.action_attributes, self.action_label, self.action_comment])
         menu_image.addSeparator()
         menu_image.addActions([self.action_convert, self.action_resize, self.action_trim_zero_tail, self.action_compare, self.action_verify,
                                self.action_defragment, self.action_partitions, self.action_boot, self.action_wrap_mbr, self.action_prepare_deployment,
@@ -967,6 +968,9 @@ class MainWindow(QMainWindow):
         self.action_properties.setEnabled(fs_writable and entries)
         self.action_rename.setEnabled(fs_writable and len(self._selected_paths()) == 1)
         self.action_move.setEnabled(fs_writable and selected_file is not None and len(self._selected_paths()) == 1)
+        self.action_recover_deleted.setEnabled(
+            isinstance(self.current_fs, FatImageFilesystem) and self.current_path is not None and self.current_browse_session is None
+        )
         self.action_attributes.setEnabled(fs_writable and len(self._selected_paths()) == 1)
         self.action_label.setEnabled(fs_writable)
         self.action_export.setEnabled(open_image and self.current_fs is not None)
@@ -1920,6 +1924,75 @@ class MainWindow(QMainWindow):
         fs = FatImageFilesystem(source, partition_index=partition_index)
         try:
             return fs.move(item_path, target_directory)
+        finally:
+            fs.close()
+
+    def recover_deleted_fat(self) -> None:
+        """Scan a direct FAT source and recover one conservative candidate to a new local file."""
+        if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path or self.current_browse_session is not None:
+            return
+        source, partition_index = self.current_path, self.current_partition_index
+
+        def scan(progress=None, token=None):
+            fs = FatImageFilesystem(source, read_only=True, partition_index=partition_index)
+            try:
+                return fs.deleted_root_file_candidates(token)
+            finally:
+                fs.close()
+
+        self._run_worker(self._localized("Scanning deleted FAT files"), scan,
+                         on_result=lambda candidates: self._choose_deleted_fat_candidate(source, partition_index, candidates))
+
+    def _choose_deleted_fat_candidate(self, source: Path, partition_index: int | None, candidates) -> None:
+        recoverable = [candidate for candidate in candidates if candidate.recoverable]
+        if not recoverable:
+            QMessageBox.information(
+                self, self._localized("Deleted FAT recovery candidates"),
+                self._localized("No recoverable deleted FAT12/FAT16 root-directory file candidates are available."),
+            )
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self._localized("Recover deleted FAT file"))
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel(self._localized(
+            "Candidate recovery only copies one currently free cluster; it does not prove original contents, name, or integrity."
+        )))
+        choice = QComboBox()
+        for candidate in recoverable:
+            choice.addItem(
+                f"[{candidate.slot_index}] {candidate.display_name} — {human_bytes(candidate.bytes)}",
+                candidate.slot_index,
+            )
+        layout.addWidget(choice)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText(self._localized("Recover selected candidate"))
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        suggested = f"recovered-slot-{choice.currentData()}.bin"
+        destination, accepted = QFileDialog.getSaveFileName(
+            self, self._localized("Recover deleted FAT file"), str(source.with_name(suggested)),
+            self._localized("Recovered files (*)"),
+        )
+        if not accepted or not destination:
+            return
+        slot_index = int(choice.currentData())
+        self._run_worker(
+            self._localized("Recovering deleted FAT file"),
+            lambda progress=None, token=None: self._recover_deleted_fat_file(
+                source, slot_index, Path(destination), partition_index, token,
+            ),
+            on_result=lambda path: self.log(self._localized("Recovered deleted-file candidate to {path}").format(path=path)),
+        )
+
+    @staticmethod
+    def _recover_deleted_fat_file(source: Path, slot_index: int, destination: Path,
+                                  partition_index: int | None = None, token=None) -> Path:
+        fs = FatImageFilesystem(source, read_only=True, partition_index=partition_index)
+        try:
+            return fs.recover_deleted_root_file(slot_index, destination, token)
         finally:
             fs.close()
 

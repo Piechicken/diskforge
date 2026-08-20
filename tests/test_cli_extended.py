@@ -97,3 +97,47 @@ def test_cli_reads_zip_image_container_and_refuses_writes(tmp_path: Path, capsys
 
     assert main(["inject", str(archive), str(payload)]) == 2
     assert "read-only" in capsys.readouterr().err
+
+
+
+def test_cli_lists_and_recovers_conservative_deleted_fat_candidate(tmp_path: Path, capsys) -> None:
+    from diskforge.core.fat_recovery import _layout
+    from diskforge.core.storage import sha256_file
+
+    image = tmp_path / "deleted.img"
+    payload = tmp_path / "SHORT.TXT"
+    payload.write_bytes(b"CLI deleted-file recovery payload")
+    assert main(["create-fat", str(image), "--size-mib", "8", "--fat", "16"]) == 0
+    assert main(["inject", str(image), str(payload)]) == 0
+    root = _layout(image, 0)
+    for slot in range(root.root_directory_entries):
+        with image.open("r+b") as handle:
+            handle.seek(root.root_directory_offset + slot * 32)
+            entry = handle.read(32)
+            if entry[:11] != b"SHORT   TXT":
+                continue
+            cluster = int.from_bytes(entry[26:28], "little")
+            handle.seek(root.root_directory_offset + slot * 32)
+            handle.write(b"\xe5")
+            fat_copies = (root.root_directory_offset - root.first_fat_offset) // root.fat_bytes
+            for copy_index in range(fat_copies):
+                handle.seek(root.first_fat_offset + copy_index * root.fat_bytes + cluster * 2)
+                handle.write(b"\x00\x00")
+            break
+    else:
+        raise AssertionError("expected injected root entry")
+    before = sha256_file(image)
+    capsys.readouterr()
+
+    assert main(["--json", "list-deleted-fat", str(image)]) == 0
+    candidates = json.loads(capsys.readouterr().out)["candidates"]
+    candidate = next(item for item in candidates if item["display_name"] == "?HORT.TXT")
+    assert candidate["recoverable"] is True
+
+    output = tmp_path / "recovered.bin"
+    assert main(["--json", "recover-deleted-fat", str(image), str(candidate["slot_index"]), str(output)]) == 0
+    assert json.loads(capsys.readouterr().out)["destination"] == str(output)
+    assert output.read_bytes() == payload.read_bytes()
+    assert sha256_file(image) == before
+    assert main(["recover-deleted-fat", str(image), str(candidate["slot_index"]), str(output)]) == 2
+    assert str(output) in capsys.readouterr().err
