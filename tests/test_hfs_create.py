@@ -57,8 +57,9 @@ def test_hfs_creator_makes_verified_classic_hfs_image(tmp_path: Path) -> None:
         creator.create(destination, MIN_CLASSIC_HFS_BYTES, "SECOND")
 
 
-def test_hfs_creator_rejects_device_output_before_backend_execution() -> None:
+@pytest.mark.parametrize("path", ["/dev/fd0", r"\dev\fd0", r"\\.\PhysicalDrive0"])
+def test_hfs_creator_rejects_device_output_before_backend_execution(path: str) -> None:
     creator = HfsImageCreator(sys.executable)
 
     with pytest.raises(DiskForgeError, match="file outputs only"):
-        creator.create("/dev/fd0", MIN_CLASSIC_HFS_BYTES)
+        creator.create(path, MIN_CLASSIC_HFS_BYTES)

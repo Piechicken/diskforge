@@ -76,7 +76,8 @@ class HfsImageCreator:
     @staticmethod
     def _looks_like_device(path: Path | str) -> bool:
         text = str(path)
-        return text.startswith("/dev/") or text.startswith("\\\\.\\")
+        normalized = text.replace("\\", "/")
+        return normalized.startswith("/dev/") or text.startswith("\\\\.\\")
 
     @staticmethod
     def _validate_label(label: str) -> str:
