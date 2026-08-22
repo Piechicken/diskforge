@@ -44,6 +44,21 @@ class ImageFormat(str, Enum):
     PSI = "psi"
     PRI = "pri"
     EIGHTYSIXF = "86f"
+    FDI = "fdi"
+    JV3 = "jv3"
+    DMK = "dmk"
+    UDI = "udi"
+    SCP = "scp"
+    MFM = "mfm"
+    PFI = "pfi"
+    WOZ = "woz"
+    A2R = "a2r"
+    D64 = "d64"
+    D71 = "d71"
+    D81 = "d81"
+    G64 = "g64"
+    G71 = "g71"
+    P64 = "p64"
     UNKNOWN = "unknown"
 
     @classmethod
@@ -68,6 +83,7 @@ class FileSystemType(str, Enum):
     EXT = "EXT"
     HFS = "HFS"
     HFS_PLUS = "HFS+"
+    CBM_DOS = "CBM DOS"
     UNKNOWN = "Unknown"
 
 
@@ -128,6 +144,10 @@ class OperationKind(str, Enum):
     EXPORT_LISTING = "export_listing"
     MOVE = "move"
     FAT_METADATA = "fat_metadata"
+    FAT_MKDIR = "fat_mkdir"
+    FAT_COPY = "fat_copy"
+    FAT_RENAME = "fat_rename"
+    FAT_DELETE = "fat_delete"
 
 
 @dataclass(frozen=True)

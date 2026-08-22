@@ -21,6 +21,21 @@ from .core.msa import MsaInspection, export_msa_to_raw, inspect_msa
 from .core.psi import PsiInspection, export_psi_to_raw, inspect_psi
 from .core.pri import PriInspection, inspect_pri
 from .core.eightysixf import EightySixFInspection, inspect_86f
+from .core.fdi import FdiInspection, inspect_fdi
+from .core.jv3 import Jv3Inspection, export_jv3_to_raw, inspect_jv3
+from .core.dmk import DmkInspection, inspect_dmk
+from .core.udi import UdiInspection, inspect_udi
+from .core.scp import ScpInspection, inspect_scp
+from .core.mfm import MfmInspection, inspect_mfm
+from .core.pfi import PfiInspection, inspect_pfi
+from .core.woz import WozInspection, inspect_woz
+from .core.a2r import A2rInspection, inspect_a2r
+from .core.d64 import D64Inspection, inspect_d64
+from .core.d71 import D71Inspection, inspect_d71
+from .core.d81 import D81Inspection, inspect_d81
+from .core.g64 import G64Inspection, inspect_g64
+from .core.g71 import G71Inspection, inspect_g71
+from .core.p64 import P64Inspection, inspect_p64
 from .core.d88 import D88Inspection, export_d88_to_raw, inspect_d88
 from .core.dc42 import Dc42Inspection, export_dc42_data_to_raw, inspect_dc42
 from .core.hfe import HfeInspection, inspect_hfe
@@ -32,9 +47,9 @@ from .core.inventory import (ImageInventory, ImageInventoryOptions, ReportFormat
                              export_image_inventory, inventory_images)
 from .core.td0 import Td0Inspection, export_td0_to_raw, inspect_td0
 from .core.twoimg import TwoImgInspection, export_twoimg_to_raw, inspect_twoimg
-from .core.filesystems import (FatImageFilesystem, ImageFilesystem, IsoImageFilesystem,
+from .core.filesystems import (D64ImageFilesystem, D71ImageFilesystem, D81ImageFilesystem, FatImageFilesystem, ImageFilesystem, IsoImageFilesystem,
                                create_fat_image, replace_iso_file_safely)
-from .core.formats import Converter, convert_image, inspect_image
+from .core.formats import Converter, convert_image, inspect_image, list_zip_image_payloads
 from .core.models import (DiskPartition, ExtractionPolicy, FileSystemType, ImageFormat, ImageInfo,
                           ProgressCallback)
 from .core.mounts import ImageMountCapability, ImageMountManager, ImageMountSession
@@ -64,6 +79,10 @@ class DiskForgeClient:
 
     def inspect(self, image: Path | str) -> ImageInfo:
         return inspect_image(image, self.converter)
+
+    def list_zip_image_payloads(self, image: Path | str) -> tuple[str, ...]:
+        """List validated root-level browsable image entries in a regular ZIP without extracting one."""
+        return list_zip_image_payloads(image)
 
     def sha256(self, image: Path | str) -> str:
         return sha256_file(image)
@@ -217,6 +236,71 @@ class DiskForgeClient:
         """Inspect a restricted 86F v2.12 bitstream layout without decoding or mutation."""
         return inspect_86f(source, token)
 
+    def inspect_fdi(self, source: Path | str, *, token: CancellationToken | None = None) -> FdiInspection:
+        """Inspect an FDI v2.0 multi-level container without decoding or mutation."""
+        return inspect_fdi(source, token)
+
+    def inspect_dmk(self, source: Path | str, *, token: CancellationToken | None = None) -> DmkInspection:
+        """Inspect a native DMK bitstream layout without decoding, flattening, or mutation."""
+        return inspect_dmk(source, token)
+
+    def inspect_udi(self, source: Path | str, *, token: CancellationToken | None = None) -> UdiInspection:
+        """Inspect a CRC-validated UDI v1.0 bitstream container without decoding or mutation."""
+        return inspect_udi(source, token)
+
+    def inspect_scp(self, source: Path | str, *, token: CancellationToken | None = None) -> ScpInspection:
+        """Inspect a standard SCP floppy flux container without decoding or mutation."""
+        return inspect_scp(source, token)
+
+    def inspect_mfm(self, source: Path | str, *, token: CancellationToken | None = None) -> MfmInspection:
+        """Inspect a strict HxC MFM bitstream container without decoding or mutation."""
+        return inspect_mfm(source, token)
+
+    def inspect_pfi(self, source: Path | str) -> PfiInspection:
+        """Inspect a canonical PCE PFI v0 flux container without mutation or decoding."""
+        return inspect_pfi(Path(source))
+
+    def inspect_woz(self, source: Path | str, *, token: CancellationToken | None = None) -> WozInspection:
+        """Inspect a canonical WOZ 2.0/2.1 bitstream container without mutation or decoding."""
+        return inspect_woz(source, token)
+
+    def inspect_a2r(self, source: Path | str) -> A2rInspection:
+        """Inspect a canonical A2R 3.x flux container without mutation or decoding."""
+        return inspect_a2r(Path(source))
+
+    def inspect_d64(self, source: Path | str) -> D64Inspection:
+        """Inspect a canonical 35-track D64 and its ordinary CBM DOS file chains without mutation."""
+        return inspect_d64(source)
+
+    def inspect_d71(self, source: Path | str) -> D71Inspection:
+        """Inspect a canonical 70-track D71 and its ordinary CBM DOS file chains without mutation."""
+        return inspect_d71(source)
+
+    def inspect_d81(self, source: Path | str) -> D81Inspection:
+        """Inspect a canonical 80-track D81 and its ordinary CBM DOS file chains without mutation."""
+        return inspect_d81(source)
+
+    def inspect_g64(self, source: Path | str, *, token: CancellationToken | None = None) -> G64Inspection:
+        """Inspect a canonical G64 v0 GCR container without mutation or decoding."""
+        return inspect_g64(source, token)
+
+    def inspect_g71(self, source: Path | str, *, token: CancellationToken | None = None) -> G71Inspection:
+        """Inspect a canonical G71 v0 double-sided GCR container without mutation or decoding."""
+        return inspect_g71(source, token)
+
+    def inspect_p64(self, source: Path | str, *, token: CancellationToken | None = None) -> P64Inspection:
+        """Inspect a canonical P64 v0 NRZI pulse container without mutation or decoding."""
+        return inspect_p64(source, token)
+
+    def inspect_jv3(self, source: Path | str, *, token: CancellationToken | None = None) -> Jv3Inspection:
+        """Inspect a JV3 sector container without mutation."""
+        return inspect_jv3(source, token)
+
+    def export_jv3_to_raw(self, source: Path | str, destination: Path | str, *,
+                          token: CancellationToken | None = None) -> Path:
+        """Export only a strictly proven normal JV3 rectangle to a new RAW file."""
+        return export_jv3_to_raw(source, destination, token)
+
     def inspect_twoimg(self, source: Path | str, *, token: CancellationToken | None = None) -> TwoImgInspection:
         """Inspect a standard 2MG/2IMG container without mutating any of its blocks."""
         return inspect_twoimg(source, token)
@@ -248,7 +332,7 @@ class DiskForgeClient:
 
     @contextmanager
     def filesystem(self, image: Path | str, *, writable: bool = False,
-                   partition_index: int | None = None) -> Iterator[ImageFilesystem]:
+                   partition_index: int | None = None, zip_payload: str | None = None) -> Iterator[ImageFilesystem]:
         """Open a filesystem facade and always release the underlying resource."""
         source = Path(image)
         info = self.inspect(source)
@@ -281,10 +365,34 @@ class DiskForgeClient:
                 raise DiskForgeError("PRI images are read-only bitstream containers; inspect their CRC-validated structure instead of filesystem access.")
             if info.image_format == ImageFormat.EIGHTYSIXF:
                 raise DiskForgeError("86F images are read-only bitstream containers; inspect their validated v2.12 structure instead of filesystem access.")
+            if info.image_format == ImageFormat.FDI:
+                raise DiskForgeError("FDI images are read-only multi-level containers; inspect their validated v2.0 structure instead of filesystem access.")
+            if info.image_format == ImageFormat.JV3:
+                raise DiskForgeError("JV3 images are read-only sector containers; inspect them or use strict JV3 RAW export instead of filesystem access.")
+            if info.image_format == ImageFormat.DMK:
+                raise DiskForgeError("DMK images are read-only bitstream containers; inspect their native IDAM structure instead of opening a filesystem session.")
+            if info.image_format == ImageFormat.UDI:
+                raise DiskForgeError("UDI images are read-only bitstream containers; inspect their CRC-validated v1.0 structure instead of opening a filesystem session.")
+            if info.image_format == ImageFormat.SCP:
+                raise DiskForgeError("SCP images are read-only flux containers; inspect their validated standard track structure instead of opening a filesystem session.")
+            if info.image_format == ImageFormat.MFM:
+                raise DiskForgeError("HxC MFM images are read-only bitstream containers; inspect their validated track structure instead of opening a filesystem session.")
+            if info.image_format == ImageFormat.WOZ:
+                raise DiskForgeError("WOZ2 images are read-only Apple II bitstream containers; inspect their validated structure instead of opening a filesystem session.")
+            if info.image_format == ImageFormat.A2R:
+                raise DiskForgeError("A2R3 images are read-only flux containers; inspect their validated structure instead of opening a filesystem session.")
+            if info.image_format == ImageFormat.G64:
+                raise DiskForgeError("G64 images are read-only GCR bitstream containers; inspect their validated structure instead of opening a filesystem session.")
+            if info.image_format == ImageFormat.G71:
+                raise DiskForgeError("G71 images are read-only double-sided GCR bitstream containers; inspect their validated structure instead of opening a filesystem session.")
+            if info.image_format == ImageFormat.P64:
+                raise DiskForgeError("P64 images are read-only NRZI pulse containers; inspect their CRC-validated structure instead of opening a filesystem session.")
             if info.image_format == ImageFormat.ZIP:
                 if writable:
                     raise DiskForgeError("ZIP image containers are read-only; writable filesystem access is unavailable.")
-                browse_session = materialize_browsable_image(source, converter=self.converter)
+                browse_session = materialize_browsable_image(
+                    source, converter=self.converter, zip_payload=zip_payload,
+                )
                 source = browse_session.image
                 info = self.inspect(source)
             if partition_index is not None:
@@ -295,6 +403,15 @@ class DiskForgeClient:
                 if writable:
                     raise DiskForgeError("ISO images are read-only; create a new ISO instead.")
                 filesystem = IsoImageFilesystem(source)
+            elif info.filesystem == FileSystemType.CBM_DOS:
+                if writable:
+                    raise DiskForgeError("Canonical D64/D71/D81 CBM DOS images are read-only; modification is unavailable.")
+                if info.image_format == ImageFormat.D81:
+                    filesystem = D81ImageFilesystem(source)
+                elif info.image_format == ImageFormat.D71:
+                    filesystem = D71ImageFilesystem(source)
+                else:
+                    filesystem = D64ImageFilesystem(source)
             elif info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS, FileSystemType.HFS_PLUS}:
                 if writable:
                     raise DiskForgeError("NTFS, EXT, HFS and HFS+ image access is read-only.")
@@ -309,10 +426,10 @@ class DiskForgeClient:
                 browse_session.close()
 
     def extract(self, image: Path | str, paths: Sequence[str], destination: Path | str, *,
-                policy: ExtractionPolicy | None = None,
+                policy: ExtractionPolicy | None = None, zip_payload: str | None = None,
                 progress: ProgressCallback | None = None,
                 token: CancellationToken | None = None) -> list[Path]:
-        with self.filesystem(image) as filesystem:
+        with self.filesystem(image, zip_payload=zip_payload) as filesystem:
             return filesystem.extract(paths, Path(destination), progress, token, policy)
 
     def inject(self, image: Path | str, sources: Sequence[Path | str], *,
@@ -340,12 +457,51 @@ class DiskForgeClient:
                 raise DiskForgeError("Only writable FAT images support metadata updates.")
             return apply_fat_metadata(filesystem, update, token)
 
-    def move_fat(self, image: Path | str, item_path: str, target_directory: str) -> str:
-        """Move one regular file into an existing directory of a writable FAT image."""
-        with self.filesystem(image, writable=True) as filesystem:
+    def create_fat_directory(self, image: Path | str, directory_path: str, *,
+                             partition_index: int | None = None,
+                             token: CancellationToken | None = None) -> str:
+        """Create one empty directory whose FAT parent already exists, without overwrite."""
+        with self.filesystem(image, writable=True, partition_index=partition_index) as filesystem:
             if not isinstance(filesystem, FatImageFilesystem):
-                raise DiskForgeError("Only writable FAT images support file movement.")
-            return filesystem.move(item_path, target_directory)
+                raise DiskForgeError("Only writable FAT images support directory creation.")
+            return filesystem.create_directory(directory_path, token)
+
+    def copy_fat(self, image: Path | str, item_path: str, target_directory: str, *,
+                 partition_index: int | None = None,
+                 progress: ProgressCallback | None = None,
+                 token: CancellationToken | None = None) -> str:
+        """Copy one regular file or complete new directory tree into writable FAT without overwrite."""
+        with self.filesystem(image, writable=True, partition_index=partition_index) as filesystem:
+            if not isinstance(filesystem, FatImageFilesystem):
+                raise DiskForgeError("Only writable FAT images support file or directory-tree copying.")
+            return filesystem.copy(item_path, target_directory, progress, token)
+
+    def move_fat(self, image: Path | str, item_path: str, target_directory: str, *,
+                 partition_index: int | None = None,
+                 progress: ProgressCallback | None = None,
+                 token: CancellationToken | None = None) -> str:
+        """Move one FAT file or directory tree; directories use controlled copy-then-delete."""
+        with self.filesystem(image, writable=True, partition_index=partition_index) as filesystem:
+            if not isinstance(filesystem, FatImageFilesystem):
+                raise DiskForgeError("Only writable FAT images support file or directory-tree movement.")
+            return filesystem.move(item_path, target_directory, progress, token)
+
+    def rename_fat(self, image: Path | str, item_path: str, new_name: str, *,
+                   partition_index: int | None = None) -> str:
+        """Rename one FAT file or directory in place without replacing an existing entry."""
+        with self.filesystem(image, writable=True, partition_index=partition_index) as filesystem:
+            if not isinstance(filesystem, FatImageFilesystem):
+                raise DiskForgeError("Only writable FAT images support entry renaming.")
+            return filesystem.rename(item_path, new_name)
+
+    def delete_fat(self, image: Path | str, item_path: str, *,
+                   partition_index: int | None = None) -> str:
+        """Delete one explicit non-root FAT file or directory tree from a writable image."""
+        with self.filesystem(image, writable=True, partition_index=partition_index) as filesystem:
+            if not isinstance(filesystem, FatImageFilesystem):
+                raise DiskForgeError("Only writable FAT images support entry deletion.")
+            filesystem.delete([item_path])
+        return item_path
 
     def list_deleted_fat(self, image: Path | str, *, partition_index: int | None = None) -> list[DeletedFatFileCandidate]:
         """List conservative FAT12/FAT16 deleted fixed-root-file candidates without mutating the image."""

@@ -256,3 +256,135 @@ def test_batch_designer_rejects_fat_metadata_without_explicit_change(tmp_path: P
 
     with pytest.raises(DiskForgeError, match="at least one attribute"):
         dialog.recipe()
+
+
+def test_batch_designer_serializes_empty_fat_directory_creation(tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "source.img"
+    source.write_bytes(b"source")
+    dialog = BatchDesignerDialog()
+    kind_index = dialog.kind_choice.findData("fat_mkdir")
+    assert kind_index >= 0
+    dialog.kind_choice.setCurrentIndex(kind_index)
+    dialog.source.setText(str(source))
+    dialog.directory_path.setText("/DOCS")
+    dialog.partition_index.setText("2")
+
+    operation = dialog.recipe()["operations"][0]
+
+    assert operation == {
+        "name": dialog.kind_choice.currentText(), "kind": "fat_mkdir", "source": str(source),
+        "directory_path": "/DOCS", "partition": 2,
+    }
+    reopened = BatchDesignerDialog(recipe={"schema": "diskforge.batch/v4", "operations": [operation]})
+    assert reopened.source.text() == str(source)
+    assert reopened.directory_path.text() == "/DOCS"
+    assert reopened.partition_index.text() == "2"
+    assert reopened._summary(operation).endswith("→ /DOCS")
+
+
+def test_batch_designer_rejects_invalid_fat_directory_creation_partition(tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "source.img"
+    source.write_bytes(b"source")
+    dialog = BatchDesignerDialog()
+    dialog.kind_choice.setCurrentIndex(dialog.kind_choice.findData("fat_mkdir"))
+    dialog.source.setText(str(source))
+    dialog.directory_path.setText("/DOCS")
+    dialog.partition_index.setText("0")
+
+    with pytest.raises(DiskForgeError, match="positive integer"):
+        dialog.recipe()
+
+
+def test_batch_designer_serializes_regular_fat_file_copy(tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "source.img"
+    source.write_bytes(b"source")
+    dialog = BatchDesignerDialog()
+    kind_index = dialog.kind_choice.findData("fat_copy")
+    assert kind_index >= 0
+    dialog.kind_choice.setCurrentIndex(kind_index)
+    dialog.source.setText(str(source))
+    dialog.item_path.setText("/payload.txt")
+    dialog.target_directory.setText("/archive")
+    dialog.partition_index.setText("2")
+
+    operation = dialog.recipe()["operations"][0]
+
+    assert operation == {
+        "name": dialog.kind_choice.currentText(), "kind": "fat_copy", "source": str(source),
+        "item_path": "/payload.txt", "target_directory": "/archive", "partition": 2,
+    }
+    reopened = BatchDesignerDialog(recipe={"schema": "diskforge.batch/v4", "operations": [operation]})
+    assert reopened.source.text() == str(source)
+    assert reopened.item_path.text() == "/payload.txt"
+    assert reopened.target_directory.text() == "/archive"
+    assert reopened.partition_index.text() == "2"
+    assert reopened._summary(operation).endswith("→ /archive")
+
+
+def test_batch_designer_rejects_invalid_fat_file_copy_partition(tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "source.img"
+    source.write_bytes(b"source")
+    dialog = BatchDesignerDialog()
+    dialog.kind_choice.setCurrentIndex(dialog.kind_choice.findData("fat_copy"))
+    dialog.source.setText(str(source))
+    dialog.item_path.setText("/payload.txt")
+    dialog.target_directory.setText("/archive")
+    dialog.partition_index.setText("0")
+
+    with pytest.raises(DiskForgeError, match="positive integer"):
+        dialog.recipe()
+
+
+def test_batch_designer_serializes_fat_rename(tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "source.img"
+    source.write_bytes(b"source")
+    dialog = BatchDesignerDialog()
+    kind_index = dialog.kind_choice.findData("fat_rename")
+    assert kind_index >= 0
+    dialog.kind_choice.setCurrentIndex(kind_index)
+    dialog.source.setText(str(source))
+    dialog.item_path.setText("/OLD.TXT")
+    dialog.new_name.setText("NEW.TXT")
+    dialog.partition_index.setText("2")
+
+    operation = dialog.recipe()["operations"][0]
+
+    assert operation == {
+        "name": dialog.kind_choice.currentText(), "kind": "fat_rename", "source": str(source),
+        "item_path": "/OLD.TXT", "new_name": "NEW.TXT", "partition": 2,
+    }
+    reopened = BatchDesignerDialog(recipe={"schema": "diskforge.batch/v4", "operations": [operation]})
+    assert reopened.source.text() == str(source)
+    assert reopened.item_path.text() == "/OLD.TXT"
+    assert reopened.new_name.text() == "NEW.TXT"
+    assert reopened.partition_index.text() == "2"
+
+
+def test_batch_designer_serializes_fat_delete(tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "source.img"
+    source.write_bytes(b"source")
+    dialog = BatchDesignerDialog()
+    kind_index = dialog.kind_choice.findData("fat_delete")
+    assert kind_index >= 0
+    dialog.kind_choice.setCurrentIndex(kind_index)
+    dialog.source.setText(str(source))
+    dialog.item_path.setText("/TREE")
+    dialog.partition_index.setText("2")
+
+    operation = dialog.recipe()["operations"][0]
+
+    assert operation == {
+        "name": dialog.kind_choice.currentText(), "kind": "fat_delete", "source": str(source),
+        "item_path": "/TREE", "partition": 2,
+    }
+    reopened = BatchDesignerDialog(recipe={"schema": "diskforge.batch/v4", "operations": [operation]})
+    assert reopened.source.text() == str(source)
+    assert reopened.item_path.text() == "/TREE"
+    assert reopened.partition_index.text() == "2"
+    assert reopened._summary(operation).endswith("→ /TREE")

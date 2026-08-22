@@ -82,7 +82,7 @@ def test_gui_partition_chooser_routes_supported_non_fat_index(
     assert opened == [(image, 1)]
 
 
-def test_gui_move_action_requires_one_regular_file_in_writable_fat(
+def test_gui_move_action_requires_one_selected_entry_in_writable_fat(
     qtbot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:  # type: ignore[no-untyped-def]
     image = create_fat_image(tmp_path / "move.img", 8 * 1024 * 1024, FileSystemType.FAT16, "MOVEGUI")
@@ -102,7 +102,7 @@ def test_gui_move_action_requires_one_regular_file_in_writable_fat(
 
         monkeypatch.setattr(window, "_selected_paths", lambda: ["/archive"])
         window._update_action_state()
-        assert not window.action_move.isEnabled()
+        assert window.action_move.isEnabled()
 
         monkeypatch.setattr(window, "_selected_paths", lambda: ["/payload.txt", "/archive"])
         window._update_action_state()
@@ -132,19 +132,20 @@ def test_gui_move_worker_preserves_explicit_fat_partition_index(
         def __init__(self, image: Path, *, partition_index: int | None = None) -> None:
             received.update({"image": image, "partition_index": partition_index})
 
-        def move(self, item_path: str, target_directory: str) -> str:
-            received.update({"item_path": item_path, "target_directory": target_directory})
-            return "/archive/payload.txt"
+        def move(self, item_path: str, target_directory: str, progress=None, token=None) -> str:
+            received.update({"item_path": item_path, "target_directory": target_directory, "progress": progress, "token": token})
+            return "/archive/source-tree"
 
         def close(self) -> None:
             received["closed"] = True
 
     monkeypatch.setattr(window_module, "FatImageFilesystem", _StubFatFilesystem)
 
-    assert MainWindow._move_in_image(source, "/payload.txt", "/archive", 2) == "/archive/payload.txt"
+    progress, token = object(), object()
+    assert MainWindow._move_in_image(source, "/source-tree", "/archive", 2, progress, token) == "/archive/source-tree"
     assert received == {
-        "image": source, "partition_index": 2, "item_path": "/payload.txt",
-        "target_directory": "/archive", "closed": True,
+        "image": source, "partition_index": 2, "item_path": "/source-tree",
+        "target_directory": "/archive", "progress": progress, "token": token, "closed": True,
     }
 
 
@@ -273,3 +274,109 @@ def test_gui_dos_attribute_action_allows_multiple_entries_only_in_writable_fat(
         assert not window.action_attributes.isEnabled()
     finally:
         read_only.close()
+
+
+def test_gui_directory_creation_action_requires_writable_fat(qtbot, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    image = create_fat_image(tmp_path / "directory.img", 8 * 1024 * 1024, FileSystemType.FAT16, "DIRGUI")
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.current_path = image
+    writable = FatImageFilesystem(image)
+    window.current_fs = writable
+    try:
+        window._update_action_state()
+        assert window.action_new_directory.isEnabled()
+    finally:
+        writable.close()
+
+    read_only = FatImageFilesystem(image, read_only=True)
+    window.current_fs = read_only
+    try:
+        window._update_action_state()
+        assert not window.action_new_directory.isEnabled()
+    finally:
+        read_only.close()
+
+
+def test_gui_directory_worker_preserves_explicit_fat_partition_index(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "partitioned.img"
+    source.write_bytes(b"image")
+    received: dict[str, object] = {}
+
+    class _StubFatFilesystem:
+        def __init__(self, image: Path, *, partition_index: int | None = None) -> None:
+            received.update({"image": image, "partition_index": partition_index})
+
+        def create_directory(self, directory: str, token=None) -> str:
+            received.update({"directory": directory, "token": token})
+            return directory
+
+        def close(self) -> None:
+            received["closed"] = True
+
+    monkeypatch.setattr(window_module, "FatImageFilesystem", _StubFatFilesystem)
+    token = object()
+
+    assert MainWindow._create_directory_in_image(source, "/DOCS", 2, token) == "/DOCS"
+    assert received == {
+        "image": source, "partition_index": 2, "directory": "/DOCS", "token": token, "closed": True,
+    }
+
+
+def test_gui_copy_action_requires_one_selected_entry_in_writable_fat(
+    qtbot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:  # type: ignore[no-untyped-def]
+    image = create_fat_image(tmp_path / "copy.img", 8 * 1024 * 1024, FileSystemType.FAT16, "COPYGUI")
+    writable = FatImageFilesystem(image)
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.current_path = image
+    window.current_fs = writable
+    window.current_entries = [
+        ImageEntry("/payload.txt", "payload.txt", False, 7),
+        ImageEntry("/archive", "archive", True),
+    ]
+    try:
+        monkeypatch.setattr(window, "_selected_paths", lambda: ["/payload.txt"])
+        window._update_action_state()
+        assert window.action_copy.isEnabled()
+
+        monkeypatch.setattr(window, "_selected_paths", lambda: ["/archive"])
+        window._update_action_state()
+        assert window.action_copy.isEnabled()
+
+        monkeypatch.setattr(window, "_selected_paths", lambda: ["/payload.txt", "/archive"])
+        window._update_action_state()
+        assert not window.action_copy.isEnabled()
+    finally:
+        writable.close()
+
+
+def test_gui_copy_worker_preserves_explicit_fat_partition_and_cancellation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "partitioned.img"
+    source.write_bytes(b"image")
+    received: dict[str, object] = {}
+
+    class _StubFatFilesystem:
+        def __init__(self, image: Path, *, partition_index: int | None = None) -> None:
+            received.update({"image": image, "partition_index": partition_index})
+
+        def copy(self, item_path: str, target_directory: str, progress=None, token=None) -> str:
+            received.update({"item_path": item_path, "target_directory": target_directory, "progress": progress, "token": token})
+            return "/archive/payload.txt"
+
+        def close(self) -> None:
+            received["closed"] = True
+
+    monkeypatch.setattr(window_module, "FatImageFilesystem", _StubFatFilesystem)
+    progress, token = object(), object()
+
+    assert MainWindow._copy_in_image(source, "/source-tree", "/archive", 2, progress, token) == "/archive/payload.txt"
+    assert received == {
+        "image": source, "partition_index": 2, "item_path": "/source-tree", "target_directory": "/archive",
+        "progress": progress, "token": token, "closed": True,
+    }

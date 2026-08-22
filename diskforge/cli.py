@@ -22,6 +22,21 @@ from .core.msa import export_msa_to_raw, inspect_msa
 from .core.psi import export_psi_to_raw, inspect_psi
 from .core.pri import inspect_pri
 from .core.eightysixf import inspect_86f
+from .core.fdi import inspect_fdi
+from .core.jv3 import export_jv3_to_raw, inspect_jv3
+from .core.dmk import inspect_dmk
+from .core.udi import inspect_udi
+from .core.scp import inspect_scp
+from .core.mfm import inspect_mfm
+from .core.pfi import inspect_pfi
+from .core.woz import inspect_woz
+from .core.a2r import inspect_a2r
+from .core.d64 import inspect_d64
+from .core.d71 import inspect_d71
+from .core.d81 import inspect_d81
+from .core.g64 import inspect_g64
+from .core.g71 import inspect_g71
+from .core.p64 import inspect_p64
 from .core.d88 import export_d88_to_raw, inspect_d88
 from .core.dc42 import export_dc42_data_to_raw, inspect_dc42
 from .core.hfe import inspect_hfe
@@ -40,11 +55,11 @@ from .core.devices import (backup_device_mbr, compare_image_with_device, format_
 from .core.eltorito import export_boot_image, inspect_eltorito
 from .core.fat_layouts import FatImageLayout, create_fat_image_from_layout
 from .core.floppy_format import FloppyControllerFormatter
-from .core.filesystems import (FatImageFilesystem, IsoImageFilesystem, create_fat_image,
+from .core.filesystems import (D64ImageFilesystem, D71ImageFilesystem, D81ImageFilesystem, FatImageFilesystem, IsoImageFilesystem, create_fat_image,
                                create_iso_from_directory, defragment_fat_image, rebuild_iso_with_changes, replace_iso_file_safely)
 from .core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_image, create_dynamic_vhd_from_raw,
                            create_editable_fixed_vhd_copy, create_legacy_zip_image, extract_legacy_zip_image,
-                           inspect_image)
+                           inspect_image, list_zip_image_payloads)
 from .core.mbr import backup_mbr, reset_mbr_to_neutral, restore_mbr
 from .core.legacy_floppy import (LEGACY_FLOPPY_PROFILES, LegacyFloppyGeometry,
                                   create_legacy_fat_floppy, create_legacy_fat_floppy_profile)
@@ -94,6 +109,8 @@ def parser() -> argparse.ArgumentParser:
 
     info = commands.add_parser("info", help="Inspect image metadata")
     info.add_argument("image", type=Path)
+    zip_info = commands.add_parser("zip-info", help="List validated root-level browsable image payloads in a read-only ZIP")
+    zip_info.add_argument("image", type=Path)
     imd_info = commands.add_parser("imd-info", help="Inspect IMD floppy-sector records without modifying the source")
     imd_info.add_argument("image", type=Path)
     convert_imd = commands.add_parser("convert-imd", help="Export only a strictly proven rectangular normal-data IMD layout to a new RAW image")
@@ -155,6 +172,39 @@ def parser() -> argparse.ArgumentParser:
     pri_info.add_argument("image", type=Path)
     eightysixf_info = commands.add_parser("86f-info", help="Inspect a restricted 86F v2.12 bitstream layout without decoding or modifying it")
     eightysixf_info.add_argument("image", type=Path)
+    fdi_info = commands.add_parser("fdi-info", help="Inspect an FDI v2.0 multi-level container without decoding or modifying it")
+    fdi_info.add_argument("image", type=Path)
+    dmk_info = commands.add_parser("dmk-info", help="Inspect a native DMK bitstream container without decoding or modifying it")
+    dmk_info.add_argument("image", type=Path)
+    udi_info = commands.add_parser("udi-info", help="Inspect a CRC-validated UDI v1.0 bitstream container without decoding or modifying it")
+    udi_info.add_argument("image", type=Path)
+    scp_info = commands.add_parser("scp-info", help="Inspect a standard SCP floppy flux container without decoding or modifying it")
+    scp_info.add_argument("image", type=Path)
+    mfm_info = commands.add_parser("mfm-info", help="Inspect a strict HxC MFM bitstream container without decoding or modifying it")
+    mfm_info.add_argument("image", type=Path)
+    pfi_info = commands.add_parser("pfi-info", help="Inspect a canonical PCE PFI flux container without decoding or modifying it")
+    pfi_info.add_argument("image", type=Path)
+    woz_info = commands.add_parser("woz-info", help="Inspect a canonical WOZ 2.0/2.1 Apple II container without decoding or modifying it")
+    woz_info.add_argument("image", type=Path)
+    a2r_info = commands.add_parser("a2r-info", help="Inspect a canonical A2R 3.x flux container without decoding or modifying it")
+    a2r_info.add_argument("image", type=Path)
+    d64_info = commands.add_parser("d64-info", help="Inspect a canonical 35-track D64 CBM DOS image and ordinary file chains without modifying it")
+    d64_info.add_argument("image", type=Path)
+    d71_info = commands.add_parser("d71-info", help="Inspect a canonical 70-track D71 CBM DOS image and ordinary file chains without modifying it")
+    d71_info.add_argument("image", type=Path)
+    d81_info = commands.add_parser("d81-info", help="Inspect a canonical 80-track D81 CBM DOS image and ordinary file chains without modifying it")
+    d81_info.add_argument("image", type=Path)
+    g64_info = commands.add_parser("g64-info", help="Inspect a canonical G64 v0 GCR container without decoding or modifying it")
+    g64_info.add_argument("image", type=Path)
+    g71_info = commands.add_parser("g71-info", help="Inspect a canonical G71 v0 double-sided GCR container without decoding or modifying it")
+    g71_info.add_argument("image", type=Path)
+    p64_info = commands.add_parser("p64-info", help="Inspect a canonical P64 v0 NRZI pulse container without decoding or modifying it")
+    p64_info.add_argument("image", type=Path)
+    jv3_info = commands.add_parser("jv3-info", help="Inspect a JV3 sector container without modifying it")
+    jv3_info.add_argument("image", type=Path)
+    convert_jv3 = commands.add_parser("convert-jv3", help="Export a strictly proven normal JV3 sector layout to a new RAW file")
+    convert_jv3.add_argument("image", type=Path)
+    convert_jv3.add_argument("destination", type=Path)
     inventory = commands.add_parser("inventory-images", help="Read-only inventory and filter report for local image files")
     inventory.add_argument("root", type=Path, help="Existing local directory to scan")
     inventory.add_argument("destination", type=Path, help="New report file outside the scanned directory")
@@ -173,6 +223,7 @@ def parser() -> argparse.ArgumentParser:
     listing.add_argument("image", type=Path)
     listing.add_argument("--path", default="/")
     listing.add_argument("--partition", type=int, help="Explicit MBR/GPT partition table index; NTFS/EXT/HFS/HFS+ stay read-only")
+    listing.add_argument("--zip-payload", help="Explicit validated root-level image payload name for a multi-image ZIP; read-only")
 
     extract = commands.add_parser("extract", help="Extract files from a supported image filesystem")
     extract.add_argument("image", type=Path)
@@ -181,6 +232,7 @@ def parser() -> argparse.ArgumentParser:
     extract.add_argument("--layout", choices=[item.value for item in ExtractionLayout], default=ExtractionLayout.PRESERVE_PATHS.value)
     extract.add_argument("--on-conflict", choices=[item.value for item in ConflictPolicy], default=ConflictPolicy.ERROR.value)
     extract.add_argument("--partition", type=int, help="Explicit MBR/GPT partition table index; NTFS/EXT/HFS/HFS+ stay read-only")
+    extract.add_argument("--zip-payload", help="Explicit validated root-level image payload name for a multi-image ZIP; read-only")
 
     inject = commands.add_parser("inject", help="Inject host files or directories into a writable FAT image")
     inject.add_argument("image", type=Path)
@@ -211,11 +263,27 @@ def parser() -> argparse.ArgumentParser:
     inject_hfs.add_argument("--hcopy", help="Optional explicit hcopy executable")
     inject_hfs.add_argument("--hls", help="Optional explicit hls executable")
 
-    move_fat = commands.add_parser("move-fat", help="Move one regular file into an existing directory of a writable FAT image")
+    move_fat = commands.add_parser("move-fat", help="Move one regular file or directory tree into an existing directory of a writable FAT image")
     move_fat.add_argument("image", type=Path)
-    move_fat.add_argument("source_path", help="Existing image file path to move")
-    move_fat.add_argument("target_directory", help="Existing image directory receiving the file")
+    move_fat.add_argument("source_path", help="Existing image file or directory path to move")
+    move_fat.add_argument("target_directory", help="Existing image directory receiving a new same-name move target")
     move_fat.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
+
+    mkdir_fat = commands.add_parser("mkdir-fat", help="Create one empty directory under an existing directory of a writable FAT image")
+    mkdir_fat.add_argument("image", type=Path)
+    mkdir_fat.add_argument("directory_path", help="New image directory path; its parent must already exist")
+    mkdir_fat.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
+
+    copy_fat = commands.add_parser("copy-fat", help="Copy one regular file or new directory tree into an existing directory of a writable FAT image")
+    copy_fat.add_argument("image", type=Path)
+    copy_fat.add_argument("source_path", help="Existing image file or directory path to copy")
+    copy_fat.add_argument("target_directory", help="Existing image directory receiving a new same-name copy")
+    copy_fat.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
+
+    delete_fat = commands.add_parser("delete-fat", help="Delete one explicit non-root file or directory tree from a writable FAT image")
+    delete_fat.add_argument("image", type=Path)
+    delete_fat.add_argument("item_path", help="Existing non-root image file or directory path to delete")
+    delete_fat.add_argument("--partition", type=int, help="Explicit MBR/GPT FAT partition table index")
 
     list_deleted = commands.add_parser("list-deleted-fat", help="List conservative deleted FAT12/FAT16 root-file recovery candidates")
     list_deleted.add_argument("image", type=Path)
@@ -540,15 +608,24 @@ def _filesystem(image: Path, *, writable: bool = False, partition_index: int | N
         return FatImageFilesystem(image, read_only=not writable)
     if info.filesystem == FileSystemType.ISO9660 or info.image_format == ImageFormat.ISO:
         return IsoImageFilesystem(image)
+    if info.filesystem == FileSystemType.CBM_DOS:
+        if writable:
+            raise DiskForgeError("Canonical D64/D71/D81 CBM DOS images are read-only; modification is unavailable.")
+        if info.image_format == ImageFormat.D81:
+            return D81ImageFilesystem(image)
+        if info.image_format == ImageFormat.D71:
+            return D71ImageFilesystem(image)
+        return D64ImageFilesystem(image)
     if info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS, FileSystemType.HFS_PLUS}:
         return SleuthKitImageFilesystem(image, info.filesystem)
-    raise SystemExit("Image filesystem is not browsable. Supported: FAT, ISO, NTFS, EXT, HFS and HFS+ with optional backend.")
+    raise SystemExit("Image filesystem is not browsable. Supported: FAT, ISO, canonical D64/D71/D81 CBM DOS, NTFS, EXT, HFS and HFS+ with optional backend.")
 
 
 @contextmanager
-def _read_only_filesystem(image: Path, *, partition_index: int | None = None):
+def _read_only_filesystem(image: Path, *, partition_index: int | None = None,
+                          zip_payload: str | None = None):
     """Open a browsable image, materializing safe ZIP/container inputs temporarily."""
-    session = materialize_browsable_image(image, converter=QemuImgConverter())
+    session = materialize_browsable_image(image, converter=QemuImgConverter(), zip_payload=zip_payload)
     filesystem = None
     try:
         filesystem = _filesystem(session.image, partition_index=partition_index)
@@ -618,6 +695,9 @@ def main(argv: list[str] | None = None) -> int:
                 "virtual_bytes": info.virtual_size, "filesystem": info.filesystem.value,
                 "writable": info.writable, "notes": list(info.notes), "comment": metadata.comment,
             })
+        elif args.command == "zip-info":
+            payloads = list_zip_image_payloads(args.image)
+            _emit(args, {"source": str(args.image), "payloads": list(payloads), "count": len(payloads)}, "\n".join(payloads))
         elif args.command == "imd-info":
             inspection = inspect_imd(args.image)
             _emit(args, {
@@ -819,6 +899,204 @@ def main(argv: list[str] | None = None) -> int:
                                        "clock_events": item.clock_events, "weak_events": item.weak_events}
                                      for item in inspection.tracks]},
                   f"PRI structure validated: {len(inspection.tracks)} track(s), {inspection.total_bits} bit(s)")
+        elif args.command == "jv3-info":
+            inspection = inspect_jv3(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "write_protected": inspection.write_protected, "header_blocks": inspection.header_blocks,
+                          "free_slots": inspection.free_slots, "exportable": inspection.exportable,
+                          "export_reason": inspection.export_reason, "cylinders": inspection.cylinders,
+                          "heads": inspection.heads, "sectors_per_track": inspection.sectors_per_track,
+                          "raw_bytes": inspection.raw_bytes,
+                          "sectors": [{"block": item.block, "slot": item.slot, "cylinder": item.cylinder,
+                                       "head": item.head, "sector": item.sector, "flags": f"0x{item.flags:02X}",
+                                       "data_bytes": len(item.data)} for item in inspection.sectors]},
+                  f"JV3 structure validated: {len(inspection.sectors)} in-use sector(s), exportable={inspection.exportable}")
+        elif args.command == "convert-jv3":
+            destination = export_jv3_to_raw(args.image, args.destination)
+            _emit(args, {"source": str(args.image), "destination": str(destination)},
+                  f"Exported JV3 RAW image to {destination}")
+        elif args.command == "dmk-info":
+            inspection = inspect_dmk(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "tracks": inspection.tracks, "sides": inspection.sides,
+                          "track_length": inspection.track_length, "write_protected": inspection.write_protected,
+                          "single_density_size": inspection.single_density_size,
+                          "ignore_density": inspection.ignore_density, "total_idams": inspection.total_idams,
+                          "double_density_idams": inspection.double_density_idams,
+                          "track_records": [{"logical_index": item.index, "cylinder": item.cylinder,
+                                             "head": item.head, "offset": item.offset,
+                                             "idam_count": item.idam_count,
+                                             "double_density_idam_count": item.double_density_idam_count}
+                                            for item in inspection.track_records]},
+                  f"DMK native structure validated: {len(inspection.track_records)} track image(s), {inspection.total_idams} IDAM(s)")
+        elif args.command == "udi-info":
+            inspection = inspect_udi(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "cylinders": inspection.cylinders, "sides": inspection.sides,
+                          "extended_header_bytes": inspection.extended_header_bytes,
+                          "total_track_bytes": inspection.total_track_bytes,
+                          "clock_mark_count": inspection.clock_mark_count,
+                          "crc32": f"0x{inspection.crc32:08X}",
+                          "tracks": [{"index": item.index, "cylinder": item.cylinder, "head": item.head,
+                                      "data_bytes": item.data_bytes, "clock_mark_count": item.clock_mark_count}
+                                     for item in inspection.tracks]},
+                  f"UDI v1.0 structure validated: {len(inspection.tracks)} MFM track(s), {inspection.total_track_bytes} track byte(s)")
+        elif args.command == "scp-info":
+            inspection = inspect_scp(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "version": f"0x{inspection.version:02X}", "disk_type": f"0x{inspection.disk_type:02X}",
+                          "start_track": inspection.start_track, "end_track": inspection.end_track,
+                          "revolutions_per_track": inspection.revolutions_per_track, "heads": inspection.heads,
+                          "resolution_ns": inspection.resolution_ns, "checksum": f"0x{inspection.checksum:08X}",
+                          "total_flux_bytes": inspection.total_flux_bytes,
+                          "tracks": [{"logical_index": item.logical_index, "cylinder": item.cylinder,
+                                      "head": item.head, "offset": item.offset, "flux_bytes": item.flux_bytes,
+                                      "revolutions": [{"duration_ticks": revolution.duration_ticks,
+                                                        "flux_words": revolution.flux_words,
+                                                        "flux_offset": revolution.flux_offset}
+                                                       for revolution in item.revolutions]}
+                                     for item in inspection.tracks]},
+                  f"SCP standard structure validated: {len(inspection.tracks)} track(s), {inspection.total_flux_bytes} flux byte(s)")
+        elif args.command == "mfm-info":
+            inspection = inspect_mfm(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "tracks": inspection.tracks, "sides": inspection.sides,
+                          "rpm": inspection.rpm, "bitrate_kbps": inspection.bitrate_kbps,
+                          "interface_type": inspection.interface_type,
+                          "track_table_offset": inspection.track_table_offset_bytes,
+                          "padding_bytes": inspection.padding_bytes,
+                          "track_records": [{"cylinder": item.cylinder, "side": item.side,
+                                             "offset": item.offset_bytes, "bytes": item.bytes_stored}
+                                            for item in inspection.track_records]},
+                  f"HxC MFM structure validated: {len(inspection.track_records)} MFM track(s)")
+        elif args.command == "pfi-info":
+            inspection = inspect_pfi(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "chunks": inspection.chunks, "comments": inspection.comments,
+                          "unknown_chunks": inspection.unknown_chunks,
+                          "tracks": [{"cylinder": item.cylinder, "head": item.head,
+                                      "clock_rate": item.clock_rate, "index_count": item.index_count,
+                                      "data_chunks": item.data_chunks, "data_bytes": item.data_bytes,
+                                      "pulse_count": item.pulse_count}
+                                     for item in inspection.tracks]},
+                  f"PFI v0 structure validated: {len(inspection.tracks)} flux track(s)")
+        elif args.command == "woz-info":
+            inspection = inspect_woz(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "crc_checked": inspection.crc_checked, "info_version": inspection.info_version,
+                          "disk_type": inspection.disk_type, "disk_sides": inspection.disk_sides,
+                          "write_protected": inspection.write_protected, "synchronized": inspection.synchronized,
+                          "cleaned": inspection.cleaned, "creator": inspection.creator,
+                          "optimal_bit_timing": inspection.optimal_bit_timing, "chunks": inspection.chunks,
+                          "metadata_entries": inspection.metadata_entries,
+                          "unknown_chunks": inspection.unknown_chunks,
+                          "bit_tracks": [{"index": item.index, "starting_block": item.starting_block,
+                                          "block_count": item.block_count, "bit_count": item.encoded_count}
+                                         for item in inspection.bit_tracks],
+                          "flux_tracks": [{"index": item.index, "starting_block": item.starting_block,
+                                           "block_count": item.block_count, "byte_count": item.encoded_count}
+                                          for item in inspection.flux_tracks]},
+                  f"WOZ2 structure validated: {len(inspection.bit_tracks)} bit track(s), {len(inspection.flux_tracks)} flux track(s)")
+        elif args.command == "a2r-info":
+            inspection = inspect_a2r(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "chunks": inspection.chunks, "drive_type": inspection.drive_type,
+                          "creator": inspection.creator, "write_protected": inspection.write_protected,
+                          "synchronized": inspection.synchronized, "hard_sector_count": inspection.hard_sector_count,
+                          "raw_capture_chunks": inspection.raw_capture_chunks,
+                          "solved_flux_chunks": inspection.solved_flux_chunks,
+                          "metadata_entries": inspection.metadata_entries,
+                          "unknown_chunks": inspection.unknown_chunks,
+                          "captures": [{"location": item.location, "type": item.capture_type,
+                                        "index_signals": item.index_signals, "data_bytes": item.data_bytes}
+                                       for item in inspection.captures],
+                          "solved_tracks": [{"location": item.location, "index_signals": item.index_signals,
+                                             "data_bytes": item.data_bytes,
+                                             "mirror_outward": item.mirror_outward,
+                                             "mirror_inward": item.mirror_inward}
+                                            for item in inspection.solved_tracks]},
+                  f"A2R3 structure validated: {len(inspection.captures)} capture(s), {len(inspection.solved_tracks)} solved flux track(s)")
+        elif args.command == "d64-info":
+            inspection = inspect_d64(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.size,
+                          "disk_name": inspection.disk_name, "disk_id": inspection.disk_id,
+                          "dos_type": inspection.dos_type, "directory_sectors": inspection.directory_sectors,
+                          "free_blocks": inspection.free_blocks,
+                          "files": [{"index": item.index, "path": item.path, "name": item.name,
+                                     "type": item.file_type, "locked": item.locked, "closed": item.closed,
+                                     "blocks": item.blocks, "bytes": item.size,
+                                     "start_track": item.start_track, "start_sector": item.start_sector}
+                                    for item in inspection.files]},
+                  f"D64 structure validated: {len(inspection.files)} ordinary CBM DOS file(s)")
+        elif args.command == "d71-info":
+            inspection = inspect_d71(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.size,
+                          "disk_name": inspection.disk_name, "disk_id": inspection.disk_id,
+                          "dos_type": inspection.dos_type, "directory_sectors": inspection.directory_sectors,
+                          "free_blocks": inspection.free_blocks,
+                          "files": [{"index": item.index, "path": item.path, "name": item.name,
+                                     "type": item.file_type, "locked": item.locked, "closed": item.closed,
+                                     "blocks": item.blocks, "bytes": item.size,
+                                     "start_track": item.start_track, "start_sector": item.start_sector}
+                                    for item in inspection.files]},
+                  f"D71 structure validated: {len(inspection.files)} ordinary double-sided CBM DOS file(s)")
+        elif args.command == "d81-info":
+            inspection = inspect_d81(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.size,
+                          "disk_name": inspection.disk_name, "disk_id": inspection.disk_id,
+                          "dos_type": inspection.dos_type, "directory_sectors": inspection.directory_sectors,
+                          "free_blocks": inspection.free_blocks,
+                          "files": [{"index": item.index, "path": item.path, "name": item.name,
+                                     "type": item.file_type, "locked": item.locked, "closed": item.closed,
+                                     "blocks": item.blocks, "bytes": item.size,
+                                     "start_track": item.start_track, "start_sector": item.start_sector}
+                                    for item in inspection.files]},
+                  f"D81 structure validated: {len(inspection.files)} ordinary double-sided CBM DOS file(s)")
+        elif args.command == "g64-info":
+            inspection = inspect_g64(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "track_entries": inspection.track_entries,
+                          "stored_track_bytes": inspection.stored_track_bytes,
+                          "constant_speed_tracks": inspection.constant_speed_tracks,
+                          "mapped_speed_tracks": inspection.mapped_speed_tracks,
+                          "tracks": [{"entry_index": item.entry_index, "actual_bytes": item.actual_bytes,
+                                      "speed_kind": item.speed_kind, "speed_zone": item.speed_zone}
+                                     for item in inspection.tracks]},
+                  f"G64 v0 structure validated: {len(inspection.tracks)} GCR track(s)")
+        elif args.command == "g71-info":
+            inspection = inspect_g71(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "track_entries": inspection.track_entries,
+                          "stored_track_bytes": inspection.stored_track_bytes,
+                          "constant_speed_tracks": inspection.constant_speed_tracks,
+                          "mapped_speed_tracks": inspection.mapped_speed_tracks,
+                          "tracks": [{"entry_index": item.entry_index, "actual_bytes": item.actual_bytes,
+                                      "speed_kind": item.speed_kind, "speed_zone": item.speed_zone}
+                                     for item in inspection.tracks]},
+                  f"G71 v0 structure validated: {len(inspection.tracks)} opaque double-sided GCR track(s)")
+        elif args.command == "p64-info":
+            inspection = inspect_p64(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "flags": inspection.flags, "chunks": inspection.chunks,
+                          "tracks": [{"half_track_index": item.half_track_index, "side": item.side,
+                                      "pulses": item.pulses, "encoded_bytes": item.encoded_bytes}
+                                     for item in inspection.tracks]},
+                  f"P64 v0 structure validated: {len(inspection.tracks)} opaque NRZI half-track(s)")
+        elif args.command == "fdi-info":
+            inspection = inspect_fdi(args.image)
+            _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
+                          "header_bytes": inspection.header_bytes, "cylinders": inspection.cylinders,
+                          "heads": inspection.heads, "media_type": inspection.media_type,
+                          "rotation_rpm": inspection.rotation_rpm, "write_protected": inspection.write_protected,
+                          "index_synchronized": inspection.index_synchronized, "disk_tpi": inspection.disk_tpi,
+                          "head_tpi": inspection.head_tpi, "creator": inspection.creator, "comment": inspection.comment,
+                          "blank_track_count": inspection.blank_track_count,
+                          "declared_track_bytes": inspection.declared_track_bytes,
+                          "tracks": [{"logical_index": item.logical_index, "cylinder": item.cylinder,
+                                       "head": item.head, "type_code": f"0x{item.type_code:02X}",
+                                       "category": item.category, "offset": item.offset_bytes,
+                                       "declared_bytes": item.declared_bytes} for item in inspection.tracks]},
+                  f"FDI v2.0 structure validated: {len(inspection.tracks)} track(s), {inspection.declared_track_bytes} declared byte(s)")
         elif args.command == "86f-info":
             inspection = inspect_86f(args.image)
             _emit(args, {"source": str(inspection.source), "bytes": inspection.source_bytes,
@@ -846,13 +1124,17 @@ def main(argv: list[str] | None = None) -> int:
             destination = export_image_inventory(report, args.destination, args.report_format)
             _emit(args, {"destination": str(destination), **report.as_mapping()}, str(destination))
         elif args.command == "list":
-            with _read_only_filesystem(args.image, partition_index=args.partition) as fs:
+            with _read_only_filesystem(
+                args.image, partition_index=args.partition, zip_payload=args.zip_payload,
+            ) as fs:
                 entries = fs.list_entries(args.path)
                 _emit(args, [_entry_json(entry) for entry in entries], "\n".join(
                     f"{'d' if entry.is_dir else '-'} {entry.size:>12} {entry.attributes:>10} {entry.path}" for entry in entries
                 ))
         elif args.command == "extract":
-            with _read_only_filesystem(args.image, partition_index=args.partition) as fs:
+            with _read_only_filesystem(
+                args.image, partition_index=args.partition, zip_payload=args.zip_payload,
+            ) as fs:
                 outputs = fs.extract(args.paths, args.destination, progress, policy=_policy(args))
                 print() if outputs and not args.json else None
                 _emit(args, {"outputs": [str(output) for output in outputs]}, "\n".join(str(output) for output in outputs))
@@ -898,6 +1180,33 @@ def main(argv: list[str] | None = None) -> int:
                     raise SystemExit("Only FAT images support file movement.")
                 destination = fs.move(args.source_path, args.target_directory)
                 _emit(args, {"source": args.source_path, "destination": destination}, destination)
+            finally:
+                fs.close()
+        elif args.command == "mkdir-fat":
+            fs = _filesystem(args.image, writable=True, partition_index=args.partition)
+            try:
+                if not isinstance(fs, FatImageFilesystem):
+                    raise SystemExit("Only FAT images support directory creation.")
+                directory = fs.create_directory(args.directory_path)
+                _emit(args, {"directory": directory}, directory)
+            finally:
+                fs.close()
+        elif args.command == "copy-fat":
+            fs = _filesystem(args.image, writable=True, partition_index=args.partition)
+            try:
+                if not isinstance(fs, FatImageFilesystem):
+                    raise SystemExit("Only FAT images support file copying.")
+                destination = fs.copy(args.source_path, args.target_directory)
+                _emit(args, {"source": args.source_path, "destination": destination}, destination)
+            finally:
+                fs.close()
+        elif args.command == "delete-fat":
+            fs = _filesystem(args.image, writable=True, partition_index=args.partition)
+            try:
+                if not isinstance(fs, FatImageFilesystem):
+                    raise SystemExit("Only FAT images support entry deletion.")
+                fs.delete([args.item_path])
+                _emit(args, {"path": args.item_path}, args.item_path)
             finally:
                 fs.close()
         elif args.command == "list-deleted-fat":

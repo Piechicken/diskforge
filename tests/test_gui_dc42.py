@@ -165,3 +165,105 @@ def test_open_image_routes_86f_to_read_only_inspector(monkeypatch, tmp_path: Pat
     assert window.action_86f.text()
     assert calls == [source]
     window.close()
+
+
+def test_open_image_routes_fdi_to_read_only_inspector(monkeypatch, tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "archive.fdi"
+    source.write_bytes(b"not-opened-by-this-routing-test")
+    window = MainWindow()
+    calls: list[Path] = []
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *args, **kwargs: (str(source), "FDI"))
+    monkeypatch.setattr(window, "inspect_fdi_image", lambda path: calls.append(path))
+
+    window.open_image()
+
+    assert "*.fdi" in IMAGE_FILTER
+    assert window.action_fdi.text()
+    assert calls == [source]
+    window.close()
+
+
+def test_open_image_routes_jv3_to_read_only_inspector(monkeypatch, tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "archive.jv3"
+    source.write_bytes(b"not-opened-by-this-routing-test")
+    window = MainWindow()
+    calls: list[Path] = []
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *args, **kwargs: (str(source), "JV3"))
+    monkeypatch.setattr(window, "inspect_jv3_image", lambda path: calls.append(path))
+
+    window.open_image()
+
+    assert "*.jv3" in IMAGE_FILTER
+    assert window.action_jv3.text()
+    assert calls == [source]
+    window.close()
+
+
+def test_open_image_routes_dmk_to_read_only_inspector(monkeypatch, tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "archive.dmk"
+    source.write_bytes(b"not-opened-by-this-routing-test")
+    window = MainWindow()
+    calls: list[Path] = []
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *args, **kwargs: (str(source), "DMK"))
+    monkeypatch.setattr(window, "inspect_dmk_image", lambda path: calls.append(path))
+
+    window.open_image()
+
+    assert "*.dmk" in IMAGE_FILTER
+    assert window.action_dmk.text()
+    assert calls == [source]
+    window.close()
+
+
+def test_open_image_routes_udi_to_read_only_inspector(monkeypatch, tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "archive.udi"
+    source.write_bytes(b"not-opened-by-this-routing-test")
+    window = MainWindow()
+    calls: list[Path] = []
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *args, **kwargs: (str(source), "UDI"))
+    monkeypatch.setattr(window, "inspect_udi_image", lambda path: calls.append(path))
+
+    window.open_image()
+
+    assert "*.udi" in IMAGE_FILTER
+    assert window.action_udi.text()
+    assert calls == [source]
+    window.close()
+
+
+def test_open_image_routes_scp_to_read_only_inspector(monkeypatch, tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "capture.scp"
+    source.write_bytes(b"not-opened-by-this-routing-test")
+    window = MainWindow()
+    calls: list[Path] = []
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *args, **kwargs: (str(source), "SCP"))
+    monkeypatch.setattr(window, "inspect_scp_image", lambda path: calls.append(path))
+
+    window.open_image()
+
+    assert "*.scp" in IMAGE_FILTER
+    assert window.action_scp.text()
+    assert calls == [source]
+    window.close()
+
+
+def test_open_image_routes_hxc_mfm_to_read_only_inspector(monkeypatch, tmp_path: Path) -> None:
+    _application()
+    source = tmp_path / "archive.mfm"
+    source.write_bytes(b"not-opened-by-this-routing-test")
+    window = MainWindow()
+    calls: list[Path] = []
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *args, **kwargs: (str(source), "HxC MFM"))
+    monkeypatch.setattr(window, "inspect_mfm_image", lambda path: calls.append(path))
+
+    window.open_image()
+
+    assert "*.mfm" in IMAGE_FILTER
+    assert window.action_mfm.text()
+    assert calls == [source]
+    window.close()

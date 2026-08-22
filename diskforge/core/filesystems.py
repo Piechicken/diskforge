@@ -33,6 +33,9 @@ with warnings.catch_warnings():
     from pyfatfs.PyFat import PyFat
     from pyfatfs.PyFatFS import PyFatFS
 
+from .d64 import D64File, inspect_d64, read_d64_file
+from .d71 import D71File, inspect_d71, read_d71_file
+from .d81 import D81File, inspect_d81, read_d81_file
 from .eltorito import ElToritoBootImage, inspect_eltorito
 from .fat_recovery import (DeletedFatFileCandidate, list_deleted_root_files,
                            recover_deleted_root_file)
@@ -350,18 +353,62 @@ class FatImageFilesystem(ImageFilesystem):
             injected.append(target)
         return injected
 
-    def delete(self, paths: Sequence[str]) -> None:
+    def create_directory(self, directory_path: str, token: CancellationToken | None = None) -> str:
+        """Create one empty directory in a writable FAT image without implicit parents or overwrite."""
         if self.read_only:
             raise DiskForgeError("This FAT image is open read-only.")
-        for item_path in sorted((_normal(value) for value in paths), key=len, reverse=True):
-            info = self.fs.getinfo(item_path)
+        target = _normal(directory_path)
+        if target == "/":
+            raise DiskForgeError("The FAT root directory already exists and cannot be created.")
+        parent = _normal(posixpath.dirname(target))
+        if not self.fs.exists(parent):
+            raise FileNotFoundError(parent)
+        if not self.fs.getinfo(parent).is_dir:
+            raise DiskForgeError("The FAT directory parent must be an existing directory.")
+        if self.fs.exists(target):
+            raise FileExistsError(target)
+        if token:
+            token.raise_if_cancelled()
+        self.fs.makedirs(target, recreate=False)
+        self.clear_directory_cache()
+        return target
+
+    def delete(self, paths: Sequence[str]) -> None:
+        """Delete explicit FAT entries only after validating the complete request.
+
+        The operation intentionally permits a directory tree, but never the FAT
+        root.  Validation happens before the first mutation; deletion of several
+        independently selected entries is not claimed to be transactional once
+        removal begins.
+        """
+        if self.read_only:
+            raise DiskForgeError("This FAT image is open read-only.")
+        normalized = [_normal(value) for value in paths]
+        if not normalized:
+            raise DiskForgeError("Choose at least one FAT file or directory to delete.")
+        if any(item_path == "/" for item_path in normalized):
+            raise DiskForgeError("The FAT root directory cannot be deleted.")
+        if len(set(normalized)) != len(normalized):
+            raise DiskForgeError("FAT delete paths must be unique.")
+        entries = [(item_path, self.fs.getinfo(item_path)) for item_path in normalized]
+        for item_path, info in sorted(entries, key=lambda value: len(value[0]), reverse=True):
             if info.is_dir:
                 self.fs.removetree(item_path)
             else:
                 self.fs.remove(item_path)
+        self.clear_directory_cache()
 
-    def move(self, item_path: str, target_directory: str) -> str:
-        """Move one FAT file or directory into an existing directory without overwrite."""
+    def move(self, item_path: str, target_directory: str,
+             progress: ProgressCallback | None = None,
+             token: CancellationToken | None = None) -> str:
+        """Move one FAT file or directory into an existing directory without overwrite.
+
+        Regular files use the filesystem move primitive. Directory trees are
+        explicitly copy-then-delete: the complete new destination is verified
+        by the same streaming copy workflow before source deletion begins. This
+        preserves the source on copy failure or cancellation, but is not an
+        all-or-nothing filesystem transaction.
+        """
         if self.read_only:
             raise DiskForgeError("This FAT image is open read-only.")
         source = _normal(item_path)
@@ -376,14 +423,96 @@ class FatImageFilesystem(ImageFilesystem):
         target_info = self.fs.getinfo(destination_directory)
         if not target_info.is_dir:
             raise DiskForgeError("The FAT move target must be an existing directory.")
-        if source_info.is_dir:
-            raise DiskForgeError("FAT directory moves are not supported because they cannot be completed atomically.")
         destination = _normal(posixpath.join(destination_directory, posixpath.basename(source)))
         if destination == source:
             return source
         if self.fs.exists(destination):
             raise FileExistsError(destination)
+        if source_info.is_dir:
+            if destination_directory == source or destination_directory.startswith(source + "/"):
+                raise DiskForgeError("A FAT directory move target cannot be inside the source directory tree.")
+            destination = self.copy(source, destination_directory, progress, token)
+            if token:
+                token.raise_if_cancelled()
+            try:
+                self.fs.removetree(source)
+            except Exception as exc:
+                raise DiskForgeError("FAT directory copy succeeded but source-tree removal failed; both trees are retained for manual resolution.") from exc
+            self.clear_directory_cache()
+            return destination
+        if token:
+            token.raise_if_cancelled()
         self.fs.move(source, destination)
+        self.clear_directory_cache()
+        return destination
+
+    def copy(self, item_path: str, target_directory: str,
+             progress: ProgressCallback | None = None,
+             token: CancellationToken | None = None) -> str:
+        """Copy one FAT regular file or a new complete directory tree without overwrite."""
+        if self.read_only:
+            raise DiskForgeError("This FAT image is open read-only.")
+        source = _normal(item_path)
+        destination_directory = _normal(target_directory)
+        if source == "/":
+            raise DiskForgeError("The FAT root directory cannot be copied.")
+        if not self.fs.exists(source):
+            raise FileNotFoundError(source)
+        if not self.fs.exists(destination_directory):
+            raise DiskForgeError("The FAT copy target directory does not exist.")
+        source_info = self.fs.getinfo(source, namespaces=["details"])
+        target_info = self.fs.getinfo(destination_directory)
+        if not target_info.is_dir:
+            raise DiskForgeError("The FAT copy target must be an existing directory.")
+        destination = _normal(posixpath.join(destination_directory, posixpath.basename(source)))
+        if self.fs.exists(destination):
+            raise FileExistsError(destination)
+        if source_info.is_dir and (destination_directory == source or destination_directory.startswith(source + "/")):
+            raise DiskForgeError("A FAT directory copy target cannot be inside the source directory tree.")
+        descendants = list(self._walk(source)) if source_info.is_dir else []
+        directories = sorted((entry for entry in descendants if entry.is_dir), key=lambda entry: entry.path.count("/"))
+        files = [entry for entry in descendants if not entry.is_dir]
+        if not source_info.is_dir:
+            files = [ImageEntry(source, posixpath.basename(source), False,
+                                int(source_info.raw.get("details", {}).get("size", 0) or 0))]
+        total = sum(entry.size for entry in files) or len(directories) or 1
+        copied = 0
+        try:
+            if token:
+                token.raise_if_cancelled()
+            if source_info.is_dir:
+                self.fs.makedirs(destination, recreate=False)
+                for directory in directories:
+                    if token:
+                        token.raise_if_cancelled()
+                    relative = posixpath.relpath(directory.path, source)
+                    self.fs.makedirs(_normal(posixpath.join(destination, relative)), recreate=False)
+            for entry in files:
+                if token:
+                    token.raise_if_cancelled()
+                relative = posixpath.relpath(entry.path, source) if source_info.is_dir else ""
+                target = _normal(posixpath.join(destination, relative)) if relative else destination
+                with self.fs.openbin(entry.path, "r") as src, self.fs.openbin(target, "w") as dst:
+                    while block := src.read(1024 * 1024):
+                        if token:
+                            token.raise_if_cancelled()
+                        dst.write(block)
+                        copied += len(block)
+                        if progress:
+                            progress(Progress(OperationKind.INJECT, copied, total, f"Copying {posixpath.basename(source)}"))
+            if token:
+                token.raise_if_cancelled()
+        except Exception:
+            try:
+                if self.fs.exists(destination):
+                    if source_info.is_dir:
+                        self.fs.removetree(destination)
+                    else:
+                        self.fs.remove(destination)
+            except Exception:
+                pass
+            raise
+        self.clear_directory_cache()
         return destination
 
     def rename(self, item_path: str, new_name: str) -> str:
@@ -888,6 +1017,182 @@ def rebuild_iso_with_changes(source_iso: Path | str, destination_iso: Path | str
         raise
     finally:
         shutil.rmtree(stage_root, ignore_errors=True)
+
+
+class D64ImageFilesystem(ImageFilesystem):
+    """Read-only browser and extractor for validated canonical D64 CBM DOS files."""
+
+    read_only = True
+
+    def __init__(self, image_path: Path | str) -> None:
+        self.path = Path(image_path)
+        self.inspection = inspect_d64(self.path)
+        self._files = {item.path: item for item in self.inspection.files}
+
+    @staticmethod
+    def _entry(item: D64File) -> ImageEntry:
+        return ImageEntry(
+            path=item.path,
+            name=item.name,
+            is_dir=False,
+            size=item.size,
+            attributes=item.attributes,
+        )
+
+    def list_entries(self, path: str = "/") -> list[ImageEntry]:
+        if _normal(path) != "/":
+            raise FileNotFoundError(path)
+        return [self._entry(item) for item in self.inspection.files]
+
+    def extract(self, paths: Sequence[str], destination: Path,
+                progress: ProgressCallback | None = None,
+                token: CancellationToken | None = None,
+                policy: ExtractionPolicy | None = None) -> list[Path]:
+        destination = Path(destination)
+        destination.mkdir(parents=True, exist_ok=True)
+        active_policy = policy or ExtractionPolicy()
+        selected: list[D64File] = []
+        for path in paths:
+            normalized = _normal(path)
+            item = self._files.get(normalized)
+            if item is None:
+                raise FileNotFoundError(path)
+            selected.append(item)
+        total = sum(item.size for item in selected) or len(selected)
+        complete = 0
+        outputs: list[Path] = []
+        claimed: set[str] = set()
+        for item in selected:
+            if token:
+                token.raise_if_cancelled()
+            # A D64 has no directories. Preserve user-visible names during extraction
+            # while the internal index-prefixed path keeps duplicate directory entries distinct.
+            output_entry = ImageEntry(path=f"/{item.name}", name=item.name, is_dir=False, size=item.size)
+            output = _extraction_target(destination, output_entry, active_policy, claimed)
+            if output is None:
+                continue
+            output.parent.mkdir(parents=True, exist_ok=True)
+            payload = read_d64_file(self.path, item)
+            if token:
+                token.raise_if_cancelled()
+            output.write_bytes(payload)
+            complete += item.size or 1
+            if progress:
+                progress(Progress(OperationKind.EXTRACT, complete, total, f"Extracting {item.name}"))
+            outputs.append(output)
+        return outputs
+
+
+class D71ImageFilesystem(ImageFilesystem):
+    """Read-only browser and extractor for validated canonical D71 CBM DOS files."""
+
+    read_only = True
+
+    def __init__(self, image_path: Path | str) -> None:
+        self.path = Path(image_path)
+        self.inspection = inspect_d71(self.path)
+        self._files = {item.path: item for item in self.inspection.files}
+
+    @staticmethod
+    def _entry(item: D71File) -> ImageEntry:
+        return ImageEntry(path=item.path, name=item.name, is_dir=False, size=item.size,
+                          attributes=item.attributes)
+
+    def list_entries(self, path: str = "/") -> list[ImageEntry]:
+        if _normal(path) != "/":
+            raise FileNotFoundError(path)
+        return [self._entry(item) for item in self.inspection.files]
+
+    def extract(self, paths: Sequence[str], destination: Path,
+                progress: ProgressCallback | None = None,
+                token: CancellationToken | None = None,
+                policy: ExtractionPolicy | None = None) -> list[Path]:
+        destination = Path(destination)
+        destination.mkdir(parents=True, exist_ok=True)
+        active_policy = policy or ExtractionPolicy()
+        selected: list[D71File] = []
+        for path in paths:
+            item = self._files.get(_normal(path))
+            if item is None:
+                raise FileNotFoundError(path)
+            selected.append(item)
+        total = sum(item.size for item in selected) or len(selected)
+        complete = 0
+        outputs: list[Path] = []
+        claimed: set[str] = set()
+        for item in selected:
+            if token:
+                token.raise_if_cancelled()
+            output_entry = ImageEntry(path=f"/{item.name}", name=item.name, is_dir=False, size=item.size)
+            output = _extraction_target(destination, output_entry, active_policy, claimed)
+            if output is None:
+                continue
+            output.parent.mkdir(parents=True, exist_ok=True)
+            payload = read_d71_file(self.path, item)
+            if token:
+                token.raise_if_cancelled()
+            output.write_bytes(payload)
+            complete += item.size or 1
+            if progress:
+                progress(Progress(OperationKind.EXTRACT, complete, total, f"Extracting {item.name}"))
+            outputs.append(output)
+        return outputs
+
+
+class D81ImageFilesystem(ImageFilesystem):
+    """Read-only browser and extractor for validated canonical D81 CBM DOS files."""
+
+    read_only = True
+
+    def __init__(self, image_path: Path | str) -> None:
+        self.path = Path(image_path)
+        self.inspection = inspect_d81(self.path)
+        self._files = {item.path: item for item in self.inspection.files}
+
+    @staticmethod
+    def _entry(item: D81File) -> ImageEntry:
+        return ImageEntry(path=item.path, name=item.name, is_dir=False, size=item.size,
+                          attributes=item.attributes)
+
+    def list_entries(self, path: str = "/") -> list[ImageEntry]:
+        if _normal(path) != "/":
+            raise FileNotFoundError(path)
+        return [self._entry(item) for item in self.inspection.files]
+
+    def extract(self, paths: Sequence[str], destination: Path,
+                progress: ProgressCallback | None = None,
+                token: CancellationToken | None = None,
+                policy: ExtractionPolicy | None = None) -> list[Path]:
+        destination = Path(destination)
+        destination.mkdir(parents=True, exist_ok=True)
+        active_policy = policy or ExtractionPolicy()
+        selected: list[D81File] = []
+        for path in paths:
+            item = self._files.get(_normal(path))
+            if item is None:
+                raise FileNotFoundError(path)
+            selected.append(item)
+        total = sum(item.size for item in selected) or len(selected)
+        complete = 0
+        outputs: list[Path] = []
+        claimed: set[str] = set()
+        for item in selected:
+            if token:
+                token.raise_if_cancelled()
+            output_entry = ImageEntry(path=f"/{item.name}", name=item.name, is_dir=False, size=item.size)
+            output = _extraction_target(destination, output_entry, active_policy, claimed)
+            if output is None:
+                continue
+            output.parent.mkdir(parents=True, exist_ok=True)
+            payload = read_d81_file(self.path, item)
+            if token:
+                token.raise_if_cancelled()
+            output.write_bytes(payload)
+            complete += item.size or 1
+            if progress:
+                progress(Progress(OperationKind.EXTRACT, complete, total, f"Extracting {item.name}"))
+            outputs.append(output)
+        return outputs
 
 
 class IsoImageFilesystem(ImageFilesystem):

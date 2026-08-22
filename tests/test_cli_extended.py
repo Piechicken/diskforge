@@ -50,24 +50,27 @@ def test_cli_bundle_password_stdin(tmp_path: Path, monkeypatch, capsys) -> None:
 
 
 
-def test_cli_move_fat_emits_json_and_rejects_directory_sources(tmp_path: Path, capsys) -> None:
+def test_cli_move_fat_emits_json_for_directory_tree_and_rejects_source_tree_target(tmp_path: Path, capsys) -> None:
     image = tmp_path / "move.img"
-    payload = tmp_path / "payload.txt"
-    payload.write_text("CLI move payload", encoding="utf-8")
+    tree = tmp_path / "tree"
+    nested = tree / "nested"
+    nested.mkdir(parents=True)
+    (tree / "payload.txt").write_text("CLI move payload", encoding="utf-8")
+    (nested / "child.txt").write_text("CLI move child", encoding="utf-8")
     archive = tmp_path / "archive"
     archive.mkdir()
     (archive / "placeholder.txt").write_text("directory anchor", encoding="utf-8")
 
     assert main(["create-fat", str(image), "--size-mib", "8", "--fat", "16"]) == 0
-    assert main(["inject", str(image), str(payload), str(archive)]) == 0
+    assert main(["inject", str(image), str(tree), str(archive)]) == 0
     capsys.readouterr()
 
-    assert main(["--json", "move-fat", str(image), "/payload.txt", "/archive"]) == 0
+    assert main(["--json", "move-fat", str(image), "/tree", "/archive"]) == 0
     assert json.loads(capsys.readouterr().out) == {
-        "source": "/payload.txt", "destination": "/archive/payload.txt",
+        "source": "/tree", "destination": "/archive/tree",
     }
-    assert main(["move-fat", str(image), "/archive", "/"]) == 2
-    assert "directory moves" in capsys.readouterr().err
+    assert main(["move-fat", str(image), "/archive", "/archive/tree"]) == 2
+    assert "inside the source" in capsys.readouterr().err
 
 
 

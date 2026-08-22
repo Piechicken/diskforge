@@ -37,12 +37,14 @@ class BrowsableImageSession:
 
 
 def materialize_browsable_image(source: Path | str, *, converter: Converter | None = None,
+                                 zip_payload: str | None = None,
                                  progress: ProgressCallback | None = None,
                                  token: CancellationToken | None = None) -> BrowsableImageSession:
     """Return an image path suitable for read-only filesystem probing.
 
-    Native raw/FAT/ISO images are returned directly. A safe single-payload ZIP,
-    legacy compressed image, or fixed VHD is materialized to a private temporary
+    Native raw/FAT/ISO images are returned directly. A safe ZIP with one payload
+    or an explicitly selected validated root-level payload, a legacy compressed image,
+    or a fixed VHD is materialized to a private temporary
     file; VHDX, VMDK and QCOW2 require the explicitly configured converter. Every
     temporary directory is caller-owned through ``close`` and is always read-only.
     """
@@ -57,7 +59,15 @@ def materialize_browsable_image(source: Path | str, *, converter: Converter | No
         if info.image_format in {ImageFormat.IMZ, ImageFormat.WLZ}:
             extract_legacy_zip_image(original, raw)
         elif info.image_format == ImageFormat.ZIP:
-            extract_zip_image_payload(original, raw, progress=progress, token=token)
+            payload = extract_zip_image_payload(
+                original, raw, payload_name=zip_payload, progress=progress, token=token,
+            )
+            # The ZIP extractor has already validated the single root-level name.
+            # Preserve its suffix only after extraction so extension-dependent,
+            # shape-validated raw aliases are re-identified correctly.
+            suffixed_raw = raw.with_suffix(Path(payload.payload_name).suffix.casefold())
+            raw.replace(suffixed_raw)
+            raw = suffixed_raw
         elif info.image_format == ImageFormat.VHD:
             if info.virtual_size is None:
                 raise DiskForgeError("VHD browsing requires a valid fixed-VHD virtual size.")
@@ -73,7 +83,7 @@ def materialize_browsable_image(source: Path | str, *, converter: Converter | No
             materialized_info = inspect_image(raw, converter)
             if materialized_info.filesystem not in {
                 FileSystemType.FAT12, FileSystemType.FAT16, FileSystemType.FAT32,
-                FileSystemType.ISO9660, FileSystemType.NTFS, FileSystemType.EXT,
+                FileSystemType.ISO9660, FileSystemType.CBM_DOS, FileSystemType.NTFS, FileSystemType.EXT,
                 FileSystemType.HFS, FileSystemType.HFS_PLUS,
             } and materialized_info.image_format != ImageFormat.ISO:
                 raise DiskForgeError("ZIP image payload is not a supported browsable disk image.")

@@ -111,6 +111,25 @@ def test_fat_move_preserves_regular_file_payload(tmp_path: Path) -> None:
     assert (tmp_path / "extract" / "archive" / "single.txt").read_text(encoding="utf-8") == "single move payload"
 
 
+def test_fat_move_directory_tree_preserves_payload_then_removes_source(tmp_path: Path) -> None:
+    image = create_fat_image(tmp_path / "move-tree.img", 4 * 1024 * 1024, FileSystemType.FAT12, "MOVE")
+    tree = tmp_path / "tree"
+    nested = tree / "nested"
+    nested.mkdir(parents=True)
+    (tree / "root.txt").write_text("root", encoding="utf-8")
+    (nested / "child.txt").write_text("child", encoding="utf-8")
+    filesystem = FatImageFilesystem(image)
+    try:
+        filesystem.inject([tree])
+        filesystem.fs.makedirs("/archive", recreate=True)
+        assert filesystem.move("/tree", "/archive") == "/archive/tree"
+        assert not filesystem.fs.exists("/tree")
+        output = filesystem.extract(["/archive/tree/root.txt", "/archive/tree/nested/child.txt"], tmp_path / "tree-extract")
+    finally:
+        filesystem.close()
+    assert [item.read_text(encoding="utf-8") for item in output] == ["root", "child"]
+
+
 def test_fat_move_rejects_unsafe_destinations_and_preserves_source(tmp_path: Path) -> None:
     image = create_fat_image(tmp_path / "move-guards.img", 4 * 1024 * 1024, FileSystemType.FAT12, "MOVE")
     payload = tmp_path / "payload.txt"
@@ -132,7 +151,7 @@ def test_fat_move_rejects_unsafe_destinations_and_preserves_source(tmp_path: Pat
             filesystem.move("/payload.txt", "/folder/payload.txt")
         with pytest.raises(DiskForgeError, match="root directory"):
             filesystem.move("/", "/folder")
-        with pytest.raises(DiskForgeError, match="directory moves"):
+        with pytest.raises(DiskForgeError, match="inside the source"):
             filesystem.move("/folder", "/folder/child")
         assert filesystem.fs.exists("/payload.txt")
         assert filesystem.fs.exists("/folder")

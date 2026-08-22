@@ -45,6 +45,10 @@ _EDITABLE_KINDS = (
     OperationKind.UNBUNDLE,
     OperationKind.MOVE,
     OperationKind.FAT_METADATA,
+    OperationKind.FAT_MKDIR,
+    OperationKind.FAT_COPY,
+    OperationKind.FAT_RENAME,
+    OperationKind.FAT_DELETE,
 )
 
 
@@ -107,8 +111,12 @@ class BatchDesignerDialog(QDialog):
             OperationKind.HFS_CREATE: "Create verified classic HFS image",
             OperationKind.BUNDLE: "Create secure image container",
             OperationKind.UNBUNDLE: "Extract image container",
-            OperationKind.MOVE: "Move regular FAT file",
+            OperationKind.MOVE: "Move FAT file or directory tree",
             OperationKind.FAT_METADATA: "Update explicit FAT metadata",
+            OperationKind.FAT_MKDIR: "Create empty FAT directory",
+            OperationKind.FAT_COPY: "Copy FAT file or directory tree",
+            OperationKind.FAT_RENAME: "Rename FAT file or directory",
+            OperationKind.FAT_DELETE: "Delete FAT file or directory tree",
         }
         for kind in _EDITABLE_KINDS:
             self.kind_choice.addItem(labels[kind], kind.value)
@@ -146,7 +154,9 @@ class BatchDesignerDialog(QDialog):
 
         self.paths = QLineEdit("/")
         self.item_path = QLineEdit()
+        self.new_name = QLineEdit()
         self.target_directory = QLineEdit("/")
+        self.directory_path = QLineEdit("/")
         self.layout_choice = QComboBox()
         self.layout_choice.addItem("Preserve image paths", ExtractionLayout.PRESERVE_PATHS)
         self.layout_choice.addItem("Extract all files into one directory", ExtractionLayout.FLATTEN)
@@ -157,8 +167,10 @@ class BatchDesignerDialog(QDialog):
         self.conflict_choice.addItem("Skip existing file", ConflictPolicy.SKIP)
         self.conflict_choice.addItem("Rename conflicting file", ConflictPolicy.RENAME)
         editor.addRow("Image paths to extract (one per line)", self.paths)
-        editor.addRow("Image file to move", self.item_path)
+        editor.addRow("FAT item path", self.item_path)
+        editor.addRow("New FAT entry name", self.new_name)
         editor.addRow("FAT target directory", self.target_directory)
+        editor.addRow("New FAT directory path", self.directory_path)
         self.metadata_paths = QPlainTextEdit()
         self.metadata_paths.setFixedHeight(70)
         editor.addRow("FAT metadata paths (one per line)", self.metadata_paths)
@@ -216,7 +228,7 @@ class BatchDesignerDialog(QDialog):
         self.preview.setWordWrap(True)
         layout.addWidget(self.preview)
         for widget in (self.source, self.destination, self.sources, self.prefix, self.suffix, self.paths,
-                       self.item_path, self.target_directory, self.sha256, self.compare_bytes, self.size_bytes, self.partition_index, self.volume_label, self.comment,
+                       self.item_path, self.new_name, self.target_directory, self.directory_path, self.sha256, self.compare_bytes, self.size_bytes, self.partition_index, self.volume_label, self.comment,
                        self.description, self.bundle_names, self.metadata_paths, self.metadata_created,
                        self.metadata_modified, self.metadata_accessed):
             signal = widget.textChanged if isinstance(widget, QPlainTextEdit) else widget.textChanged
@@ -260,8 +272,12 @@ class BatchDesignerDialog(QDialog):
             OperationKind.HFS_CREATE: "Create a new standalone classic HFS output through an explicitly available hfsutils backend. Choose a new destination, at least 800 KiB in 512-byte units, and a safe volume label. HFS+, physical media, partition maps, and overwrite are rejected.",
             OperationKind.BUNDLE: "Create an unencrypted, auditable image container from selected image files.",
             OperationKind.UNBUNDLE: "Extract named or all items from an unencrypted image container.",
-            OperationKind.MOVE: "Move one regular file within a writable FAT image to an existing image directory. Existing targets are never overwritten and directory moves are deliberately rejected because they are not atomic.",
+            OperationKind.MOVE: "Move one regular file or complete directory tree within a writable FAT image to an existing image directory. Existing targets are never overwritten; directory movement uses cancellable copy-then-delete, requires a new same-name target outside the source tree, and is not claimed to be atomic.",
             OperationKind.FAT_METADATA: "Update explicitly listed entries in one writable FAT image. Each DOS attribute is independently set, cleared, or left unchanged; ISO local timestamp fields are optional. The recipe previews a write and does not recursively select entries or access devices.",
+            OperationKind.FAT_MKDIR: "Create one empty directory in a writable FAT image. The full directory path is explicit, its parent must already exist, and existing paths are never overwritten. The recipe previews a write and does not access devices.",
+            OperationKind.FAT_COPY: "Copy one regular file or complete new directory tree within a writable FAT image into an existing image directory. Sources remain in place, the same-name target must be new and cannot be inside the source tree, failures or cancellation clean up the new target where possible, and the recipe previews a write without accessing devices.",
+            OperationKind.FAT_RENAME: "Rename one FAT file or directory within its existing parent. The new name must be a single non-empty entry name, existing targets are never replaced, and the recipe previews a write without accessing devices.",
+            OperationKind.FAT_DELETE: "Delete one explicit non-root FAT file or directory tree from a writable image. The path is validated before deletion, the recipe previews a write without accessing devices, and a directory tree deletion is irreversible.",
         }
         self.preview.setText(hints[kind])
 
@@ -365,19 +381,60 @@ class BatchDesignerDialog(QDialog):
             if not source or not destination or not self.size_bytes.text().strip():
                 raise DiskForgeError("Resize requires source, destination and byte size.")
             item.update({"source": source, "destination": destination, "size_bytes": int(self.size_bytes.text().strip())})
-        elif kind == OperationKind.MOVE:
+        elif kind in {OperationKind.MOVE, OperationKind.FAT_COPY}:
             item_path = self.item_path.text().strip()
             target_directory = self.target_directory.text().strip()
+            action = "move" if kind == OperationKind.MOVE else "copy"
             if not source or not item_path or not target_directory:
-                raise DiskForgeError("FAT file move requires a source image, an image file path, and an existing target directory.")
+                raise DiskForgeError(f"FAT {action} requires a source image, an image item path, and an existing target directory.")
             item.update({"source": source, "item_path": item_path, "target_directory": target_directory})
             if self.partition_index.text().strip():
                 try:
                     partition = int(self.partition_index.text().strip())
                 except ValueError as exc:
-                    raise DiskForgeError("FAT file move partition index must be a positive integer.") from exc
+                    raise DiskForgeError(f"FAT {action} partition index must be a positive integer.") from exc
                 if partition < 1:
-                    raise DiskForgeError("FAT file move partition index must be a positive integer.")
+                    raise DiskForgeError(f"FAT {action} partition index must be a positive integer.")
+                item["partition"] = partition
+        elif kind == OperationKind.FAT_RENAME:
+            item_path = self.item_path.text().strip()
+            new_name = self.new_name.text().strip()
+            if not source or not item_path or not new_name:
+                raise DiskForgeError("FAT renaming requires a source image, an image item path, and a new entry name.")
+            item.update({"source": source, "item_path": item_path, "new_name": new_name})
+            if self.partition_index.text().strip():
+                try:
+                    partition = int(self.partition_index.text().strip())
+                except ValueError as exc:
+                    raise DiskForgeError("FAT renaming partition index must be a positive integer.") from exc
+                if partition < 1:
+                    raise DiskForgeError("FAT renaming partition index must be a positive integer.")
+                item["partition"] = partition
+        elif kind == OperationKind.FAT_DELETE:
+            item_path = self.item_path.text().strip()
+            if not source or not item_path:
+                raise DiskForgeError("FAT deletion requires a source image and one explicit non-root image path.")
+            item.update({"source": source, "item_path": item_path})
+            if self.partition_index.text().strip():
+                try:
+                    partition = int(self.partition_index.text().strip())
+                except ValueError as exc:
+                    raise DiskForgeError("FAT deletion partition index must be a positive integer.") from exc
+                if partition < 1:
+                    raise DiskForgeError("FAT deletion partition index must be a positive integer.")
+                item["partition"] = partition
+        elif kind == OperationKind.FAT_MKDIR:
+            directory_path = self.directory_path.text().strip()
+            if not source or not directory_path:
+                raise DiskForgeError("FAT directory creation requires a source image and a new image directory path.")
+            item.update({"source": source, "directory_path": directory_path})
+            if self.partition_index.text().strip():
+                try:
+                    partition = int(self.partition_index.text().strip())
+                except ValueError as exc:
+                    raise DiskForgeError("FAT directory creation partition index must be a positive integer.") from exc
+                if partition < 1:
+                    raise DiskForgeError("FAT directory creation partition index must be a positive integer.")
                 item["partition"] = partition
         elif kind == OperationKind.FAT_METADATA:
             metadata_paths = [value.strip() for value in self.metadata_paths.toPlainText().splitlines() if value.strip()]
@@ -441,6 +498,10 @@ class BatchDesignerDialog(QDialog):
         source = "new image" if kind == OperationKind.HFS_CREATE.value else item.get("source") or f"{len(item.get('sources', []))} source(s)"
         if kind == OperationKind.FAT_METADATA.value:
             return f"{kind}: {source} → {len(item.get('paths', []))} explicit FAT path(s)"
+        if kind == OperationKind.FAT_MKDIR.value:
+            return f"{kind}: {source} → {item.get('directory_path', '')}"
+        if kind == OperationKind.FAT_DELETE.value:
+            return f"{kind}: {source} → {item.get('item_path', '')}"
         destination = item.get("destination") or item.get("target_directory") or item.get("destination_root") or "read-only"
         return f"{kind}: {source} → {destination}"
 
@@ -506,7 +567,9 @@ class BatchDesignerDialog(QDialog):
             self.step.setValue(int(sequence.get("step", 1)))
         self.paths.setText("\n".join(str(value) for value in item.get("paths", ["/"])))
         self.item_path.setText(str(item.get("item_path", "")))
+        self.new_name.setText(str(item.get("new_name", "")))
         self.target_directory.setText(str(item.get("target_directory", "/")))
+        self.directory_path.setText(str(item.get("directory_path", "/")))
         self.metadata_paths.setPlainText("\n".join(str(value) for value in item.get("paths", [])))
         for key, choice in self.metadata_attributes.items():
             self._set_combo_data(choice, item[key] if key in item else None)

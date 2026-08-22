@@ -466,14 +466,14 @@ def test_fat_file_move_workflow_is_translated_in_every_non_english_locale() -> N
 
     required = {
         "Move to directory…",
-        "Move image file",
+        "Move image entry",
         "Existing target directory",
-        "Moving image file",
+        "Moving image entry",
         "Moved entry to {path}",
         "Move regular FAT file",
         "Image file to move",
         "FAT target directory",
-        "Move one regular file within a writable FAT image to an existing image directory. Existing targets are never overwritten and directory moves are deliberately rejected because they are not atomic.",
+        "Move one regular file or complete directory tree within a writable FAT image to an existing image directory. Existing targets are never overwritten; directory movement uses cancellable copy-then-delete, requires a new same-name target outside the source tree, and is not claimed to be atomic.",
         "FAT file move requires a source image, an image file path, and an existing target directory.",
         "FAT file move partition index must be a positive integer.",
     }
@@ -824,6 +824,297 @@ def test_86f_structural_inspection_is_translated_in_every_non_english_locale() -
         "Encoded bytes",
         "Read-only bitstream",
         "No decoding or RAW export is available.",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_fdi_structural_inspection_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect FDI structure…",
+        "Inspect FDI structure",
+        "FDI files (*.fdi);;All files (*)",
+        "Inspecting FDI structure",
+        "FDI structural inspection",
+        "Blank tracks",
+        "Cylinders",
+        "Heads",
+        "Media type",
+        "Read-only container",
+        "Creator",
+        "Comment",
+        "Rotation speed",
+        "Disk TPI",
+        "Head TPI",
+        "Declared track bytes",
+        "No decoding or RAW export is available.",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_jv3_inspection_and_export_are_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect / export JV3…", "Inspect / export JV3", "JV3 files (*.jv3);;All files (*)",
+        "Inspecting JV3 image", "JV3 inspection", "In-use sectors", "Free slots", "Header blocks",
+        "Write protected", "Strict RAW export", "Geometry", "RAW bytes", "Unavailable", "Export reason",
+        "Export JV3 RAW…", "Export JV3 RAW", "RAW images (*.img *.ima *.raw);;All files (*)",
+        "Exporting JV3 RAW", "Exported JV3 RAW to {path}",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_dmk_inspection_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect DMK structure…", "Inspect DMK structure", "DMK files (*.dmk);;All files (*)",
+        "Inspecting DMK structure", "DMK structural inspection", "ID address marks", "Tracks",
+        "Track length", "Single-density track size", "Ignore density", "Double-density IDAMs",
+        "Container bytes",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_fat_directory_creation_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Create FAT directory…", "Create FAT directory", "New directory name",
+        "Creating FAT directory", "Created FAT directory {path}",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_fat_regular_file_copy_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Copy to directory…", "Copy image file", "Copying image file", "Copy image entry", "Copying image entry", "Copied entry to {path}",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_udi_inspector_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect UDI structure…", "Inspect UDI structure", "UDI files (*.udi);;All files (*)",
+        "Inspecting UDI structure", "UDI structural inspection", "Extended header bytes",
+        "Track data bytes", "Clock marks", "CRC32",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required - {"CRC32"})
+
+
+def test_scp_inspector_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect SCP structure…", "Inspect SCP structure", "SCP files (*.scp);;All files (*)",
+        "Inspecting SCP structure", "SCP structural inspection", "Revolutions per track", "Resolution",
+        "Read-only flux", "No flux decoding or RAW export is available.", "Start track", "End track",
+        "Heads", "Flux bytes", "Checksum",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_hxc_mfm_inspection_text_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect HxC MFM structure…",
+        "Inspect HxC MFM structure",
+        "HxC MFM files (*.mfm);;All files (*)",
+        "Inspecting HxC MFM structure",
+        "HxC MFM structural inspection",
+        "Bitrate",
+        "Interface type",
+        "Track table offset",
+        "Padding bytes",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_fat_batch_delete_text_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Delete FAT file or directory tree",
+        "Delete one explicit non-root FAT file or directory tree from a writable image. The path is validated before deletion, the recipe previews a write without accessing devices, and a directory tree deletion is irreversible.",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_woz2_inspection_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect WOZ2 structure…",
+        "Inspect WOZ2 structure",
+        "WOZ files (*.woz);;All files (*)",
+        "Inspecting WOZ2 structure",
+        "WOZ2 structural inspection",
+        "Bit tracks",
+        "Flux tracks",
+        "INFO version",
+        "Disk type",
+        "Creator",
+        "CRC checked",
+        "Metadata entries",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+def test_a2r3_inspection_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect A2R3 structure…",
+        "Inspect A2R3 structure",
+        "A2R files (*.a2r);;All files (*)",
+        "Inspecting A2R3 structure",
+        "A2R3 structural inspection",
+        "Raw captures",
+        "Solved flux tracks",
+        "Read-only flux",
+        "No decoding or RAW export is available.",
+        "Drive type",
+        "Write protected",
+        "Synchronized",
+        "Hard sector count",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+
+def test_g64_inspection_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect G64 structure…",
+        "Inspect G64 structure",
+        "G64 files (*.g64);;All files (*)",
+        "Inspecting G64 structure",
+        "G64 structural inspection",
+        "GCR tracks",
+        "Track entries",
+        "Read-only GCR",
+        "No decoding or RAW export is available.",
+        "Stored track bytes",
+        "Constant-speed tracks",
+        "Mapped-speed tracks",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+
+def test_p64_inspection_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect P64 structure…",
+        "Inspect P64 structure",
+        "P64 files (*.p64);;All files (*)",
+        "Inspecting P64 structure",
+        "P64 structural inspection",
+        "NRZI half-tracks",
+        "Container chunks",
+        "Read-only NRZI",
+        "No pulse, GCR, sector decoding or RAW export is available.",
+        "P64 flags",
+    }
+    for language in LANGUAGES:
+        if language.code == "en":
+            continue
+        translated = CATALOG[language.code]
+        assert required <= set(translated)
+        assert all(translated[source] != source for source in required)
+
+
+
+def test_g71_inspection_is_translated_in_every_non_english_locale() -> None:
+    from diskforge.gui.i18n import CATALOG
+
+    required = {
+        "Inspect G71 structure…",
+        "Inspect G71 structure",
+        "G71 files (*.g71);;All files (*)",
+        "Inspecting G71 structure",
+        "G71 structural inspection",
+        "Opaque double-sided GCR tracks",
+        "Half-track entries",
+        "Read-only double-sided GCR",
+        "No GCR or sector decoding, RAW export, browse, filesystem session, conversion, repair, or writing is available.",
+        "Stored track bytes",
+        "Constant-speed tracks",
+        "Mapped-speed tracks",
     }
     for language in LANGUAGES:
         if language.code == "en":

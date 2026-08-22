@@ -84,3 +84,31 @@ def test_custom_legacy_geometry_is_explicit_and_verified(tmp_path: Path) -> None
 def test_legacy_floppy_rejects_unsupported_or_invalid_geometry(tmp_path: Path, geometry: LegacyFloppyGeometry, message: str) -> None:
     with pytest.raises(DiskForgeError, match=message):
         create_legacy_fat_floppy(tmp_path / "invalid", geometry)
+
+
+def test_conventional_legacy_raw_alias_requires_known_suffix_and_exact_shape(tmp_path: Path) -> None:
+    created = create_legacy_fat_floppy_profile(tmp_path / "legacy", "pc525_dsdd_360", label="ALIAS")
+    alias = created.with_suffix(".vfd")
+    created.rename(alias)
+
+    info = inspect_image(alias)
+    assert info.image_format == ImageFormat.RAW
+    assert info.filesystem == FileSystemType.FAT12
+    assert "Conventional legacy raw-sector image shape recognized" in info.notes
+    filesystem = FatImageFilesystem(alias, read_only=True)
+    try:
+        assert filesystem.list_entries("/") == []
+    finally:
+        filesystem.close()
+
+    unknown = tmp_path / "same-shape.payload"
+    unknown.write_bytes(alias.read_bytes())
+    assert inspect_image(unknown).image_format == ImageFormat.UNKNOWN
+    assert inspect_image(unknown).filesystem == FileSystemType.FAT12
+
+
+def test_legacy_raw_alias_rejects_nonconventional_byte_shape(tmp_path: Path) -> None:
+    malformed = tmp_path / "not-a-floppy.vfd"
+    malformed.write_bytes(b"\0" * (360 * 1024 + 1))
+
+    assert inspect_image(malformed).image_format == ImageFormat.UNKNOWN

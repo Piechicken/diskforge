@@ -15,7 +15,7 @@ from typing import Any, Callable
 from .browse_session import materialize_browsable_image
 from .bundle import create_bundle, extract_bundle
 from .compare import compare_streams
-from .filesystems import (FatImageFilesystem, IsoImageFilesystem, rebuild_iso_with_changes,
+from .filesystems import (D64ImageFilesystem, D71ImageFilesystem, D81ImageFilesystem, FatImageFilesystem, IsoImageFilesystem, rebuild_iso_with_changes,
                           replace_iso_file_safely)
 from .formats import (QemuImgConverter, convert_image, create_legacy_zip_image,
                       extract_legacy_zip_image, inspect_image)
@@ -85,6 +85,10 @@ class BatchRunner:
             OperationKind.EXPORT_LISTING: ("source", "destination"),
             OperationKind.MOVE: ("source", "item_path", "target_directory"),
             OperationKind.FAT_METADATA: ("source", "paths"),
+            OperationKind.FAT_MKDIR: ("source", "directory_path"),
+            OperationKind.FAT_COPY: ("source", "item_path", "target_directory"),
+            OperationKind.FAT_RENAME: ("source", "item_path", "new_name"),
+            OperationKind.FAT_DELETE: ("source", "item_path"),
         }
         for position, raw in enumerate(spec["operations"]):
             item = raw if isinstance(raw, dict) else {}
@@ -128,6 +132,30 @@ class BatchRunner:
                 partition_index = item.get("partition")
                 if partition_index is not None and (isinstance(partition_index, bool) or not isinstance(partition_index, int) or partition_index < 1):
                     raise DiskForgeError("Batch fat_metadata partition must be a positive integer when provided.")
+            if kind == OperationKind.FAT_MKDIR:
+                if not isinstance(item.get("directory_path"), str) or not item["directory_path"].strip():
+                    raise DiskForgeError("Batch fat_mkdir directory_path must be a non-empty string.")
+                partition_index = item.get("partition")
+                if partition_index is not None and (isinstance(partition_index, bool) or not isinstance(partition_index, int) or partition_index < 1):
+                    raise DiskForgeError("Batch fat_mkdir partition must be a positive integer when provided.")
+            if kind == OperationKind.FAT_COPY:
+                if not isinstance(item.get("item_path"), str) or not isinstance(item.get("target_directory"), str):
+                    raise DiskForgeError("Batch fat_copy item_path and target_directory must be strings.")
+                partition_index = item.get("partition")
+                if partition_index is not None and (isinstance(partition_index, bool) or not isinstance(partition_index, int) or partition_index < 1):
+                    raise DiskForgeError("Batch fat_copy partition must be a positive integer when provided.")
+            if kind == OperationKind.FAT_RENAME:
+                if not isinstance(item.get("item_path"), str) or not isinstance(item.get("new_name"), str):
+                    raise DiskForgeError("Batch fat_rename item_path and new_name must be strings.")
+                partition_index = item.get("partition")
+                if partition_index is not None and (isinstance(partition_index, bool) or not isinstance(partition_index, int) or partition_index < 1):
+                    raise DiskForgeError("Batch fat_rename partition must be a positive integer when provided.")
+            if kind == OperationKind.FAT_DELETE:
+                if not isinstance(item.get("item_path"), str) or not item["item_path"].strip():
+                    raise DiskForgeError("Batch fat_delete item_path must be a non-empty string.")
+                partition_index = item.get("partition")
+                if partition_index is not None and (isinstance(partition_index, bool) or not isinstance(partition_index, int) or partition_index < 1):
+                    raise DiskForgeError("Batch fat_delete partition must be a positive integer when provided.")
             if kind == OperationKind.ISO_EDIT:
                 additions, delete_paths, create_directories, target_directory = self._iso_edit_values(item)
                 if not additions and not delete_paths and not create_directories:
@@ -153,7 +181,8 @@ class BatchRunner:
                                          OperationKind.ISO_REPLACE, OperationKind.ISO_EDIT,
                                          OperationKind.NTFS_INJECT, OperationKind.EXT_INJECT, OperationKind.HFS_INJECT,
                                          OperationKind.HFS_CREATE, OperationKind.EXPORT_LISTING, OperationKind.MOVE,
-                                         OperationKind.FAT_METADATA},
+                                         OperationKind.FAT_METADATA, OperationKind.FAT_MKDIR, OperationKind.FAT_COPY,
+                                         OperationKind.FAT_RENAME, OperationKind.FAT_DELETE},
             })
         return preview
 
@@ -225,11 +254,19 @@ class BatchRunner:
             if writable:
                 raise DiskForgeError("Batch ISO filesystem actions are read-only.")
             return IsoImageFilesystem(source)
+        if info.filesystem == FileSystemType.CBM_DOS:
+            if writable:
+                raise DiskForgeError("Batch canonical D64/D71/D81 CBM DOS filesystem actions are read-only.")
+            if info.image_format == ImageFormat.D81:
+                return D81ImageFilesystem(source)
+            if info.image_format == ImageFormat.D71:
+                return D71ImageFilesystem(source)
+            return D64ImageFilesystem(source)
         if info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS, FileSystemType.HFS_PLUS}:
             if writable:
                 raise DiskForgeError("Batch NTFS, EXT, HFS and HFS+ filesystem actions are read-only.")
             return SleuthKitImageFilesystem(source, info.filesystem)
-        raise DiskForgeError("Batch filesystem actions require FAT, ISO, NTFS, EXT, HFS or HFS+ image content.")
+        raise DiskForgeError("Batch filesystem actions require FAT, ISO, canonical D64/D71/D81 CBM DOS, NTFS, EXT, HFS or HFS+ image content.")
 
     @contextmanager
     def _read_only_filesystem(self, source: Path, *, partition_index: int | None = None):
@@ -359,6 +396,46 @@ class BatchRunner:
                 if not isinstance(filesystem, FatImageFilesystem):
                     raise DiskForgeError("Batch fat_metadata is available only for writable FAT images.")
                 apply_fat_metadata(filesystem, update)
+            finally:
+                filesystem.close()
+            return str(source)
+        if kind == OperationKind.FAT_MKDIR:
+            source = Path(item["source"])
+            filesystem = self._filesystem(source, partition_index=item.get("partition"), writable=True)
+            try:
+                if not isinstance(filesystem, FatImageFilesystem):
+                    raise DiskForgeError("Batch fat_mkdir is available only for writable FAT images.")
+                filesystem.create_directory(str(item["directory_path"]))
+            finally:
+                filesystem.close()
+            return str(source)
+        if kind == OperationKind.FAT_COPY:
+            source = Path(item["source"])
+            filesystem = self._filesystem(source, partition_index=item.get("partition"), writable=True)
+            try:
+                if not isinstance(filesystem, FatImageFilesystem):
+                    raise DiskForgeError("Batch fat_copy is available only for writable FAT images.")
+                filesystem.copy(str(item["item_path"]), str(item["target_directory"]))
+            finally:
+                filesystem.close()
+            return str(source)
+        if kind == OperationKind.FAT_RENAME:
+            source = Path(item["source"])
+            filesystem = self._filesystem(source, partition_index=item.get("partition"), writable=True)
+            try:
+                if not isinstance(filesystem, FatImageFilesystem):
+                    raise DiskForgeError("Batch fat_rename is available only for writable FAT images.")
+                filesystem.rename(str(item["item_path"]), str(item["new_name"]))
+            finally:
+                filesystem.close()
+            return str(source)
+        if kind == OperationKind.FAT_DELETE:
+            source = Path(item["source"])
+            filesystem = self._filesystem(source, partition_index=item.get("partition"), writable=True)
+            try:
+                if not isinstance(filesystem, FatImageFilesystem):
+                    raise DiskForgeError("Batch fat_delete is available only for writable FAT images.")
+                filesystem.delete([str(item["item_path"])])
             finally:
                 filesystem.close()
             return str(source)

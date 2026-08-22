@@ -50,21 +50,24 @@ def test_batch_directory_report_rejects_nonpositive_partition_during_preview(tmp
 
 
 
-def test_batch_moves_regular_file_with_auditable_preview(tmp_path: Path) -> None:
+def test_batch_moves_directory_tree_with_auditable_preview(tmp_path: Path) -> None:
     from diskforge.core.filesystems import FatImageFilesystem, create_fat_image
     from diskforge.core.models import FileSystemType
 
     image = create_fat_image(tmp_path / "move-batch.img", 8 * 1024 * 1024, FileSystemType.FAT16, "BATCHMOVE")
-    payload = tmp_path / "payload.txt"
-    payload.write_text("batch move payload", encoding="utf-8")
+    tree = tmp_path / "tree"
+    nested = tree / "nested"
+    nested.mkdir(parents=True)
+    (tree / "payload.txt").write_text("batch move payload", encoding="utf-8")
+    (nested / "child.txt").write_text("batch move child", encoding="utf-8")
     filesystem = FatImageFilesystem(image)
     try:
-        filesystem.inject([payload])
+        filesystem.inject([tree])
         filesystem.fs.makedirs("/archive", recreate=True)
     finally:
         filesystem.close()
     recipe = _recipe(tmp_path / "move.json", {
-        "kind": "move", "source": str(image), "item_path": "/payload.txt", "target_directory": "/archive",
+        "kind": "move", "source": str(image), "item_path": "/tree", "target_directory": "/archive",
     })
     runner = BatchRunner()
 
@@ -78,10 +81,11 @@ def test_batch_moves_regular_file_with_auditable_preview(tmp_path: Path) -> None
     assert result.items[0].destination == image
     filesystem = FatImageFilesystem(image, read_only=True)
     try:
-        output = filesystem.extract(["/archive/payload.txt"], tmp_path / "out")
+        assert not filesystem.fs.exists("/tree")
+        output = filesystem.extract(["/archive/tree/payload.txt", "/archive/tree/nested/child.txt"], tmp_path / "out")
     finally:
         filesystem.close()
-    assert output[0].read_text(encoding="utf-8") == "batch move payload"
+    assert [item.read_text(encoding="utf-8") for item in output] == ["batch move payload", "batch move child"]
 
 
 def test_batch_move_rejects_invalid_partition_during_preview(tmp_path: Path) -> None:
@@ -139,3 +143,83 @@ def test_batch_reads_zip_image_container_and_rejects_write_recipe(tmp_path: Path
     assert rejected.items[0].success is False
     assert "read-only" in rejected.items[0].message
     assert sha256_file(archive) == before
+
+
+def test_batch_creates_empty_fat_directory_with_auditable_preview(tmp_path: Path) -> None:
+    from diskforge.core.filesystems import FatImageFilesystem, create_fat_image
+    from diskforge.core.models import FileSystemType
+
+    image = create_fat_image(tmp_path / "mkdir-batch.img", 8 * 1024 * 1024, FileSystemType.FAT16, "BATCHDIR")
+    recipe = _recipe(tmp_path / "mkdir.json", {
+        "kind": "fat_mkdir", "source": str(image), "directory_path": "/DOCS",
+    })
+    runner = BatchRunner()
+
+    assert runner.preview(recipe) == [{
+        "index": 0, "name": "fat_mkdir", "kind": "fat_mkdir", "source": str(image),
+        "destination": None, "will_write": True,
+    }]
+    result = runner.run(recipe)
+
+    assert result.items[0].success and result.items[0].destination == image
+    filesystem = FatImageFilesystem(image, read_only=True)
+    try:
+        assert filesystem.fs.getinfo("/DOCS").is_dir
+    finally:
+        filesystem.close()
+
+
+@pytest.mark.parametrize("item, pattern", [
+    ({"kind": "fat_mkdir", "source": "disk.img", "directory_path": ""}, "non-empty string"),
+    ({"kind": "fat_mkdir", "source": "disk.img", "directory_path": "/DOCS", "partition": 0}, "positive integer"),
+])
+def test_batch_fat_mkdir_rejects_invalid_preview_values(tmp_path: Path, item: dict[str, object], pattern: str) -> None:
+    recipe = _recipe(tmp_path / "invalid-mkdir.json", item)
+
+    with pytest.raises(DiskForgeError, match=pattern):
+        BatchRunner().preview(recipe)
+
+
+def test_batch_copies_regular_fat_file_with_auditable_preview(tmp_path: Path) -> None:
+    from diskforge.core.filesystems import FatImageFilesystem, create_fat_image
+    from diskforge.core.models import FileSystemType
+
+    image = create_fat_image(tmp_path / "copy-batch.img", 8 * 1024 * 1024, FileSystemType.FAT16, "BATCHCOPY")
+    tree = tmp_path / "tree"
+    nested = tree / "nested"
+    nested.mkdir(parents=True)
+    (tree / "payload.txt").write_text("batch copy payload", encoding="utf-8")
+    (nested / "child.txt").write_text("batch copy child", encoding="utf-8")
+    filesystem = FatImageFilesystem(image)
+    try:
+        filesystem.inject([tree])
+        filesystem.create_directory("/archive")
+    finally:
+        filesystem.close()
+    recipe = _recipe(tmp_path / "copy.json", {
+        "kind": "fat_copy", "source": str(image), "item_path": "/tree", "target_directory": "/archive",
+    })
+    runner = BatchRunner()
+
+    assert runner.preview(recipe) == [{
+        "index": 0, "name": "fat_copy", "kind": "fat_copy", "source": str(image),
+        "destination": "/archive", "will_write": True,
+    }]
+    result = runner.run(recipe)
+
+    assert result.items[0].success and result.items[0].destination == image
+    filesystem = FatImageFilesystem(image, read_only=True)
+    try:
+        output = filesystem.extract(["/tree/payload.txt", "/tree/nested/child.txt", "/archive/tree/payload.txt", "/archive/tree/nested/child.txt"], tmp_path / "out")
+    finally:
+        filesystem.close()
+    assert [path.read_text(encoding="utf-8") for path in output] == ["batch copy payload", "batch copy child", "batch copy payload", "batch copy child"]
+
+
+def test_batch_fat_copy_rejects_invalid_partition_during_preview(tmp_path: Path) -> None:
+    recipe = _recipe(tmp_path / "invalid-copy.json", {
+        "kind": "fat_copy", "source": "disk.img", "item_path": "/item.txt", "target_directory": "/archive", "partition": 0,
+    })
+
+    with pytest.raises(DiskForgeError, match="positive integer"):
+        BatchRunner().preview(recipe)

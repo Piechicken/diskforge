@@ -482,6 +482,80 @@ CATALOG["ar"].update({"Inspect 86F structure…":"فحص بنية 86F…","Inspe
 CATALOG["ja"].update({"Inspect 86F structure…":"86F 構造を検査…","Inspect 86F structure":"86F 構造を検査","86F files (*.86f);;All files (*)":"86F ファイル (*.86f);;すべてのファイル (*)","Inspecting 86F structure":"86F 構造を検査中","86F structural inspection":"86F 構造検査","Missing tracks":"欠落トラック","Sides":"面数","Total bitcells":"総ビットセル数","Disk flags":"ディスクフラグ","Surface description":"サーフェス記述","Offset table entries":"オフセット表エントリ","Encoded bytes":"エンコード済みバイト"})
 
 
+# v0.10 FDI v2.0 restricted multi-level structural inspector.
+CATALOG["zh_CN"].update({"Inspect FDI structure…":"检查 FDI 结构…","Inspect FDI structure":"检查 FDI 结构","FDI files (*.fdi);;All files (*)":"FDI 文件 (*.fdi);;所有文件 (*)","Inspecting FDI structure":"正在检查 FDI 结构","FDI structural inspection":"FDI 结构检查","Blank tracks":"空白轨道","Cylinders":"柱面数","Heads":"磁头数","Media type":"介质类型","Read-only container":"只读容器","Creator":"创建者","Comment":"注释","Rotation speed":"转速","Disk TPI":"磁盘 TPI","Head TPI":"磁头 TPI","Declared track bytes":"声明的轨道字节"})
+CATALOG["es"].update({"Inspect FDI structure…":"Inspeccionar estructura FDI…","Inspect FDI structure":"Inspeccionar estructura FDI","FDI files (*.fdi);;All files (*)":"Archivos FDI (*.fdi);;Todos los archivos (*)","Inspecting FDI structure":"Inspeccionando estructura FDI","FDI structural inspection":"Inspección estructural FDI","Blank tracks":"Pistas en blanco","Cylinders":"Cilindros","Heads":"Cabezas","Media type":"Tipo de medio","Read-only container":"Contenedor de solo lectura","Creator":"Creador","Comment":"Comentario","Rotation speed":"Velocidad de rotación","Disk TPI":"TPI del disco","Head TPI":"TPI del cabezal","Declared track bytes":"Bytes de pista declarados"})
+CATALOG["fr"].update({"Inspect FDI structure…":"Inspecter la structure FDI…","Inspect FDI structure":"Inspecter la structure FDI","FDI files (*.fdi);;All files (*)":"Fichiers FDI (*.fdi);;Tous les fichiers (*)","Inspecting FDI structure":"Inspection de la structure FDI","FDI structural inspection":"Inspection structurelle FDI","Blank tracks":"Pistes vierges","Cylinders":"Cylindres","Heads":"Têtes","Media type":"Type de média","Read-only container":"Conteneur en lecture seule","Creator":"Créateur","Comment":"Commentaire","Rotation speed":"Vitesse de rotation","Disk TPI":"TPI du disque","Head TPI":"TPI de la tête","Declared track bytes":"Octets de piste déclarés"})
+CATALOG["ru"].update({"Inspect FDI structure…":"Проверить структуру FDI…","Inspect FDI structure":"Проверить структуру FDI","FDI files (*.fdi);;All files (*)":"Файлы FDI (*.fdi);;Все файлы (*)","Inspecting FDI structure":"Проверка структуры FDI","FDI structural inspection":"Структурная проверка FDI","Blank tracks":"Пустые дорожки","Cylinders":"Цилиндры","Heads":"Головки","Media type":"Тип носителя","Read-only container":"Контейнер только для чтения","Creator":"Создатель","Comment":"Комментарий","Rotation speed":"Скорость вращения","Disk TPI":"TPI диска","Head TPI":"TPI головки","Declared track bytes":"Заявленные байты дорожек"})
+CATALOG["ar"].update({"Inspect FDI structure…":"فحص بنية FDI…","Inspect FDI structure":"فحص بنية FDI","FDI files (*.fdi);;All files (*)":"ملفات FDI (*.fdi);;كل الملفات (*)","Inspecting FDI structure":"جارٍ فحص بنية FDI","FDI structural inspection":"فحص بنية FDI","Blank tracks":"المسارات الفارغة","Cylinders":"الأسطوانات","Heads":"الرؤوس","Media type":"نوع الوسيط","Read-only container":"حاوية للقراءة فقط","Creator":"المنشئ","Comment":"تعليق","Rotation speed":"سرعة الدوران","Disk TPI":"TPI القرص","Head TPI":"TPI الرأس","Declared track bytes":"بايتات المسار المعلنة"})
+CATALOG["ja"].update({"Inspect FDI structure…":"FDI 構造を検査…","Inspect FDI structure":"FDI 構造を検査","FDI files (*.fdi);;All files (*)":"FDI ファイル (*.fdi);;すべてのファイル (*)","Inspecting FDI structure":"FDI 構造を検査中","FDI structural inspection":"FDI 構造検査","Blank tracks":"空白トラック","Cylinders":"シリンダー数","Heads":"ヘッド数","Media type":"媒体種別","Read-only container":"読み取り専用コンテナー","Creator":"作成者","Comment":"コメント","Rotation speed":"回転速度","Disk TPI":"ディスク TPI","Head TPI":"ヘッド TPI","Declared track bytes":"宣言済みトラックバイト"})
+
+
+# v0.10 JV3 restricted sector inspection and strict RAW export.
+CATALOG["zh_CN"].update({"Inspect / export JV3…":"检查 / 导出 JV3…","Inspect / export JV3":"检查 / 导出 JV3","JV3 files (*.jv3);;All files (*)":"JV3 文件 (*.jv3);;所有文件 (*)","Inspecting JV3 image":"正在检查 JV3 映像","JV3 inspection":"JV3 检查","In-use sectors":"已使用扇区","Free slots":"空闲槽位","Header blocks":"头块","Write protected":"写保护","Strict RAW export":"严格 RAW 导出","Geometry":"几何","RAW bytes":"RAW 字节","Unavailable":"不可用","Export reason":"导出原因","Export JV3 RAW…":"导出 JV3 RAW…","Export JV3 RAW":"导出 JV3 RAW","RAW images (*.img *.ima *.raw);;All files (*)":"RAW 映像 (*.img *.ima *.raw);;所有文件 (*)","Exporting JV3 RAW":"正在导出 JV3 RAW","Exported JV3 RAW to {path}":"已导出 JV3 RAW 至 {path}"})
+CATALOG["es"].update({"Inspect / export JV3…":"Inspeccionar / exportar JV3…","Inspect / export JV3":"Inspeccionar / exportar JV3","JV3 files (*.jv3);;All files (*)":"Archivos JV3 (*.jv3);;Todos los archivos (*)","Inspecting JV3 image":"Inspeccionando imagen JV3","JV3 inspection":"Inspección JV3","In-use sectors":"Sectores en uso","Free slots":"Ranuras libres","Header blocks":"Bloques de cabecera","Write protected":"Protegido contra escritura","Strict RAW export":"Exportación RAW estricta","Geometry":"Geometría","RAW bytes":"Bytes RAW","Unavailable":"No disponible","Export reason":"Motivo de exportación","Export JV3 RAW…":"Exportar RAW JV3…","Export JV3 RAW":"Exportar RAW JV3","RAW images (*.img *.ima *.raw);;All files (*)":"Imágenes RAW (*.img *.ima *.raw);;Todos los archivos (*)","Exporting JV3 RAW":"Exportando RAW JV3","Exported JV3 RAW to {path}":"RAW JV3 exportado a {path}"})
+CATALOG["fr"].update({"Inspect / export JV3…":"Inspecter / exporter JV3…","Inspect / export JV3":"Inspecter / exporter JV3","JV3 files (*.jv3);;All files (*)":"Fichiers JV3 (*.jv3);;Tous les fichiers (*)","Inspecting JV3 image":"Inspection de l’image JV3","JV3 inspection":"Inspection JV3","In-use sectors":"Secteurs utilisés","Free slots":"Emplacements libres","Header blocks":"Blocs d’en-tête","Write protected":"Protégé en écriture","Strict RAW export":"Export RAW strict","Geometry":"Géométrie","RAW bytes":"Octets RAW","Unavailable":"Indisponible","Export reason":"Motif d’exportation","Export JV3 RAW…":"Exporter le RAW JV3…","Export JV3 RAW":"Exporter le RAW JV3","RAW images (*.img *.ima *.raw);;All files (*)":"Images RAW (*.img *.ima *.raw);;Tous les fichiers (*)","Exporting JV3 RAW":"Exportation du RAW JV3","Exported JV3 RAW to {path}":"RAW JV3 exporté vers {path}"})
+CATALOG["ru"].update({"Inspect / export JV3…":"Проверить / экспортировать JV3…","Inspect / export JV3":"Проверить / экспортировать JV3","JV3 files (*.jv3);;All files (*)":"Файлы JV3 (*.jv3);;Все файлы (*)","Inspecting JV3 image":"Проверка образа JV3","JV3 inspection":"Проверка JV3","In-use sectors":"Используемые секторы","Free slots":"Свободные слоты","Header blocks":"Блоки заголовков","Write protected":"Защищено от записи","Strict RAW export":"Строгий экспорт RAW","Geometry":"Геометрия","RAW bytes":"Байты RAW","Unavailable":"Недоступно","Export reason":"Причина экспорта","Export JV3 RAW…":"Экспортировать RAW JV3…","Export JV3 RAW":"Экспортировать RAW JV3","RAW images (*.img *.ima *.raw);;All files (*)":"Образы RAW (*.img *.ima *.raw);;Все файлы (*)","Exporting JV3 RAW":"Экспорт RAW JV3","Exported JV3 RAW to {path}":"RAW JV3 экспортирован в {path}"})
+CATALOG["ar"].update({"Inspect / export JV3…":"فحص / تصدير JV3…","Inspect / export JV3":"فحص / تصدير JV3","JV3 files (*.jv3);;All files (*)":"ملفات JV3 (*.jv3);;كل الملفات (*)","Inspecting JV3 image":"جارٍ فحص صورة JV3","JV3 inspection":"فحص JV3","In-use sectors":"القطاعات المستخدمة","Free slots":"الفتحات الحرة","Header blocks":"كتل الرأس","Write protected":"محمي من الكتابة","Strict RAW export":"تصدير RAW صارم","Geometry":"الهندسة","RAW bytes":"بايتات RAW","Unavailable":"غير متاح","Export reason":"سبب التصدير","Export JV3 RAW…":"تصدير RAW ‏JV3…","Export JV3 RAW":"تصدير RAW ‏JV3","RAW images (*.img *.ima *.raw);;All files (*)":"صور RAW (*.img *.ima *.raw);;كل الملفات (*)","Exporting JV3 RAW":"جارٍ تصدير RAW ‏JV3","Exported JV3 RAW to {path}":"تم تصدير RAW ‏JV3 إلى {path}"})
+CATALOG["ja"].update({"Inspect / export JV3…":"JV3 を検査 / エクスポート…","Inspect / export JV3":"JV3 を検査 / エクスポート","JV3 files (*.jv3);;All files (*)":"JV3 ファイル (*.jv3);;すべてのファイル (*)","Inspecting JV3 image":"JV3 イメージを検査中","JV3 inspection":"JV3 検査","In-use sectors":"使用中セクター","Free slots":"空きスロット","Header blocks":"ヘッダーブロック","Write protected":"書き込み保護","Strict RAW export":"厳密な RAW エクスポート","Geometry":"ジオメトリ","RAW bytes":"RAW バイト","Unavailable":"利用不可","Export reason":"エクスポート理由","Export JV3 RAW…":"JV3 RAW をエクスポート…","Export JV3 RAW":"JV3 RAW をエクスポート","RAW images (*.img *.ima *.raw);;All files (*)":"RAW イメージ (*.img *.ima *.raw);;すべてのファイル (*)","Exporting JV3 RAW":"JV3 RAW をエクスポート中","Exported JV3 RAW to {path}":"JV3 RAW を {path} にエクスポートしました"})
+
+
+# v0.10 DMK native bitstream-container structural inspection.
+CATALOG["zh_CN"].update({"Inspect DMK structure…":"检查 DMK 结构…","Inspect DMK structure":"检查 DMK 结构","DMK files (*.dmk);;All files (*)":"DMK 文件 (*.dmk);;所有文件 (*)","Inspecting DMK structure":"正在检查 DMK 结构","DMK structural inspection":"DMK 结构检查","ID address marks":"ID 地址标记","Tracks":"磁道","Track length":"磁道长度","Single-density track size":"单密度磁道大小","Ignore density":"忽略密度","Double-density IDAMs":"双密度 IDAM","Container bytes":"容器字节"})
+CATALOG["es"].update({"Inspect DMK structure…":"Inspeccionar estructura DMK…","Inspect DMK structure":"Inspeccionar estructura DMK","DMK files (*.dmk);;All files (*)":"Archivos DMK (*.dmk);;Todos los archivos (*)","Inspecting DMK structure":"Inspeccionando estructura DMK","DMK structural inspection":"Inspección estructural DMK","ID address marks":"Marcas de dirección ID","Tracks":"Pistas","Track length":"Longitud de pista","Single-density track size":"Tamaño de pista de densidad simple","Ignore density":"Ignorar densidad","Double-density IDAMs":"IDAM de doble densidad","Container bytes":"Bytes del contenedor"})
+CATALOG["fr"].update({"Inspect DMK structure…":"Inspecter la structure DMK…","Inspect DMK structure":"Inspecter la structure DMK","DMK files (*.dmk);;All files (*)":"Fichiers DMK (*.dmk);;Tous les fichiers (*)","Inspecting DMK structure":"Inspection de la structure DMK","DMK structural inspection":"Inspection structurelle DMK","ID address marks":"Marques d’adresse ID","Tracks":"Pistes","Track length":"Longueur de piste","Single-density track size":"Taille de piste en simple densité","Ignore density":"Ignorer la densité","Double-density IDAMs":"IDAM double densité","Container bytes":"Octets du conteneur"})
+CATALOG["ru"].update({"Inspect DMK structure…":"Проверить структуру DMK…","Inspect DMK structure":"Проверить структуру DMK","DMK files (*.dmk);;All files (*)":"Файлы DMK (*.dmk);;Все файлы (*)","Inspecting DMK structure":"Проверка структуры DMK","DMK structural inspection":"Структурная проверка DMK","ID address marks":"Адресные метки ID","Tracks":"Дорожки","Track length":"Длина дорожки","Single-density track size":"Размер дорожки одинарной плотности","Ignore density":"Игнорировать плотность","Double-density IDAMs":"IDAM двойной плотности","Container bytes":"Байты контейнера"})
+CATALOG["ar"].update({"Inspect DMK structure…":"فحص بنية DMK…","Inspect DMK structure":"فحص بنية DMK","DMK files (*.dmk);;All files (*)":"ملفات DMK (*.dmk);;كل الملفات (*)","Inspecting DMK structure":"جارٍ فحص بنية DMK","DMK structural inspection":"فحص بنية DMK","ID address marks":"علامات عنوان ID","Tracks":"المسارات","Track length":"طول المسار","Single-density track size":"حجم مسار الكثافة المفردة","Ignore density":"تجاهل الكثافة","Double-density IDAMs":"IDAM مزدوجة الكثافة","Container bytes":"بايتات الحاوية"})
+CATALOG["ja"].update({"Inspect DMK structure…":"DMK 構造を検査…","Inspect DMK structure":"DMK 構造を検査","DMK files (*.dmk);;All files (*)":"DMK ファイル (*.dmk);;すべてのファイル (*)","Inspecting DMK structure":"DMK 構造を検査中","DMK structural inspection":"DMK 構造検査","ID address marks":"ID アドレスマーク","Tracks":"トラック","Track length":"トラック長","Single-density track size":"単密度トラックサイズ","Ignore density":"密度を無視","Double-density IDAMs":"倍密度 IDAM","Container bytes":"コンテナーのバイト数"})
+
+
+# v0.10 UDI v1.0 bitstream-container inspection.
+CATALOG["zh_CN"].update({"Inspect UDI structure…":"检查 UDI 结构…","Inspect UDI structure":"检查 UDI 结构","UDI files (*.udi);;All files (*)":"UDI 文件 (*.udi);;所有文件 (*)","Inspecting UDI structure":"正在检查 UDI 结构","UDI structural inspection":"UDI 结构检查","Extended header bytes":"扩展头字节数","Track data bytes":"轨道数据字节数","Clock marks":"时钟标记","CRC32":"CRC32"})
+CATALOG["es"].update({"Inspect UDI structure…":"Inspeccionar estructura UDI…","Inspect UDI structure":"Inspeccionar estructura UDI","UDI files (*.udi);;All files (*)":"Archivos UDI (*.udi);;Todos los archivos (*)","Inspecting UDI structure":"Inspeccionando estructura UDI","UDI structural inspection":"Inspección estructural UDI","Extended header bytes":"Bytes de cabecera extendida","Track data bytes":"Bytes de datos de pista","Clock marks":"Marcas de reloj","CRC32":"CRC32"})
+CATALOG["fr"].update({"Inspect UDI structure…":"Inspecter la structure UDI…","Inspect UDI structure":"Inspecter la structure UDI","UDI files (*.udi);;All files (*)":"Fichiers UDI (*.udi);;Tous les fichiers (*)","Inspecting UDI structure":"Inspection de la structure UDI","UDI structural inspection":"Inspection structurelle UDI","Extended header bytes":"Octets d’en-tête étendu","Track data bytes":"Octets de données de piste","Clock marks":"Marques d’horloge","CRC32":"CRC32"})
+CATALOG["ru"].update({"Inspect UDI structure…":"Проверить структуру UDI…","Inspect UDI structure":"Проверить структуру UDI","UDI files (*.udi);;All files (*)":"Файлы UDI (*.udi);;Все файлы (*)","Inspecting UDI structure":"Проверка структуры UDI","UDI structural inspection":"Структурная проверка UDI","Extended header bytes":"Байты расширенного заголовка","Track data bytes":"Байты данных дорожек","Clock marks":"Тактовые метки","CRC32":"CRC32"})
+CATALOG["ar"].update({"Inspect UDI structure…":"فحص بنية UDI…","Inspect UDI structure":"فحص بنية UDI","UDI files (*.udi);;All files (*)":"ملفات UDI (*.udi);;كل الملفات (*)","Inspecting UDI structure":"جارٍ فحص بنية UDI","UDI structural inspection":"فحص بنية UDI","Extended header bytes":"بايتات الترويسة الموسعة","Track data bytes":"بايتات بيانات المسار","Clock marks":"علامات الساعة","CRC32":"CRC32"})
+CATALOG["ja"].update({"Inspect UDI structure…":"UDI 構造を検査…","Inspect UDI structure":"UDI 構造を検査","UDI files (*.udi);;All files (*)":"UDI ファイル (*.udi);;すべてのファイル (*)","Inspecting UDI structure":"UDI 構造を検査中","UDI structural inspection":"UDI 構造検査","Extended header bytes":"拡張ヘッダーのバイト数","Track data bytes":"トラックデータのバイト数","Clock marks":"クロックマーク","CRC32":"CRC32"})
+
+# v0.10 SCP floppy flux-container inspection.
+CATALOG["zh_CN"].update({"Inspect SCP structure…":"检查 SCP 结构…","Inspect SCP structure":"检查 SCP 结构","SCP files (*.scp);;All files (*)":"SCP 文件 (*.scp);;所有文件 (*)","Inspecting SCP structure":"正在检查 SCP 结构","SCP structural inspection":"SCP 结构检查","Revolutions per track":"每轨转数","Resolution":"分辨率","Read-only flux":"只读通量","No flux decoding or RAW export is available.":"不提供通量解码或 RAW 导出。","Start track":"起始轨道","End track":"结束轨道","Heads":"磁头数","Flux bytes":"通量字节数","Checksum":"校验和"})
+CATALOG["es"].update({"Inspect SCP structure…":"Inspeccionar estructura SCP…","Inspect SCP structure":"Inspeccionar estructura SCP","SCP files (*.scp);;All files (*)":"Archivos SCP (*.scp);;Todos los archivos (*)","Inspecting SCP structure":"Inspeccionando estructura SCP","SCP structural inspection":"Inspección estructural SCP","Revolutions per track":"Revoluciones por pista","Resolution":"Resolución","Read-only flux":"Flujo de solo lectura","No flux decoding or RAW export is available.":"No hay descodificación de flujo ni exportación RAW disponible.","Start track":"Pista inicial","End track":"Pista final","Heads":"Cabezas","Flux bytes":"Bytes de flujo","Checksum":"Suma de control"})
+CATALOG["fr"].update({"Inspect SCP structure…":"Inspecter la structure SCP…","Inspect SCP structure":"Inspecter la structure SCP","SCP files (*.scp);;All files (*)":"Fichiers SCP (*.scp);;Tous les fichiers (*)","Inspecting SCP structure":"Inspection de la structure SCP","SCP structural inspection":"Inspection structurelle SCP","Revolutions per track":"Révolutions par piste","Resolution":"Résolution","Read-only flux":"Flux en lecture seule","No flux decoding or RAW export is available.":"Aucun décodage de flux ou export RAW n’est disponible.","Start track":"Piste initiale","End track":"Piste finale","Heads":"Têtes","Flux bytes":"Octets de flux","Checksum":"Somme de contrôle"})
+CATALOG["ru"].update({"Inspect SCP structure…":"Проверить структуру SCP…","Inspect SCP structure":"Проверить структуру SCP","SCP files (*.scp);;All files (*)":"Файлы SCP (*.scp);;Все файлы (*)","Inspecting SCP structure":"Проверка структуры SCP","SCP structural inspection":"Структурная проверка SCP","Revolutions per track":"Оборотов на дорожку","Resolution":"Разрешение","Read-only flux":"Поток только для чтения","No flux decoding or RAW export is available.":"Декодирование потока и экспорт RAW недоступны.","Start track":"Начальная дорожка","End track":"Конечная дорожка","Heads":"Головки","Flux bytes":"Байты потока","Checksum":"Контрольная сумма"})
+CATALOG["ar"].update({"Inspect SCP structure…":"فحص بنية SCP…","Inspect SCP structure":"فحص بنية SCP","SCP files (*.scp);;All files (*)":"ملفات SCP (*.scp);;كل الملفات (*)","Inspecting SCP structure":"جارٍ فحص بنية SCP","SCP structural inspection":"فحص بنية SCP","Revolutions per track":"الدورات لكل مسار","Resolution":"الدقة","Read-only flux":"تدفق للقراءة فقط","No flux decoding or RAW export is available.":"لا يتوفر فك ترميز التدفق أو تصدير RAW.","Start track":"المسار الأول","End track":"المسار الأخير","Heads":"الرؤوس","Flux bytes":"بايتات التدفق","Checksum":"المجموع الاختباري"})
+CATALOG["ja"].update({"Inspect SCP structure…":"SCP 構造を検査…","Inspect SCP structure":"SCP 構造を検査","SCP files (*.scp);;All files (*)":"SCP ファイル (*.scp);;すべてのファイル (*)","Inspecting SCP structure":"SCP 構造を検査中","SCP structural inspection":"SCP 構造検査","Revolutions per track":"トラックごとの回転数","Resolution":"解像度","Read-only flux":"読み取り専用フラックス","No flux decoding or RAW export is available.":"フラックスのデコードまたは RAW エクスポートは利用できません。","Start track":"開始トラック","End track":"終了トラック","Heads":"ヘッド","Flux bytes":"フラックスバイト","Checksum":"チェックサム"})
+
+# v0.10 regular-file copying inside a writable FAT image.
+CATALOG["zh_CN"].update({"Copy to directory…":"复制到目录…","Copy image file":"复制映像文件","Copying image file":"正在复制映像文件","Copy image entry":"复制映像条目","Copying image entry":"正在复制映像条目","Copied entry to {path}":"已复制条目到 {path}"})
+CATALOG["es"].update({"Copy to directory…":"Copiar al directorio…","Copy image file":"Copiar archivo de imagen","Copying image file":"Copiando archivo de imagen","Copy image entry":"Copiar entrada de imagen","Copying image entry":"Copiando entrada de imagen","Copied entry to {path}":"Entrada copiada a {path}"})
+CATALOG["fr"].update({"Copy to directory…":"Copier vers le répertoire…","Copy image file":"Copier le fichier de l’image","Copying image file":"Copie du fichier de l’image","Copy image entry":"Copier l’élément de l’image","Copying image entry":"Copie de l’élément de l’image","Copied entry to {path}":"Entrée copiée vers {path}"})
+CATALOG["ru"].update({"Copy to directory…":"Копировать в каталог…","Copy image file":"Копировать файл образа","Copying image file":"Копирование файла образа","Copy image entry":"Копировать элемент образа","Copying image entry":"Копирование элемента образа","Copied entry to {path}":"Элемент скопирован в {path}"})
+CATALOG["ar"].update({"Copy to directory…":"نسخ إلى الدليل…","Copy image file":"نسخ ملف الصورة","Copying image file":"جارٍ نسخ ملف الصورة","Copy image entry":"نسخ عنصر الصورة","Copying image entry":"جارٍ نسخ عنصر الصورة","Copied entry to {path}":"تم نسخ العنصر إلى {path}"})
+CATALOG["ja"].update({"Copy to directory…":"ディレクトリへコピー…","Copy image file":"イメージファイルをコピー","Copying image file":"イメージファイルをコピー中","Copy image entry":"イメージ項目をコピー","Copying image entry":"イメージ項目をコピー中","Copied entry to {path}":"項目を {path} にコピーしました"})
+
+# v0.10 controlled file-or-directory-tree movement inside a writable FAT image.
+CATALOG["zh_CN"].update({"Move image entry":"移动映像条目","Moving image entry":"正在移动映像条目"})
+CATALOG["es"].update({"Move image entry":"Mover entrada de imagen","Moving image entry":"Moviendo entrada de imagen"})
+CATALOG["fr"].update({"Move image entry":"Déplacer l’élément de l’image","Moving image entry":"Déplacement de l’élément de l’image"})
+CATALOG["ru"].update({"Move image entry":"Переместить элемент образа","Moving image entry":"Перемещение элемента образа"})
+CATALOG["ar"].update({"Move image entry":"نقل عنصر الصورة","Moving image entry":"جارٍ نقل عنصر الصورة"})
+CATALOG["ja"].update({"Move image entry":"イメージ項目を移動","Moving image entry":"イメージ項目を移動中"})
+CATALOG["zh_CN"].update({"Move one regular file or complete directory tree within a writable FAT image to an existing image directory. Existing targets are never overwritten; directory movement uses cancellable copy-then-delete, requires a new same-name target outside the source tree, and is not claimed to be atomic.":"将一个常规文件或完整目录树移动到可写 FAT 映像中的已有目录。绝不覆盖既有目标；目录移动采用可取消的先复制后删除，要求源树外存在新的同名目标，且不宣称为原子操作。"})
+CATALOG["es"].update({"Move one regular file or complete directory tree within a writable FAT image to an existing image directory. Existing targets are never overwritten; directory movement uses cancellable copy-then-delete, requires a new same-name target outside the source tree, and is not claimed to be atomic.":"Mueva un archivo regular o un árbol completo de directorios dentro de una imagen FAT escribible a un directorio existente de la imagen. Nunca se sobrescriben destinos existentes; el movimiento de directorios usa copia y eliminación cancelables, requiere un nuevo destino con el mismo nombre fuera del árbol de origen y no se declara atómico."})
+CATALOG["fr"].update({"Move one regular file or complete directory tree within a writable FAT image to an existing image directory. Existing targets are never overwritten; directory movement uses cancellable copy-then-delete, requires a new same-name target outside the source tree, and is not claimed to be atomic.":"Déplacez un fichier standard ou une arborescence complète dans une image FAT modifiable vers un répertoire existant de l’image. Les cibles existantes ne sont jamais écrasées ; le déplacement de répertoire utilise une copie puis suppression annulable, exige une nouvelle cible du même nom hors de l’arborescence source et n’est pas présenté comme atomique."})
+CATALOG["ru"].update({"Move one regular file or complete directory tree within a writable FAT image to an existing image directory. Existing targets are never overwritten; directory movement uses cancellable copy-then-delete, requires a new same-name target outside the source tree, and is not claimed to be atomic.":"Перемещайте обычный файл или полное дерево каталогов в записываемом FAT-образе в существующий каталог образа. Существующие цели не перезаписываются; перемещение каталога использует отменяемое копирование с последующим удалением, требует новой одноимённой цели вне исходного дерева и не заявляется атомарным."})
+CATALOG["ar"].update({"Move one regular file or complete directory tree within a writable FAT image to an existing image directory. Existing targets are never overwritten; directory movement uses cancellable copy-then-delete, requires a new same-name target outside the source tree, and is not claimed to be atomic.":"انقل ملفًا عاديًا أو شجرة مجلدات كاملة داخل صورة FAT قابلة للكتابة إلى دليل موجود في الصورة. لا تُستبدل الأهداف الموجودة؛ تستخدم حركة الدليل نسخًا ثم حذفًا قابلين للإلغاء، وتتطلب هدفًا جديدًا بالاسم نفسه خارج شجرة المصدر ولا يُدّعى أنها ذرية."})
+CATALOG["ja"].update({"Move one regular file or complete directory tree within a writable FAT image to an existing image directory. Existing targets are never overwritten; directory movement uses cancellable copy-then-delete, requires a new same-name target outside the source tree, and is not claimed to be atomic.":"書き込み可能な FAT イメージ内の通常ファイルまたは完全なディレクトリツリーを、既存のイメージ内ディレクトリへ移動します。既存の移動先は上書きされません。ディレクトリ移動は取り消し可能なコピー後削除を使用し、元ツリー外の新しい同名移動先を必要とし、アトミックとは表明しません。"})
+
+# v0.10 explicit empty FAT-directory creation.
+CATALOG["zh_CN"].update({"Create FAT directory…":"创建 FAT 目录…","Create FAT directory":"创建 FAT 目录","New directory name":"新目录名称","Creating FAT directory":"正在创建 FAT 目录","Created FAT directory {path}":"已创建 FAT 目录 {path}"})
+CATALOG["es"].update({"Create FAT directory…":"Crear directorio FAT…","Create FAT directory":"Crear directorio FAT","New directory name":"Nombre del directorio nuevo","Creating FAT directory":"Creando directorio FAT","Created FAT directory {path}":"Directorio FAT creado: {path}"})
+CATALOG["fr"].update({"Create FAT directory…":"Créer un répertoire FAT…","Create FAT directory":"Créer un répertoire FAT","New directory name":"Nom du nouveau répertoire","Creating FAT directory":"Création du répertoire FAT","Created FAT directory {path}":"Répertoire FAT créé : {path}"})
+CATALOG["ru"].update({"Create FAT directory…":"Создать каталог FAT…","Create FAT directory":"Создать каталог FAT","New directory name":"Имя нового каталога","Creating FAT directory":"Создание каталога FAT","Created FAT directory {path}":"Создан каталог FAT: {path}"})
+CATALOG["ar"].update({"Create FAT directory…":"إنشاء دليل FAT…","Create FAT directory":"إنشاء دليل FAT","New directory name":"اسم الدليل الجديد","Creating FAT directory":"جارٍ إنشاء دليل FAT","Created FAT directory {path}":"تم إنشاء دليل FAT: {path}"})
+CATALOG["ja"].update({"Create FAT directory…":"FAT ディレクトリを作成…","Create FAT directory":"FAT ディレクトリを作成","New directory name":"新しいディレクトリ名","Creating FAT directory":"FAT ディレクトリを作成中","Created FAT directory {path}":"FAT ディレクトリを作成しました: {path}"})
+
+
 def _catalog_keys() -> set[str]:
     return {key for translations in CATALOG.values() for key in translations}
 
@@ -1823,6 +1897,66 @@ CATALOG["ja"].update({
     "FAT file move requires a source image, an image file path, and an existing target directory.": "FAT ファイル移動には、ソースイメージ、イメージ内ファイルパス、既存の移動先ディレクトリが必要です。",
     "FAT file move partition index must be a positive integer.": "FAT ファイル移動のパーティションインデックスは正の整数でなければなりません。",
 })
+CATALOG["zh_CN"].update({
+    "Move FAT file or directory tree": "移动 FAT 文件或目录树", "Copy FAT file or directory tree": "复制 FAT 文件或目录树",
+    "Rename FAT file or directory": "重命名 FAT 文件或目录", "FAT item path": "FAT 条目路径", "New FAT entry name": "新的 FAT 条目名称",
+    "Move one regular file or complete directory tree within a writable FAT image to an existing image directory. Existing targets are never overwritten; directory movement uses cancellable copy-then-delete, requires a new same-name target outside the source tree, and is not claimed to be atomic.": "在可写 FAT 映像中将一个常规文件或完整目录树移动到现有映像目录。绝不覆盖现有目标；目录移动使用可取消的先复制后删除，要求在源树之外创建同名新目标，并不宣称具备原子性。",
+    "Copy one regular file or complete new directory tree within a writable FAT image into an existing image directory. Sources remain in place, the same-name target must be new and cannot be inside the source tree, failures or cancellation clean up the new target where possible, and the recipe previews a write without accessing devices.": "在可写 FAT 映像中将一个常规文件或完整的新目录树复制到现有映像目录。源保持不变，同名目标必须是新的且不能位于源树内部；失败或取消时会尽力清理新目标，配方仅预览写入而不访问设备。",
+    "Rename one FAT file or directory within its existing parent. The new name must be a single non-empty entry name, existing targets are never replaced, and the recipe previews a write without accessing devices.": "在现有父目录内重命名一个 FAT 文件或目录。新名称必须是单个非空条目名，绝不替换现有目标，配方仅预览写入而不访问设备。",
+    "FAT move requires a source image, an image item path, and an existing target directory.": "FAT 移动需要源映像、映像条目路径和现有目标目录。", "FAT copy requires a source image, an image item path, and an existing target directory.": "FAT 复制需要源映像、映像条目路径和现有目标目录。",
+    "FAT move partition index must be a positive integer.": "FAT 移动的分区索引必须是正整数。", "FAT copy partition index must be a positive integer.": "FAT 复制的分区索引必须是正整数。",
+    "FAT renaming requires a source image, an image item path, and a new entry name.": "FAT 重命名需要源映像、映像条目路径和新的条目名称。", "FAT renaming partition index must be a positive integer.": "FAT 重命名的分区索引必须是正整数。",
+})
+CATALOG["es"].update({
+    "Move FAT file or directory tree": "Mover archivo FAT o árbol de directorios", "Copy FAT file or directory tree": "Copiar archivo FAT o árbol de directorios",
+    "Rename FAT file or directory": "Cambiar nombre de archivo FAT o directorio", "FAT item path": "Ruta de elemento FAT", "New FAT entry name": "Nuevo nombre de entrada FAT",
+    "Move one regular file or complete directory tree within a writable FAT image to an existing image directory. Existing targets are never overwritten; directory movement uses cancellable copy-then-delete, requires a new same-name target outside the source tree, and is not claimed to be atomic.": "Mueva un archivo normal o un árbol de directorios completo dentro de una imagen FAT editable a un directorio existente de la imagen. Los destinos existentes nunca se sobrescriben; el movimiento de directorios usa copia y eliminación cancelables, exige un destino nuevo con el mismo nombre fuera del árbol de origen y no se presenta como atómico.",
+    "Copy one regular file or complete new directory tree within a writable FAT image into an existing image directory. Sources remain in place, the same-name target must be new and cannot be inside the source tree, failures or cancellation clean up the new target where possible, and the recipe previews a write without accessing devices.": "Copie un archivo normal o un árbol de directorios nuevo completo dentro de una imagen FAT editable a un directorio existente de la imagen. Los orígenes permanecen en su lugar, el destino con el mismo nombre debe ser nuevo y no puede estar dentro del árbol de origen; los fallos o la cancelación limpian el nuevo destino cuando es posible, y la receta previsualiza una escritura sin acceder a dispositivos.",
+    "Rename one FAT file or directory within its existing parent. The new name must be a single non-empty entry name, existing targets are never replaced, and the recipe previews a write without accessing devices.": "Cambie el nombre de un archivo FAT o directorio dentro de su directorio padre actual. El nombre nuevo debe ser un único nombre de entrada no vacío, los destinos existentes nunca se reemplazan y la receta previsualiza una escritura sin acceder a dispositivos.",
+    "FAT move requires a source image, an image item path, and an existing target directory.": "El movimiento FAT requiere una imagen de origen, una ruta de elemento de la imagen y un directorio de destino existente.", "FAT copy requires a source image, an image item path, and an existing target directory.": "La copia FAT requiere una imagen de origen, una ruta de elemento de la imagen y un directorio de destino existente.",
+    "FAT move partition index must be a positive integer.": "El índice de partición para mover FAT debe ser un entero positivo.", "FAT copy partition index must be a positive integer.": "El índice de partición para copiar FAT debe ser un entero positivo.",
+    "FAT renaming requires a source image, an image item path, and a new entry name.": "El cambio de nombre FAT requiere una imagen de origen, una ruta de elemento de la imagen y un nuevo nombre de entrada.", "FAT renaming partition index must be a positive integer.": "El índice de partición para cambiar el nombre FAT debe ser un entero positivo.",
+})
+CATALOG["fr"].update({
+    "Move FAT file or directory tree": "Déplacer un fichier FAT ou une arborescence", "Copy FAT file or directory tree": "Copier un fichier FAT ou une arborescence",
+    "Rename FAT file or directory": "Renommer un fichier FAT ou un dossier", "FAT item path": "Chemin de l’élément FAT", "New FAT entry name": "Nouveau nom d’entrée FAT",
+    "Move one regular file or complete directory tree within a writable FAT image to an existing image directory. Existing targets are never overwritten; directory movement uses cancellable copy-then-delete, requires a new same-name target outside the source tree, and is not claimed to be atomic.": "Déplacez un fichier standard ou une arborescence complète dans une image FAT modifiable vers un dossier existant de l’image. Les cibles existantes ne sont jamais écrasées ; le déplacement d’un dossier utilise une copie suivie d’une suppression annulable, exige une nouvelle cible de même nom hors de l’arborescence source et n’est pas présenté comme atomique.",
+    "Copy one regular file or complete new directory tree within a writable FAT image into an existing image directory. Sources remain in place, the same-name target must be new and cannot be inside the source tree, failures or cancellation clean up the new target where possible, and the recipe previews a write without accessing devices.": "Copiez un fichier standard ou une nouvelle arborescence complète dans une image FAT modifiable vers un dossier existant de l’image. Les sources restent en place, la cible de même nom doit être nouvelle et ne peut pas se trouver dans l’arborescence source ; les échecs ou annulations nettoient la nouvelle cible lorsque possible, et la recette prévisualise une écriture sans accéder aux périphériques.",
+    "Rename one FAT file or directory within its existing parent. The new name must be a single non-empty entry name, existing targets are never replaced, and the recipe previews a write without accessing devices.": "Renommez un fichier FAT ou un dossier dans son dossier parent actuel. Le nouveau nom doit être un seul nom d’entrée non vide, les cibles existantes ne sont jamais remplacées et la recette prévisualise une écriture sans accéder aux périphériques.",
+    "FAT move requires a source image, an image item path, and an existing target directory.": "Le déplacement FAT requiert une image source, un chemin d’élément dans l’image et un dossier cible existant.", "FAT copy requires a source image, an image item path, and an existing target directory.": "La copie FAT requiert une image source, un chemin d’élément dans l’image et un dossier cible existant.",
+    "FAT move partition index must be a positive integer.": "L’index de partition pour le déplacement FAT doit être un entier positif.", "FAT copy partition index must be a positive integer.": "L’index de partition pour la copie FAT doit être un entier positif.",
+    "FAT renaming requires a source image, an image item path, and a new entry name.": "Le renommage FAT requiert une image source, un chemin d’élément dans l’image et un nouveau nom d’entrée.", "FAT renaming partition index must be a positive integer.": "L’index de partition pour le renommage FAT doit être un entier positif.",
+})
+CATALOG["ru"].update({
+    "Move FAT file or directory tree": "Переместить файл FAT или дерево каталогов", "Copy FAT file or directory tree": "Копировать файл FAT или дерево каталогов",
+    "Rename FAT file or directory": "Переименовать файл FAT или каталог", "FAT item path": "Путь к элементу FAT", "New FAT entry name": "Новое имя записи FAT",
+    "Move one regular file or complete directory tree within a writable FAT image to an existing image directory. Existing targets are never overwritten; directory movement uses cancellable copy-then-delete, requires a new same-name target outside the source tree, and is not claimed to be atomic.": "Переместите один обычный файл или полное дерево каталогов в доступном для записи FAT-образе в существующий каталог образа. Существующие цели никогда не перезаписываются; перемещение каталогов использует отменяемое копирование с последующим удалением, требует новой одноимённой цели вне исходного дерева и не заявляется как атомарное.",
+    "Copy one regular file or complete new directory tree within a writable FAT image into an existing image directory. Sources remain in place, the same-name target must be new and cannot be inside the source tree, failures or cancellation clean up the new target where possible, and the recipe previews a write without accessing devices.": "Скопируйте один обычный файл или полное новое дерево каталогов в доступном для записи FAT-образе в существующий каталог образа. Источники остаются на месте, одноимённая цель должна быть новой и не может находиться внутри исходного дерева; при сбое или отмене новая цель очищается, когда это возможно, а рецепт предварительно показывает запись без обращения к устройствам.",
+    "Rename one FAT file or directory within its existing parent. The new name must be a single non-empty entry name, existing targets are never replaced, and the recipe previews a write without accessing devices.": "Переименуйте файл FAT или каталог в его существующем родительском каталоге. Новое имя должно быть одним непустым именем записи, существующие цели никогда не заменяются, а рецепт предварительно показывает запись без обращения к устройствам.",
+    "FAT move requires a source image, an image item path, and an existing target directory.": "Для перемещения FAT нужны исходный образ, путь к элементу образа и существующий целевой каталог.", "FAT copy requires a source image, an image item path, and an existing target directory.": "Для копирования FAT нужны исходный образ, путь к элементу образа и существующий целевой каталог.",
+    "FAT move partition index must be a positive integer.": "Индекс раздела для перемещения FAT должен быть положительным целым числом.", "FAT copy partition index must be a positive integer.": "Индекс раздела для копирования FAT должен быть положительным целым числом.",
+    "FAT renaming requires a source image, an image item path, and a new entry name.": "Для переименования FAT нужны исходный образ, путь к элементу образа и новое имя записи.", "FAT renaming partition index must be a positive integer.": "Индекс раздела для переименования FAT должен быть положительным целым числом.",
+})
+CATALOG["ar"].update({
+    "Move FAT file or directory tree": "نقل ملف FAT أو شجرة دليل", "Copy FAT file or directory tree": "نسخ ملف FAT أو شجرة دليل",
+    "Rename FAT file or directory": "إعادة تسمية ملف FAT أو دليل", "FAT item path": "مسار عنصر FAT", "New FAT entry name": "اسم إدخال FAT الجديد",
+    "Move one regular file or complete directory tree within a writable FAT image to an existing image directory. Existing targets are never overwritten; directory movement uses cancellable copy-then-delete, requires a new same-name target outside the source tree, and is not claimed to be atomic.": "انقل ملفًا عاديًا واحدًا أو شجرة دليل كاملة داخل صورة FAT قابلة للكتابة إلى دليل موجود في الصورة. لا تُستبدل الأهداف الموجودة مطلقًا؛ يستخدم نقل الدليل نسخًا ثم حذفًا قابلين للإلغاء، ويتطلب هدفًا جديدًا بالاسم نفسه خارج شجرة المصدر، ولا يُدّعى أنه ذري.",
+    "Copy one regular file or complete new directory tree within a writable FAT image into an existing image directory. Sources remain in place, the same-name target must be new and cannot be inside the source tree, failures or cancellation clean up the new target where possible, and the recipe previews a write without accessing devices.": "انسخ ملفًا عاديًا واحدًا أو شجرة دليل جديدة كاملة داخل صورة FAT قابلة للكتابة إلى دليل موجود في الصورة. تبقى المصادر في مكانها، ويجب أن يكون الهدف بالاسم نفسه جديدًا ولا يمكن أن يكون داخل شجرة المصدر؛ تنظف حالات الفشل أو الإلغاء الهدف الجديد حيثما أمكن، وتعاين الوصفة كتابةً من دون الوصول إلى الأجهزة.",
+    "Rename one FAT file or directory within its existing parent. The new name must be a single non-empty entry name, existing targets are never replaced, and the recipe previews a write without accessing devices.": "أعد تسمية ملف FAT أو دليل داخل دليله الأب الحالي. يجب أن يكون الاسم الجديد اسم إدخال واحدًا غير فارغ، ولا تُستبدل الأهداف الموجودة مطلقًا، وتعاين الوصفة كتابةً من دون الوصول إلى الأجهزة.",
+    "FAT move requires a source image, an image item path, and an existing target directory.": "يتطلب نقل FAT صورة مصدر ومسار عنصر داخل الصورة ودليل هدف موجودًا.", "FAT copy requires a source image, an image item path, and an existing target directory.": "يتطلب نسخ FAT صورة مصدر ومسار عنصر داخل الصورة ودليل هدف موجودًا.",
+    "FAT move partition index must be a positive integer.": "يجب أن يكون فهرس القسم لنقل FAT عددًا صحيحًا موجبًا.", "FAT copy partition index must be a positive integer.": "يجب أن يكون فهرس القسم لنسخ FAT عددًا صحيحًا موجبًا.",
+    "FAT renaming requires a source image, an image item path, and a new entry name.": "تتطلب إعادة تسمية FAT صورة مصدر ومسار عنصر داخل الصورة واسم إدخال جديدًا.", "FAT renaming partition index must be a positive integer.": "يجب أن يكون فهرس القسم لإعادة تسمية FAT عددًا صحيحًا موجبًا.",
+})
+CATALOG["ja"].update({
+    "Move FAT file or directory tree": "FAT ファイルまたはディレクトリツリーを移動", "Copy FAT file or directory tree": "FAT ファイルまたはディレクトリツリーをコピー",
+    "Rename FAT file or directory": "FAT ファイルまたはディレクトリの名前を変更", "FAT item path": "FAT 項目のパス", "New FAT entry name": "新しい FAT エントリ名",
+    "Move one regular file or complete directory tree within a writable FAT image to an existing image directory. Existing targets are never overwritten; directory movement uses cancellable copy-then-delete, requires a new same-name target outside the source tree, and is not claimed to be atomic.": "書き込み可能な FAT イメージ内の通常ファイルまたは完全なディレクトリツリーを、既存のイメージ内ディレクトリへ移動します。既存の移動先は決して上書きされません。ディレクトリ移動にはキャンセル可能なコピー後削除を用い、ソースツリーの外部に同名の新しい移動先が必要であり、アトミックであるとは主張しません。",
+    "Copy one regular file or complete new directory tree within a writable FAT image into an existing image directory. Sources remain in place, the same-name target must be new and cannot be inside the source tree, failures or cancellation clean up the new target where possible, and the recipe previews a write without accessing devices.": "書き込み可能な FAT イメージ内の通常ファイルまたは完全な新規ディレクトリツリーを、既存のイメージ内ディレクトリへコピーします。ソースはそのまま残り、同名の移動先は新規でソースツリー内に置けません。失敗またはキャンセル時は可能な限り新しい移動先を消去し、レシピはデバイスにアクセスせず書き込みをプレビューします。",
+    "Rename one FAT file or directory within its existing parent. The new name must be a single non-empty entry name, existing targets are never replaced, and the recipe previews a write without accessing devices.": "既存の親ディレクトリ内で FAT ファイルまたはディレクトリの名前を変更します。新しい名前は単一の空でないエントリ名でなければならず、既存の移動先は決して置き換えられません。レシピはデバイスにアクセスせず書き込みをプレビューします。",
+    "FAT move requires a source image, an image item path, and an existing target directory.": "FAT 移動には、ソースイメージ、イメージ内項目パス、既存の移動先ディレクトリが必要です。", "FAT copy requires a source image, an image item path, and an existing target directory.": "FAT コピーには、ソースイメージ、イメージ内項目パス、既存の移動先ディレクトリが必要です。",
+    "FAT move partition index must be a positive integer.": "FAT 移動のパーティションインデックスは正の整数でなければなりません。", "FAT copy partition index must be a positive integer.": "FAT コピーのパーティションインデックスは正の整数でなければなりません。",
+    "FAT renaming requires a source image, an image item path, and a new entry name.": "FAT 名前変更には、ソースイメージ、イメージ内項目パス、新しいエントリ名が必要です。", "FAT renaming partition index must be a positive integer.": "FAT 名前変更のパーティションインデックスは正の整数でなければなりません。",
+})
 TRANSLATABLE = _catalog_keys()
 
 
@@ -1920,5 +2054,373 @@ CATALOG["ja"].update({
     "Available": "利用可能", "Unavailable": "利用不可", "Reason": "理由", "Export proven RAW…": "検証済み RAW をエクスポート…",
     "Export proven RAW": "検証済み RAW をエクスポート", "Raw image (*.img *.ima *.bin);;All files (*)": "RAW イメージ (*.img *.ima *.bin);;すべてのファイル (*)",
     "Exporting IMD to RAW": "IMD を RAW にエクスポート中", "Exported proven IMD layout to {path}": "検証済み IMD レイアウトを {path} にエクスポートしました",
+})
+TRANSLATABLE = _catalog_keys()
+
+
+# v0.10 HxC MFM bitstream-container inspection.
+CATALOG["zh_CN"].update({
+    "Inspect HxC MFM structure…": "检查 HxC MFM 结构…", "Inspect HxC MFM structure": "检查 HxC MFM 结构",
+    "HxC MFM files (*.mfm);;All files (*)": "HxC MFM 文件 (*.mfm);;所有文件 (*)",
+    "Inspecting HxC MFM structure": "正在检查 HxC MFM 结构", "HxC MFM structural inspection": "HxC MFM 结构检查",
+    "Bitrate": "比特率", "Interface type": "接口类型", "Track table offset": "轨道表偏移", "Padding bytes": "填充字节",
+})
+CATALOG["es"].update({
+    "Inspect HxC MFM structure…": "Inspeccionar estructura HxC MFM…", "Inspect HxC MFM structure": "Inspeccionar estructura HxC MFM",
+    "HxC MFM files (*.mfm);;All files (*)": "Archivos HxC MFM (*.mfm);;Todos los archivos (*)",
+    "Inspecting HxC MFM structure": "Inspeccionando estructura HxC MFM", "HxC MFM structural inspection": "Inspección estructural HxC MFM",
+    "Bitrate": "Tasa de bits", "Interface type": "Tipo de interfaz", "Track table offset": "Desplazamiento de tabla de pistas", "Padding bytes": "Bytes de relleno",
+})
+CATALOG["fr"].update({
+    "Inspect HxC MFM structure…": "Inspecter la structure HxC MFM…", "Inspect HxC MFM structure": "Inspecter la structure HxC MFM",
+    "HxC MFM files (*.mfm);;All files (*)": "Fichiers HxC MFM (*.mfm);;Tous les fichiers (*)",
+    "Inspecting HxC MFM structure": "Inspection de la structure HxC MFM", "HxC MFM structural inspection": "Inspection structurelle HxC MFM",
+    "Bitrate": "Débit binaire", "Interface type": "Type d’interface", "Track table offset": "Décalage de la table des pistes", "Padding bytes": "Octets de remplissage",
+})
+CATALOG["ru"].update({
+    "Inspect HxC MFM structure…": "Проверить структуру HxC MFM…", "Inspect HxC MFM structure": "Проверить структуру HxC MFM",
+    "HxC MFM files (*.mfm);;All files (*)": "Файлы HxC MFM (*.mfm);;Все файлы (*)",
+    "Inspecting HxC MFM structure": "Проверка структуры HxC MFM", "HxC MFM structural inspection": "Структурная проверка HxC MFM",
+    "Bitrate": "Битрейт", "Interface type": "Тип интерфейса", "Track table offset": "Смещение таблицы дорожек", "Padding bytes": "Байты заполнения",
+})
+CATALOG["ar"].update({
+    "Inspect HxC MFM structure…": "فحص بنية HxC MFM…", "Inspect HxC MFM structure": "فحص بنية HxC MFM",
+    "HxC MFM files (*.mfm);;All files (*)": "ملفات HxC MFM ‏(*.mfm)؛؛كل الملفات (*)",
+    "Inspecting HxC MFM structure": "جارٍ فحص بنية HxC MFM", "HxC MFM structural inspection": "فحص بنية HxC MFM",
+    "Bitrate": "معدل البتات", "Interface type": "نوع الواجهة", "Track table offset": "إزاحة جدول المسارات", "Padding bytes": "بايتات الحشو",
+})
+CATALOG["ja"].update({
+    "Inspect HxC MFM structure…": "HxC MFM 構造を検査…", "Inspect HxC MFM structure": "HxC MFM 構造を検査",
+    "HxC MFM files (*.mfm);;All files (*)": "HxC MFM ファイル (*.mfm);;すべてのファイル (*)",
+    "Inspecting HxC MFM structure": "HxC MFM 構造を検査中", "HxC MFM structural inspection": "HxC MFM 構造検査",
+    "Bitrate": "ビットレート", "Interface type": "インターフェース種別", "Track table offset": "トラックテーブルオフセット", "Padding bytes": "パディングバイト",
+})
+TRANSLATABLE = _catalog_keys()
+
+
+# v0.10 explicit FAT batch deletion.
+CATALOG["zh_CN"].update({
+    "Delete FAT file or directory tree": "删除 FAT 文件或目录树",
+    "Delete one explicit non-root FAT file or directory tree from a writable image. The path is validated before deletion, the recipe previews a write without accessing devices, and a directory tree deletion is irreversible.": "从可写 FAT 映像中删除一个显式的非根文件或目录树。路径会在删除前验证；配方会预览写入且不会访问设备；删除目录树不可逆。",
+})
+CATALOG["es"].update({
+    "Delete FAT file or directory tree": "Eliminar archivo FAT o árbol de directorios",
+    "Delete one explicit non-root FAT file or directory tree from a writable image. The path is validated before deletion, the recipe previews a write without accessing devices, and a directory tree deletion is irreversible.": "Elimine un archivo FAT explícito que no sea la raíz o un árbol de directorios de una imagen escribible. La ruta se valida antes de eliminarse; la receta previsualiza una escritura sin acceder a dispositivos, y la eliminación de un árbol es irreversible.",
+})
+CATALOG["fr"].update({
+    "Delete FAT file or directory tree": "Supprimer un fichier FAT ou une arborescence",
+    "Delete one explicit non-root FAT file or directory tree from a writable image. The path is validated before deletion, the recipe previews a write without accessing devices, and a directory tree deletion is irreversible.": "Supprimez un fichier FAT explicite hors racine ou une arborescence d’une image inscriptible. Le chemin est validé avant suppression ; la recette prévisualise une écriture sans accéder aux périphériques, et la suppression d’une arborescence est irréversible.",
+})
+CATALOG["ru"].update({
+    "Delete FAT file or directory tree": "Удалить файл FAT или дерево каталогов",
+    "Delete one explicit non-root FAT file or directory tree from a writable image. The path is validated before deletion, the recipe previews a write without accessing devices, and a directory tree deletion is irreversible.": "Удалить из доступного для записи образа один явно заданный файл FAT или дерево каталогов, кроме корня. Путь проверяется до удаления; рецепт показывает предварительный план записи и не обращается к устройствам, а удаление дерева необратимо.",
+})
+CATALOG["ar"].update({
+    "Delete FAT file or directory tree": "حذف ملف FAT أو شجرة أدلة",
+    "Delete one explicit non-root FAT file or directory tree from a writable image. The path is validated before deletion, the recipe previews a write without accessing devices, and a directory tree deletion is irreversible.": "احذف ملف FAT صريحًا غير الجذر أو شجرة أدلة من صورة قابلة للكتابة. يُتحقق من المسار قبل الحذف؛ وتعرض الوصفة معاينة للكتابة دون الوصول إلى الأجهزة، وحذف شجرة الأدلة غير قابل للعكس.",
+})
+CATALOG["ja"].update({
+    "Delete FAT file or directory tree": "FAT ファイルまたはディレクトリツリーを削除",
+    "Delete one explicit non-root FAT file or directory tree from a writable image. The path is validated before deletion, the recipe previews a write without accessing devices, and a directory tree deletion is irreversible.": "書き込み可能なイメージから、明示した非ルート FAT ファイルまたはディレクトリツリーを一つ削除します。削除前にパスを検証し、レシピはデバイスにアクセスせず書き込みをプレビューします。ディレクトリツリーの削除は元に戻せません。",
+})
+TRANSLATABLE = _catalog_keys()
+
+# v0.10 explicit read-only selection within a validated multi-image ZIP.
+CATALOG["zh_CN"].update({
+    "Cannot open ZIP image": "无法打开 ZIP 映像", "Select ZIP image payload": "选择 ZIP 映像载荷", "Payload": "载荷",
+})
+CATALOG["es"].update({
+    "Cannot open ZIP image": "No se puede abrir la imagen ZIP", "Select ZIP image payload": "Seleccionar carga de imagen ZIP", "Payload": "Carga útil",
+})
+CATALOG["fr"].update({
+    "Cannot open ZIP image": "Impossible d’ouvrir l’image ZIP", "Select ZIP image payload": "Sélectionner la charge d’image ZIP", "Payload": "Charge utile",
+})
+CATALOG["ru"].update({
+    "Cannot open ZIP image": "Не удалось открыть ZIP-образ", "Select ZIP image payload": "Выбрать полезную нагрузку ZIP-образа", "Payload": "Полезная нагрузка",
+})
+CATALOG["ar"].update({
+    "Cannot open ZIP image": "تعذر فتح صورة ZIP", "Select ZIP image payload": "اختر حمولة صورة ZIP", "Payload": "الحمولة",
+})
+CATALOG["ja"].update({
+    "Cannot open ZIP image": "ZIP イメージを開けません", "Select ZIP image payload": "ZIP イメージのペイロードを選択", "Payload": "ペイロード",
+})
+TRANSLATABLE = _catalog_keys()
+
+# v0.10 PCE PFI flux-container inspection.
+CATALOG["zh_CN"].update({
+    "Inspect PCE PFI structure…": "检查 PCE PFI 结构…", "Inspect PCE PFI structure": "检查 PCE PFI 结构",
+    "PCE PFI files (*.pfi);;All files (*)": "PCE PFI 文件 (*.pfi);;所有文件 (*)",
+    "Inspecting PCE PFI structure": "正在检查 PCE PFI 结构", "PCE PFI structural inspection": "PCE PFI 结构检查",
+    "Read-only flux": "只读磁通", "Chunks": "块", "Comments": "注释", "Unknown chunks": "未知块",
+    "Track pulse bytes": "磁道脉冲字节数", "Pulses": "脉冲",
+})
+CATALOG["es"].update({
+    "Inspect PCE PFI structure…": "Inspeccionar estructura PCE PFI…", "Inspect PCE PFI structure": "Inspeccionar estructura PCE PFI",
+    "PCE PFI files (*.pfi);;All files (*)": "Archivos PCE PFI (*.pfi);;Todos los archivos (*)",
+    "Inspecting PCE PFI structure": "Inspeccionando estructura PCE PFI", "PCE PFI structural inspection": "Inspección estructural PCE PFI",
+    "Read-only flux": "Flujo de solo lectura", "Chunks": "Bloques", "Comments": "Comentarios", "Unknown chunks": "Bloques desconocidos",
+    "Track pulse bytes": "Bytes de pulsos de pista", "Pulses": "Pulsos",
+})
+CATALOG["fr"].update({
+    "Inspect PCE PFI structure…": "Inspecter la structure PCE PFI…", "Inspect PCE PFI structure": "Inspecter la structure PCE PFI",
+    "PCE PFI files (*.pfi);;All files (*)": "Fichiers PCE PFI (*.pfi);;Tous les fichiers (*)",
+    "Inspecting PCE PFI structure": "Inspection de la structure PCE PFI", "PCE PFI structural inspection": "Inspection structurelle PCE PFI",
+    "Read-only flux": "Flux en lecture seule", "Chunks": "Blocs", "Comments": "Commentaires", "Unknown chunks": "Blocs inconnus",
+    "Track pulse bytes": "Octets d’impulsions de piste", "Pulses": "Impulsions",
+})
+CATALOG["ru"].update({
+    "Inspect PCE PFI structure…": "Проверить структуру PCE PFI…", "Inspect PCE PFI structure": "Проверить структуру PCE PFI",
+    "PCE PFI files (*.pfi);;All files (*)": "Файлы PCE PFI (*.pfi);;Все файлы (*)",
+    "Inspecting PCE PFI structure": "Проверка структуры PCE PFI", "PCE PFI structural inspection": "Структурная проверка PCE PFI",
+    "Read-only flux": "Поток только для чтения", "Chunks": "Блоки", "Comments": "Комментарии", "Unknown chunks": "Неизвестные блоки",
+    "Track pulse bytes": "Байты импульсов дорожки", "Pulses": "Импульсы",
+})
+CATALOG["ar"].update({
+    "Inspect PCE PFI structure…": "فحص بنية PCE PFI…", "Inspect PCE PFI structure": "فحص بنية PCE PFI",
+    "PCE PFI files (*.pfi);;All files (*)": "ملفات PCE PFI ‏(*.pfi)؛؛كل الملفات (*)",
+    "Inspecting PCE PFI structure": "جارٍ فحص بنية PCE PFI", "PCE PFI structural inspection": "فحص بنية PCE PFI",
+    "Read-only flux": "تدفق للقراءة فقط", "Chunks": "كتل", "Comments": "تعليقات", "Unknown chunks": "كتل غير معروفة",
+    "Track pulse bytes": "بايتات نبضات المسار", "Pulses": "نبضات",
+})
+CATALOG["ja"].update({
+    "Inspect PCE PFI structure…": "PCE PFI 構造を検査…", "Inspect PCE PFI structure": "PCE PFI 構造を検査",
+    "PCE PFI files (*.pfi);;All files (*)": "PCE PFI ファイル (*.pfi);;すべてのファイル (*)",
+    "Inspecting PCE PFI structure": "PCE PFI 構造を検査中", "PCE PFI structural inspection": "PCE PFI 構造検査",
+    "Read-only flux": "読み取り専用フラックス", "Chunks": "チャンク", "Comments": "コメント", "Unknown chunks": "不明なチャンク",
+    "Track pulse bytes": "トラックパルスバイト", "Pulses": "パルス",
+})
+TRANSLATABLE = _catalog_keys()
+
+# v0.10 WOZ 2.0/2.1 Apple II bitstream-container inspection.
+CATALOG["zh_CN"].update({
+    "Inspect WOZ2 structure…": "检查 WOZ2 结构…", "Inspect WOZ2 structure": "检查 WOZ2 结构",
+    "WOZ files (*.woz);;All files (*)": "WOZ 文件 (*.woz);;所有文件 (*)",
+    "Inspecting WOZ2 structure": "正在检查 WOZ2 结构", "WOZ2 structural inspection": "WOZ2 结构检查",
+    "Bit tracks": "位流磁道", "Flux tracks": "磁通磁道", "INFO version": "INFO 版本", "Disk type": "磁盘类型",
+    "Creator": "创建程序", "CRC checked": "已检查 CRC", "Metadata entries": "元数据条目",
+})
+CATALOG["es"].update({
+    "Inspect WOZ2 structure…": "Inspeccionar estructura WOZ2…", "Inspect WOZ2 structure": "Inspeccionar estructura WOZ2",
+    "WOZ files (*.woz);;All files (*)": "Archivos WOZ (*.woz);;Todos los archivos (*)",
+    "Inspecting WOZ2 structure": "Inspeccionando estructura WOZ2", "WOZ2 structural inspection": "Inspección estructural WOZ2",
+    "Bit tracks": "Pistas de bits", "Flux tracks": "Pistas de flujo", "INFO version": "Versión INFO", "Disk type": "Tipo de disco",
+    "Creator": "Creador", "CRC checked": "CRC comprobado", "Metadata entries": "Entradas de metadatos",
+})
+CATALOG["fr"].update({
+    "Inspect WOZ2 structure…": "Inspecter la structure WOZ2…", "Inspect WOZ2 structure": "Inspecter la structure WOZ2",
+    "WOZ files (*.woz);;All files (*)": "Fichiers WOZ (*.woz);;Tous les fichiers (*)",
+    "Inspecting WOZ2 structure": "Inspection de la structure WOZ2", "WOZ2 structural inspection": "Inspection structurelle WOZ2",
+    "Bit tracks": "Pistes de bits", "Flux tracks": "Pistes de flux", "INFO version": "Version INFO", "Disk type": "Type de disque",
+    "Creator": "Créateur", "CRC checked": "CRC vérifié", "Metadata entries": "Entrées de métadonnées",
+})
+CATALOG["ru"].update({
+    "Inspect WOZ2 structure…": "Проверить структуру WOZ2…", "Inspect WOZ2 structure": "Проверить структуру WOZ2",
+    "WOZ files (*.woz);;All files (*)": "Файлы WOZ (*.woz);;Все файлы (*)",
+    "Inspecting WOZ2 structure": "Проверка структуры WOZ2", "WOZ2 structural inspection": "Структурная проверка WOZ2",
+    "Bit tracks": "Битовые дорожки", "Flux tracks": "Дорожки потока", "INFO version": "Версия INFO", "Disk type": "Тип диска",
+    "Creator": "Создатель", "CRC checked": "CRC проверена", "Metadata entries": "Записи метаданных",
+})
+CATALOG["ar"].update({
+    "Inspect WOZ2 structure…": "فحص بنية WOZ2…", "Inspect WOZ2 structure": "فحص بنية WOZ2",
+    "WOZ files (*.woz);;All files (*)": "ملفات WOZ ‏(*.woz)؛؛كل الملفات (*)",
+    "Inspecting WOZ2 structure": "جارٍ فحص بنية WOZ2", "WOZ2 structural inspection": "فحص بنية WOZ2",
+    "Bit tracks": "مسارات البتات", "Flux tracks": "مسارات التدفق", "INFO version": "إصدار INFO", "Disk type": "نوع القرص",
+    "Creator": "المنشئ", "CRC checked": "تم فحص CRC", "Metadata entries": "إدخالات البيانات الوصفية",
+})
+CATALOG["ja"].update({
+    "Inspect WOZ2 structure…": "WOZ2 構造を検査…", "Inspect WOZ2 structure": "WOZ2 構造を検査",
+    "WOZ files (*.woz);;All files (*)": "WOZ ファイル (*.woz);;すべてのファイル (*)",
+    "Inspecting WOZ2 structure": "WOZ2 構造を検査中", "WOZ2 structural inspection": "WOZ2 構造検査",
+    "Bit tracks": "ビットトラック", "Flux tracks": "フラックストラック", "INFO version": "INFO バージョン", "Disk type": "ディスク種別",
+    "Creator": "作成元", "CRC checked": "CRC 検証済み", "Metadata entries": "メタデータ項目",
+})
+TRANSLATABLE = _catalog_keys()
+
+# v0.10 A2R 3.x flux-container inspection.
+CATALOG["zh_CN"].update({
+    "Inspect A2R3 structure…": "检查 A2R3 结构…", "Inspect A2R3 structure": "检查 A2R3 结构",
+    "A2R files (*.a2r);;All files (*)": "A2R 文件 (*.a2r);;所有文件 (*)",
+    "Inspecting A2R3 structure": "正在检查 A2R3 结构", "A2R3 structural inspection": "A2R3 结构检查",
+    "Raw captures": "原始采集", "Solved flux tracks": "已求解磁通轨道", "Read-only flux": "只读磁通",
+    "No decoding or RAW export is available.": "不提供解码或 RAW 导出。", "Drive type": "驱动器类型",
+    "Write protected": "写保护", "Synchronized": "同步", "Hard sector count": "硬扇区数量",
+})
+CATALOG["es"].update({
+    "Inspect A2R3 structure…": "Inspeccionar estructura A2R3…", "Inspect A2R3 structure": "Inspeccionar estructura A2R3",
+    "A2R files (*.a2r);;All files (*)": "Archivos A2R (*.a2r);;Todos los archivos (*)",
+    "Inspecting A2R3 structure": "Inspeccionando estructura A2R3", "A2R3 structural inspection": "Inspección estructural A2R3",
+    "Raw captures": "Capturas sin procesar", "Solved flux tracks": "Pistas de flujo resueltas", "Read-only flux": "Flujo de solo lectura",
+    "No decoding or RAW export is available.": "No hay decodificación ni exportación RAW disponible.", "Drive type": "Tipo de unidad",
+    "Write protected": "Protegido contra escritura", "Synchronized": "Sincronizado", "Hard sector count": "Número de sectores duros",
+})
+CATALOG["fr"].update({
+    "Inspect A2R3 structure…": "Inspecter la structure A2R3…", "Inspect A2R3 structure": "Inspecter la structure A2R3",
+    "A2R files (*.a2r);;All files (*)": "Fichiers A2R (*.a2r);;Tous les fichiers (*)",
+    "Inspecting A2R3 structure": "Inspection de la structure A2R3", "A2R3 structural inspection": "Inspection structurelle A2R3",
+    "Raw captures": "Captures brutes", "Solved flux tracks": "Pistes de flux résolues", "Read-only flux": "Flux en lecture seule",
+    "No decoding or RAW export is available.": "Aucun décodage ni export RAW n’est disponible.", "Drive type": "Type de lecteur",
+    "Write protected": "Protégé en écriture", "Synchronized": "Synchronisé", "Hard sector count": "Nombre de secteurs physiques",
+})
+CATALOG["ru"].update({
+    "Inspect A2R3 structure…": "Проверить структуру A2R3…", "Inspect A2R3 structure": "Проверить структуру A2R3",
+    "A2R files (*.a2r);;All files (*)": "Файлы A2R (*.a2r);;Все файлы (*)",
+    "Inspecting A2R3 structure": "Проверка структуры A2R3", "A2R3 structural inspection": "Структурная проверка A2R3",
+    "Raw captures": "Исходные захваты", "Solved flux tracks": "Обработанные дорожки потока", "Read-only flux": "Поток только для чтения",
+    "No decoding or RAW export is available.": "Декодирование и экспорт RAW недоступны.", "Drive type": "Тип привода",
+    "Write protected": "Защита от записи", "Synchronized": "Синхронизировано", "Hard sector count": "Число жёстких секторов",
+})
+CATALOG["ar"].update({
+    "Inspect A2R3 structure…": "فحص بنية A2R3…", "Inspect A2R3 structure": "فحص بنية A2R3",
+    "A2R files (*.a2r);;All files (*)": "ملفات A2R ‏(*.a2r)؛؛كل الملفات (*)",
+    "Inspecting A2R3 structure": "جارٍ فحص بنية A2R3", "A2R3 structural inspection": "فحص بنية A2R3",
+    "Raw captures": "اللقطات الخام", "Solved flux tracks": "مسارات التدفق المحلولة", "Read-only flux": "تدفق للقراءة فقط",
+    "No decoding or RAW export is available.": "لا يتوفر فك الترميز أو تصدير RAW.", "Drive type": "نوع محرك الأقراص",
+    "Write protected": "محمي من الكتابة", "Synchronized": "متزامن", "Hard sector count": "عدد القطاعات الصلبة",
+})
+CATALOG["ja"].update({
+    "Inspect A2R3 structure…": "A2R3 構造を検査…", "Inspect A2R3 structure": "A2R3 構造を検査",
+    "A2R files (*.a2r);;All files (*)": "A2R ファイル (*.a2r);;すべてのファイル (*)",
+    "Inspecting A2R3 structure": "A2R3 構造を検査中", "A2R3 structural inspection": "A2R3 構造検査",
+    "Raw captures": "生キャプチャ", "Solved flux tracks": "解決済みフラックストラック", "Read-only flux": "読み取り専用フラックス",
+    "No decoding or RAW export is available.": "デコードおよび RAW エクスポートは利用できません。", "Drive type": "ドライブ種別",
+    "Write protected": "書き込み保護", "Synchronized": "同期済み", "Hard sector count": "ハードセクター数",
+})
+TRANSLATABLE = _catalog_keys()
+
+
+# Canonical G64 v0 structural inspector: keep every visible string localized.
+CATALOG["zh_CN"].update({
+    "Inspect G64 structure…": "检查 G64 结构…", "Inspect G64 structure": "检查 G64 结构",
+    "G64 files (*.g64);;All files (*)": "G64 文件 (*.g64);;所有文件 (*)",
+    "Inspecting G64 structure": "正在检查 G64 结构", "G64 structural inspection": "G64 结构检查",
+    "GCR tracks": "GCR 轨道", "Track entries": "轨道条目", "Read-only GCR": "只读 GCR",
+    "Stored track bytes": "存储轨道字节数", "Constant-speed tracks": "恒定速度轨道", "Mapped-speed tracks": "映射速度轨道",
+})
+CATALOG["es"].update({
+    "Inspect G64 structure…": "Inspeccionar estructura G64…", "Inspect G64 structure": "Inspeccionar estructura G64",
+    "G64 files (*.g64);;All files (*)": "Archivos G64 (*.g64);;Todos los archivos (*)",
+    "Inspecting G64 structure": "Inspeccionando estructura G64", "G64 structural inspection": "Inspección estructural G64",
+    "GCR tracks": "Pistas GCR", "Track entries": "Entradas de pista", "Read-only GCR": "GCR de solo lectura",
+    "Stored track bytes": "Bytes de pista almacenados", "Constant-speed tracks": "Pistas de velocidad constante", "Mapped-speed tracks": "Pistas con velocidad asignada",
+})
+CATALOG["fr"].update({
+    "Inspect G64 structure…": "Inspecter la structure G64…", "Inspect G64 structure": "Inspecter la structure G64",
+    "G64 files (*.g64);;All files (*)": "Fichiers G64 (*.g64);;Tous les fichiers (*)",
+    "Inspecting G64 structure": "Inspection de la structure G64", "G64 structural inspection": "Inspection structurelle G64",
+    "GCR tracks": "Pistes GCR", "Track entries": "Entrées de piste", "Read-only GCR": "GCR en lecture seule",
+    "Stored track bytes": "Octets de piste stockés", "Constant-speed tracks": "Pistes à vitesse constante", "Mapped-speed tracks": "Pistes à vitesse mappée",
+})
+CATALOG["ru"].update({
+    "Inspect G64 structure…": "Проверить структуру G64…", "Inspect G64 structure": "Проверить структуру G64",
+    "G64 files (*.g64);;All files (*)": "Файлы G64 (*.g64);;Все файлы (*)",
+    "Inspecting G64 structure": "Проверка структуры G64", "G64 structural inspection": "Структурная проверка G64",
+    "GCR tracks": "Дорожки GCR", "Track entries": "Записи дорожек", "Read-only GCR": "GCR только для чтения",
+    "Stored track bytes": "Байты сохранённой дорожки", "Constant-speed tracks": "Дорожки с постоянной скоростью", "Mapped-speed tracks": "Дорожки с картой скорости",
+})
+CATALOG["ar"].update({
+    "Inspect G64 structure…": "فحص بنية G64…", "Inspect G64 structure": "فحص بنية G64",
+    "G64 files (*.g64);;All files (*)": "ملفات G64 ‏(*.g64)؛؛كل الملفات (*)",
+    "Inspecting G64 structure": "جارٍ فحص بنية G64", "G64 structural inspection": "فحص بنية G64",
+    "GCR tracks": "مسارات GCR", "Track entries": "إدخالات المسارات", "Read-only GCR": "GCR للقراءة فقط",
+    "Stored track bytes": "بايتات المسارات المخزنة", "Constant-speed tracks": "مسارات بسرعة ثابتة", "Mapped-speed tracks": "مسارات بسرعة معيّنة",
+})
+CATALOG["ja"].update({
+    "Inspect G64 structure…": "G64 構造を検査…", "Inspect G64 structure": "G64 構造を検査",
+    "G64 files (*.g64);;All files (*)": "G64 ファイル (*.g64);;すべてのファイル (*)",
+    "Inspecting G64 structure": "G64 構造を検査中", "G64 structural inspection": "G64 構造検査",
+    "GCR tracks": "GCR トラック", "Track entries": "トラック項目", "Read-only GCR": "読み取り専用 GCR",
+    "Stored track bytes": "格納トラックバイト数", "Constant-speed tracks": "固定速度トラック", "Mapped-speed tracks": "速度マップ付きトラック",
+})
+TRANSLATABLE = _catalog_keys()
+
+
+# Canonical P64 v0 structural inspector: keep every visible string localized.
+CATALOG["zh_CN"].update({
+    "Inspect P64 structure…": "检查 P64 结构…", "Inspect P64 structure": "检查 P64 结构",
+    "P64 files (*.p64);;All files (*)": "P64 文件 (*.p64);;所有文件 (*)",
+    "Inspecting P64 structure": "正在检查 P64 结构", "P64 structural inspection": "P64 结构检查",
+    "NRZI half-tracks": "NRZI 半轨", "Container chunks": "容器块", "Read-only NRZI": "只读 NRZI",
+    "No pulse, GCR, sector decoding or RAW export is available.": "不提供脉冲、GCR 或扇区解码，也不提供 RAW 导出。", "P64 flags": "P64 标志",
+})
+CATALOG["es"].update({
+    "Inspect P64 structure…": "Inspeccionar estructura P64…", "Inspect P64 structure": "Inspeccionar estructura P64",
+    "P64 files (*.p64);;All files (*)": "Archivos P64 (*.p64);;Todos los archivos (*)",
+    "Inspecting P64 structure": "Inspeccionando estructura P64", "P64 structural inspection": "Inspección estructural P64",
+    "NRZI half-tracks": "Medias pistas NRZI", "Container chunks": "Bloques del contenedor", "Read-only NRZI": "NRZI de solo lectura",
+    "No pulse, GCR, sector decoding or RAW export is available.": "No hay decodificación de pulsos, GCR o sectores ni exportación RAW disponible.", "P64 flags": "Indicadores P64",
+})
+CATALOG["fr"].update({
+    "Inspect P64 structure…": "Inspecter la structure P64…", "Inspect P64 structure": "Inspecter la structure P64",
+    "P64 files (*.p64);;All files (*)": "Fichiers P64 (*.p64);;Tous les fichiers (*)",
+    "Inspecting P64 structure": "Inspection de la structure P64", "P64 structural inspection": "Inspection structurelle P64",
+    "NRZI half-tracks": "Demi-pistes NRZI", "Container chunks": "Blocs du conteneur", "Read-only NRZI": "NRZI en lecture seule",
+    "No pulse, GCR, sector decoding or RAW export is available.": "Aucun décodage des impulsions, GCR ou secteurs ni export RAW n’est disponible.", "P64 flags": "Indicateurs P64",
+})
+CATALOG["ru"].update({
+    "Inspect P64 structure…": "Проверить структуру P64…", "Inspect P64 structure": "Проверить структуру P64",
+    "P64 files (*.p64);;All files (*)": "Файлы P64 (*.p64);;Все файлы (*)",
+    "Inspecting P64 structure": "Проверка структуры P64", "P64 structural inspection": "Структурная проверка P64",
+    "NRZI half-tracks": "Полудорожки NRZI", "Container chunks": "Блоки контейнера", "Read-only NRZI": "NRZI только для чтения",
+    "No pulse, GCR, sector decoding or RAW export is available.": "Декодирование импульсов, GCR или секторов и экспорт RAW недоступны.", "P64 flags": "Флаги P64",
+})
+CATALOG["ar"].update({
+    "Inspect P64 structure…": "فحص بنية P64…", "Inspect P64 structure": "فحص بنية P64",
+    "P64 files (*.p64);;All files (*)": "ملفات P64 ‏(*.p64)؛؛كل الملفات (*)",
+    "Inspecting P64 structure": "جارٍ فحص بنية P64", "P64 structural inspection": "فحص بنية P64",
+    "NRZI half-tracks": "أنصاف مسارات NRZI", "Container chunks": "كتل الحاوية", "Read-only NRZI": "NRZI للقراءة فقط",
+    "No pulse, GCR, sector decoding or RAW export is available.": "لا يتوفر فك ترميز النبضات أو GCR أو القطاعات ولا تصدير RAW.", "P64 flags": "علامات P64",
+})
+CATALOG["ja"].update({
+    "Inspect P64 structure…": "P64 構造を検査…", "Inspect P64 structure": "P64 構造を検査",
+    "P64 files (*.p64);;All files (*)": "P64 ファイル (*.p64);;すべてのファイル (*)",
+    "Inspecting P64 structure": "P64 構造を検査中", "P64 structural inspection": "P64 構造検査",
+    "NRZI half-tracks": "NRZI ハーフトラック", "Container chunks": "コンテナー チャンク", "Read-only NRZI": "読み取り専用 NRZI",
+    "No pulse, GCR, sector decoding or RAW export is available.": "パルス、GCR、セクターのデコードおよび RAW エクスポートは利用できません。", "P64 flags": "P64 フラグ",
+})
+TRANSLATABLE = _catalog_keys()
+
+
+# Canonical G71 v0 double-sided structural inspector: every visible string remains localized.
+CATALOG["zh_CN"].update({
+    "Inspect G71 structure…": "检查 G71 结构…", "Inspect G71 structure": "检查 G71 结构",
+    "G71 files (*.g71);;All files (*)": "G71 文件 (*.g71);;所有文件 (*)",
+    "Inspecting G71 structure": "正在检查 G71 结构", "G71 structural inspection": "G71 结构检查",
+    "Opaque double-sided GCR tracks": "不透明双面 GCR 轨道", "Half-track entries": "半轨条目", "Read-only double-sided GCR": "只读双面 GCR",
+    "No GCR or sector decoding, RAW export, browse, filesystem session, conversion, repair, or writing is available.": "不提供 GCR 或扇区解码、RAW 导出、浏览、文件系统会话、转换、修复或写入。",
+})
+CATALOG["es"].update({
+    "Inspect G71 structure…": "Inspeccionar estructura G71…", "Inspect G71 structure": "Inspeccionar estructura G71",
+    "G71 files (*.g71);;All files (*)": "Archivos G71 (*.g71);;Todos los archivos (*)",
+    "Inspecting G71 structure": "Inspeccionando estructura G71", "G71 structural inspection": "Inspección estructural G71",
+    "Opaque double-sided GCR tracks": "Pistas GCR opacas de doble cara", "Half-track entries": "Entradas de media pista", "Read-only double-sided GCR": "GCR de doble cara de solo lectura",
+    "No GCR or sector decoding, RAW export, browse, filesystem session, conversion, repair, or writing is available.": "No están disponibles la decodificación GCR o de sectores, la exportación RAW, la exploración, la sesión de sistema de archivos, la conversión, la reparación ni la escritura.",
+})
+CATALOG["fr"].update({
+    "Inspect G71 structure…": "Inspecter la structure G71…", "Inspect G71 structure": "Inspecter la structure G71",
+    "G71 files (*.g71);;All files (*)": "Fichiers G71 (*.g71);;Tous les fichiers (*)",
+    "Inspecting G71 structure": "Inspection de la structure G71", "G71 structural inspection": "Inspection structurelle G71",
+    "Opaque double-sided GCR tracks": "Pistes GCR opaques double face", "Half-track entries": "Entrées de demi-piste", "Read-only double-sided GCR": "GCR double face en lecture seule",
+    "No GCR or sector decoding, RAW export, browse, filesystem session, conversion, repair, or writing is available.": "Aucun décodage GCR ou de secteurs, export RAW, parcours, session de système de fichiers, conversion, réparation ou écriture n’est disponible.",
+})
+CATALOG["ru"].update({
+    "Inspect G71 structure…": "Проверить структуру G71…", "Inspect G71 structure": "Проверить структуру G71",
+    "G71 files (*.g71);;All files (*)": "Файлы G71 (*.g71);;Все файлы (*)",
+    "Inspecting G71 structure": "Проверка структуры G71", "G71 structural inspection": "Структурная проверка G71",
+    "Opaque double-sided GCR tracks": "Непрозрачные двухсторонние дорожки GCR", "Half-track entries": "Записи полудорожек", "Read-only double-sided GCR": "Двухсторонний GCR только для чтения",
+    "No GCR or sector decoding, RAW export, browse, filesystem session, conversion, repair, or writing is available.": "Недоступны декодирование GCR или секторов, экспорт RAW, просмотр, сеанс файловой системы, преобразование, восстановление и запись.",
+})
+CATALOG["ar"].update({
+    "Inspect G71 structure…": "فحص بنية G71…", "Inspect G71 structure": "فحص بنية G71",
+    "G71 files (*.g71);;All files (*)": "ملفات G71 ‏(*.g71)؛؛كل الملفات (*)",
+    "Inspecting G71 structure": "جارٍ فحص بنية G71", "G71 structural inspection": "فحص بنية G71",
+    "Opaque double-sided GCR tracks": "مسارات GCR غير شفافة مزدوجة الوجه", "Half-track entries": "إدخالات أنصاف المسارات", "Read-only double-sided GCR": "GCR مزدوج الوجه للقراءة فقط",
+    "No GCR or sector decoding, RAW export, browse, filesystem session, conversion, repair, or writing is available.": "لا يتوفر فك ترميز GCR أو القطاعات أو تصدير RAW أو الاستعراض أو جلسة نظام الملفات أو التحويل أو الإصلاح أو الكتابة.",
+})
+CATALOG["ja"].update({
+    "Inspect G71 structure…": "G71 構造を検査…", "Inspect G71 structure": "G71 構造を検査",
+    "G71 files (*.g71);;All files (*)": "G71 ファイル (*.g71);;すべてのファイル (*)",
+    "Inspecting G71 structure": "G71 構造を検査中", "G71 structural inspection": "G71 構造検査",
+    "Opaque double-sided GCR tracks": "不透明な両面 GCR トラック", "Half-track entries": "ハーフトラック項目", "Read-only double-sided GCR": "読み取り専用の両面 GCR",
+    "No GCR or sector decoding, RAW export, browse, filesystem session, conversion, repair, or writing is available.": "GCR またはセクターのデコード、RAW エクスポート、参照、ファイルシステムセッション、変換、修復、書き込みは利用できません。",
 })
 TRANSLATABLE = _catalog_keys()

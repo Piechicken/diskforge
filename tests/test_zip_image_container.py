@@ -180,3 +180,86 @@ def test_zip_image_materialization_cancellation_cleans_private_directory(
     with pytest.raises(OperationCancelled):
         materialize_browsable_image(archive, token=token)
     assert not temporary.exists()
+
+
+def test_safe_legacy_raw_alias_zip_materializes_and_reidentifies(tmp_path: Path) -> None:
+    image = tmp_path / "payload.img"
+    create_fat_image(image, 360 * 1024, FileSystemType.FAT12, "ZIPVFD")
+    archive = tmp_path / "payload.zip"
+    _write_zip(archive, "payload.vfd", image.read_bytes())
+
+    session = materialize_browsable_image(archive)
+    try:
+        info = inspect_image(session.image)
+        assert info.image_format == ImageFormat.RAW
+        assert info.filesystem == FileSystemType.FAT12
+        assert "Conventional legacy raw-sector image shape recognized" in info.notes
+    finally:
+        session.close()
+
+
+def test_explicit_multi_image_zip_selection_is_read_only_across_entrypoints(tmp_path: Path, capsys, qtbot) -> None:  # type: ignore[no-untyped-def]
+    from PySide6.QtCore import QSettings
+
+    from diskforge.api import DiskForgeClient
+    from diskforge.cli import main
+    from diskforge.core.formats import list_zip_image_payloads
+    from diskforge.gui.main_window import MainWindow
+
+    first = tmp_path / "first.img"
+    second = tmp_path / "second.img"
+    create_fat_image(first, 360 * 1024, FileSystemType.FAT12, "FIRST")
+    create_fat_image(second, 720 * 1024, FileSystemType.FAT12, "SECOND")
+    first_note = tmp_path / "first.txt"
+    second_note = tmp_path / "second.txt"
+    first_note.write_text("first payload", encoding="utf-8")
+    second_note.write_text("second payload", encoding="utf-8")
+    from diskforge.core.filesystems import FatImageFilesystem
+    for image, note in ((first, first_note), (second, second_note)):
+        filesystem = FatImageFilesystem(image)
+        try:
+            filesystem.inject([note])
+        finally:
+            filesystem.close()
+    archive = tmp_path / "collection.zip"
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as container:
+        container.write(first, "first.img")
+        container.write(second, "second.vfd")
+    source_hash = sha256_file(archive)
+
+    assert list_zip_image_payloads(archive) == ("first.img", "second.vfd")
+    with pytest.raises(DiskForgeError, match="exactly one"):
+        materialize_browsable_image(archive)
+    with pytest.raises(DiskForgeError, match="not present"):
+        materialize_browsable_image(archive, zip_payload="missing.img")
+
+    session = materialize_browsable_image(archive, zip_payload="second.vfd")
+    try:
+        assert session.image.suffix == ".vfd"
+        assert inspect_image(session.image).image_format == ImageFormat.RAW
+        assert inspect_image(session.image).filesystem == FileSystemType.FAT12
+    finally:
+        session.close()
+
+    client = DiskForgeClient()
+    assert client.list_zip_image_payloads(archive) == ("first.img", "second.vfd")
+    with client.filesystem(archive, zip_payload="second.vfd") as filesystem:
+        assert [entry.name for entry in filesystem.list_entries("/")] == ["second.txt"]
+
+    assert main(["--json", "zip-info", str(archive)]) == 0
+    report = __import__("json").loads(capsys.readouterr().out)
+    assert report["payloads"] == ["first.img", "second.vfd"]
+    assert main(["--json", "list", str(archive), "--zip-payload", "first.img"]) == 0
+    listing = __import__("json").loads(capsys.readouterr().out)
+    assert [entry["name"] for entry in listing] == ["first.txt"]
+
+    settings = QSettings(str(tmp_path / "multi-zip.ini"), QSettings.Format.IniFormat)
+    window = MainWindow(settings)
+    qtbot.addWidget(window)
+    window._open_path(archive, zip_payload="second.vfd")
+    assert window.current_zip_payload == "second.vfd"
+    assert window.current_browse_session is not None
+    assert [entry.name for entry in window.current_entries] == ["second.txt"]
+    assert window.action_inject.isEnabled() is False
+    window.close_image()
+    assert sha256_file(archive) == source_hash

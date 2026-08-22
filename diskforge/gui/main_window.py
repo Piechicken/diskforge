@@ -52,6 +52,18 @@ from diskforge.core.msa import export_msa_to_raw, inspect_msa
 from diskforge.core.psi import export_psi_to_raw, inspect_psi
 from diskforge.core.pri import inspect_pri
 from diskforge.core.eightysixf import inspect_86f
+from diskforge.core.fdi import inspect_fdi
+from diskforge.core.jv3 import export_jv3_to_raw, inspect_jv3
+from diskforge.core.dmk import inspect_dmk
+from diskforge.core.udi import inspect_udi
+from diskforge.core.scp import inspect_scp
+from diskforge.core.mfm import inspect_mfm
+from diskforge.core.pfi import inspect_pfi
+from diskforge.core.woz import inspect_woz
+from diskforge.core.a2r import inspect_a2r
+from diskforge.core.g64 import inspect_g64
+from diskforge.core.g71 import inspect_g71
+from diskforge.core.p64 import inspect_p64
 from diskforge.core.d88 import export_d88_to_raw, inspect_d88
 from diskforge.core.dc42 import export_dc42_data_to_raw, inspect_dc42
 from diskforge.core.twoimg import export_twoimg_to_raw, inspect_twoimg
@@ -59,12 +71,12 @@ from diskforge.core.hfe import inspect_hfe
 from diskforge.core.eltorito import export_boot_image, inspect_eltorito
 from diskforge.core.fat_layouts import FatImageLayout, create_fat_image_from_layout
 from diskforge.core.floppy_format import FloppyControllerFormatter
-from diskforge.core.filesystems import (FatImageFilesystem, ImageFilesystem, IsoImageFilesystem,
+from diskforge.core.filesystems import (D64ImageFilesystem, D71ImageFilesystem, D81ImageFilesystem, FatImageFilesystem, ImageFilesystem, IsoImageFilesystem,
                                         create_fat_image, create_iso_from_directory, defragment_fat_image,
                                         rebuild_iso_with_changes, replace_iso_file_safely)
 from diskforge.core.formats import (Dmg2ImgConverter, QemuImgConverter, convert_image, create_dynamic_vhd_from_raw,
                                      create_editable_fixed_vhd_copy, create_legacy_zip_image, inspect_image,
-                                     validate_fixed_vhd_fat)
+                                     list_zip_image_payloads, validate_fixed_vhd_fat)
 from diskforge.core.legacy_floppy import (LEGACY_FLOPPY_PROFILES, LegacyFloppyGeometry,
                                            create_legacy_fat_floppy,
                                            create_legacy_fat_floppy_profile)
@@ -92,7 +104,7 @@ from diskforge.gui.theme import apply_theme
 from diskforge.gui.workers import FunctionWorker
 
 
-IMAGE_FILTER = "Disk images (*.img *.ima *.imd *.td0 *.dsk *.d88 *.1dd *.2dd *.hfe *.dc42 *.2mg *.2img *.qm *.sap *.msa *.psi *.pri *.86f *.hfs *.bin *.dd *.dmf *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
+IMAGE_FILTER = "Disk images (*.img *.ima *.vfd *.flp *.160 *.180 *.320 *.360 *.640 *.720 *.120 *.144 *.288 *.dmf *.imd *.td0 *.dsk *.d88 *.1dd *.2dd *.hfe *.dc42 *.2mg *.2img *.qm *.sap *.msa *.psi *.pri *.86f *.fdi *.jv3 *.dmk *.udi *.scp *.mfm *.pfi *.woz *.a2r *.d64 *.d71 *.d81 *.g64 *.g71 *.hfs *.bin *.dd *.iso *.vhd *.vhdx *.vmdk *.qcow2 *.dmg);;All files (*)"
 
 
 class NewImageDialog(QDialog):
@@ -631,6 +643,7 @@ class MainWindow(QMainWindow):
         self.current_info = None
         self.current_fs: ImageFilesystem | None = None
         self.current_browse_session: BrowsableImageSession | None = None
+        self.current_zip_payload: str | None = None
         self._editable_fixed_vhd = False
         self.current_partition_index: int | None = None
         self.current_mount_session: ImageMountSession | None = None
@@ -661,11 +674,13 @@ class MainWindow(QMainWindow):
         self.action_close = self._action("Close image", "Ctrl+W", self.close_image)
         self.action_extract = self._action("Extract selected…", "Ctrl+E", self.extract_selected)
         self.action_inject = self._action("Inject files…", "Ctrl+I", self.inject_files)
+        self.action_new_directory = self._action("Create FAT directory…", None, self.create_fat_directory)
         self.action_controlled_inject = self._action("Inject files safely into new NTFS/EXT/classic HFS image…", None, self.inject_files_safely)
         self.action_delete = self._action("Delete selected", "Delete", self.delete_selected)
         self.action_properties = self._action("Modify selected timestamp…", None, self.modify_timestamp)
         self.action_rename = self._action("Rename selected…", "F2", self.rename_selected)
         self.action_move = self._action("Move to directory…", None, self.move_selected)
+        self.action_copy = self._action("Copy to directory…", None, self.copy_selected)
         self.action_recover_deleted = self._action("Recover deleted FAT file…", None, self.recover_deleted_fat)
         self.action_attributes = self._action("Edit DOS attributes…", None, self.edit_attributes)
         self.action_label = self._action("Change volume label…", None, self.change_volume_label)
@@ -708,6 +723,18 @@ class MainWindow(QMainWindow):
         self.action_psi = self._action("Inspect / export PSI…", None, self.inspect_psi_image)
         self.action_pri = self._action("Inspect PRI structure…", None, self.inspect_pri_image)
         self.action_86f = self._action("Inspect 86F structure…", None, self.inspect_86f_image)
+        self.action_fdi = self._action("Inspect FDI structure…", None, self.inspect_fdi_image)
+        self.action_dmk = self._action("Inspect DMK structure…", None, self.inspect_dmk_image)
+        self.action_udi = self._action("Inspect UDI structure…", None, self.inspect_udi_image)
+        self.action_scp = self._action("Inspect SCP structure…", None, self.inspect_scp_image)
+        self.action_mfm = self._action("Inspect HxC MFM structure…", None, self.inspect_mfm_image)
+        self.action_pfi = self._action("Inspect PCE PFI structure…", None, self.inspect_pfi_image)
+        self.action_woz = self._action("Inspect WOZ2 structure…", None, self.inspect_woz_image)
+        self.action_a2r = self._action("Inspect A2R3 structure…", None, self.inspect_a2r_image)
+        self.action_g64 = self._action("Inspect G64 structure…", None, self.inspect_g64_image)
+        self.action_g71 = self._action("Inspect G71 structure…", None, self.inspect_g71_image)
+        self.action_p64 = self._action("Inspect P64 structure…", None, self.inspect_p64_image)
+        self.action_jv3 = self._action("Inspect / export JV3…", None, self.inspect_jv3_image)
         self.action_inventory = self._action("Inventory images…", None, self.inventory_images)
         self.action_batch_designer = self._action("Design batch workflow…", None, self.design_batch)
         self.action_batch_edit = self._action("Edit batch recipe…", None, self.edit_batch)
@@ -741,8 +768,8 @@ class MainWindow(QMainWindow):
         menu_file.addSeparator()
         menu_file.addAction("Exit", self.close)
         menu_image = self.menuBar().addMenu("&Image")
-        menu_image.addActions([self.action_extract, self.action_inject, self.action_controlled_inject, self.action_preview, self.action_delete, self.action_properties,
-                               self.action_rename, self.action_move, self.action_recover_deleted, self.action_attributes, self.action_label, self.action_comment])
+        menu_image.addActions([self.action_extract, self.action_inject, self.action_new_directory, self.action_controlled_inject, self.action_preview, self.action_delete, self.action_properties,
+                               self.action_rename, self.action_move, self.action_copy, self.action_recover_deleted, self.action_attributes, self.action_label, self.action_comment])
         menu_image.addSeparator()
         menu_image.addActions([self.action_convert, self.action_resize, self.action_trim_zero_tail, self.action_compare, self.action_verify,
                                self.action_defragment, self.action_partitions, self.action_boot, self.action_wrap_mbr, self.action_prepare_deployment,
@@ -754,7 +781,7 @@ class MainWindow(QMainWindow):
         menu_view = self.menuBar().addMenu("&View")
         menu_view.addActions([self.action_view_details, self.action_view_icons])
         menu_tools = self.menuBar().addMenu("&Tools")
-        menu_tools.addActions([self.action_devices, self.action_device_read_queue, self.action_imd, self.action_td0, self.action_cpc_dsk, self.action_d88, self.action_hfe, self.action_dc42, self.action_twoimg, self.action_apridisk, self.action_copyqm, self.action_sap, self.action_msa, self.action_psi, self.action_pri, self.action_86f, self.action_inventory, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
+        menu_tools.addActions([self.action_devices, self.action_device_read_queue, self.action_imd, self.action_td0, self.action_cpc_dsk, self.action_d88, self.action_hfe, self.action_dc42, self.action_twoimg, self.action_apridisk, self.action_copyqm, self.action_sap, self.action_msa, self.action_psi, self.action_pri, self.action_86f, self.action_fdi, self.action_dmk, self.action_udi, self.action_scp, self.action_mfm, self.action_pfi, self.action_woz, self.action_a2r, self.action_g64, self.action_g71, self.action_p64, self.action_jv3, self.action_inventory, self.action_batch_designer, self.action_batch_edit, self.action_batch, self.action_preferences])
         menu_language = menu_tools.addMenu("&Language")
         self.language_actions: list[QAction] = []
         try:
@@ -991,6 +1018,7 @@ class MainWindow(QMainWindow):
         self.action_extract.setEnabled(open_image and entries and self.current_fs is not None)
         self.action_preview.setEnabled(open_image and self.current_fs is not None and selected_file is not None and len(self._selected_paths()) == 1)
         self.action_inject.setEnabled(fs_writable)
+        self.action_new_directory.setEnabled(fs_writable and isinstance(self.current_fs, FatImageFilesystem))
         controlled_filesystem = open_image and self.current_info is not None and self.current_info.filesystem in {
             FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS,
         }
@@ -998,7 +1026,8 @@ class MainWindow(QMainWindow):
         self.action_delete.setEnabled(fs_writable and entries)
         self.action_properties.setEnabled(fs_writable and entries)
         self.action_rename.setEnabled(fs_writable and len(self._selected_paths()) == 1)
-        self.action_move.setEnabled(fs_writable and selected_file is not None and len(self._selected_paths()) == 1)
+        self.action_move.setEnabled(fs_writable and len(self._selected_paths()) == 1)
+        self.action_copy.setEnabled(fs_writable and len(self._selected_paths()) == 1)
         self.action_recover_deleted.setEnabled(
             isinstance(self.current_fs, FatImageFilesystem) and self.current_path is not None and self.current_browse_session is None
         )
@@ -1216,6 +1245,21 @@ class MainWindow(QMainWindow):
         if not path:
             return
         selected = Path(path)
+        if selected.suffix.casefold() == ".zip":
+            try:
+                payloads = list_zip_image_payloads(selected)
+            except Exception as exc:
+                QMessageBox.critical(self, self._localized("Cannot open ZIP image"), str(exc))
+                return
+            payload = payloads[0]
+            if len(payloads) > 1:
+                payload, accepted = QInputDialog.getItem(
+                    self, self._localized("Select ZIP image payload"), self._localized("Payload"), list(payloads), 0, False,
+                )
+                if not accepted:
+                    return
+            self._open_path(selected, zip_payload=payload)
+            return
         if selected.suffix.casefold() == ".imd":
             self.inspect_imd_image(selected)
             return
@@ -1257,6 +1301,42 @@ class MainWindow(QMainWindow):
             return
         if selected.suffix.casefold() == ".86f":
             self.inspect_86f_image(selected)
+            return
+        if selected.suffix.casefold() == ".fdi":
+            self.inspect_fdi_image(selected)
+            return
+        if selected.suffix.casefold() == ".jv3":
+            self.inspect_jv3_image(selected)
+            return
+        if selected.suffix.casefold() == ".dmk":
+            self.inspect_dmk_image(selected)
+            return
+        if selected.suffix.casefold() == ".udi":
+            self.inspect_udi_image(selected)
+            return
+        if selected.suffix.casefold() == ".scp":
+            self.inspect_scp_image(selected)
+            return
+        if selected.suffix.casefold() == ".mfm":
+            self.inspect_mfm_image(selected)
+            return
+        if selected.suffix.casefold() == ".pfi":
+            self.inspect_pfi_image(selected)
+            return
+        if selected.suffix.casefold() == ".woz":
+            self.inspect_woz_image(selected)
+            return
+        if selected.suffix.casefold() == ".a2r":
+            self.inspect_a2r_image(selected)
+            return
+        if selected.suffix.casefold() == ".g64":
+            self.inspect_g64_image(selected)
+            return
+        if selected.suffix.casefold() == ".g71":
+            self.inspect_g71_image(selected)
+            return
+        if selected.suffix.casefold() == ".p64":
+            self.inspect_p64_image(selected)
             return
         if selected.suffix.casefold() in {".2mg", ".2img"}:
             self.inspect_twoimg_image(selected)
@@ -1435,11 +1515,12 @@ class MainWindow(QMainWindow):
                          on_result=lambda result: self._open_path(Path(result.destination)))
 
     def _open_path(self, path: Path, *, editable_fixed_vhd: bool = False,
-                   partition_index: int | None = None) -> None:
+                   partition_index: int | None = None, zip_payload: str | None = None) -> None:
         try:
             self._close_fs()
             self._editable_fixed_vhd = False
             self.current_partition_index = partition_index
+            self.current_zip_payload = zip_payload
             self.current_path = path
             converter = QemuImgConverter(self.settings.value("qemu_img_path", "") or None)
             self.current_info = inspect_image(path, converter)
@@ -1451,7 +1532,9 @@ class MainWindow(QMainWindow):
                 self.log(f"Opened validated editable fixed-VHD copy for {path.name}")
             elif self.current_info.image_format in {ImageFormat.VHD, ImageFormat.VHDX, ImageFormat.VMDK, ImageFormat.QCOW2,
                                                     ImageFormat.IMZ, ImageFormat.WLZ, ImageFormat.ZIP}:
-                self.current_browse_session = materialize_browsable_image(path, converter=converter)
+                self.current_browse_session = materialize_browsable_image(
+                    path, converter=converter, zip_payload=zip_payload,
+                )
                 browse_path = self.current_browse_session.image
                 browse_info = inspect_image(browse_path)
                 self.log(f"Opened read-only temporary browse session for {path.name}")
@@ -1462,6 +1545,13 @@ class MainWindow(QMainWindow):
                 self.current_fs = FatImageFilesystem(browse_path, read_only=self.current_browse_session is not None)
             elif browse_info.filesystem == FileSystemType.ISO9660 or browse_info.image_format == ImageFormat.ISO:
                 self.current_fs = IsoImageFilesystem(browse_path)
+            elif browse_info.filesystem == FileSystemType.CBM_DOS:
+                if browse_info.image_format == ImageFormat.D81:
+                    self.current_fs = D81ImageFilesystem(browse_path)
+                elif browse_info.image_format == ImageFormat.D71:
+                    self.current_fs = D71ImageFilesystem(browse_path)
+                else:
+                    self.current_fs = D64ImageFilesystem(browse_path)
             elif browse_info.filesystem in {FileSystemType.NTFS, FileSystemType.EXT, FileSystemType.HFS, FileSystemType.HFS_PLUS}:
                 self.current_fs = SleuthKitImageFilesystem(browse_path, browse_info.filesystem)
             else:
@@ -1476,6 +1566,7 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             self.current_path = None
             self.current_info = None
+            self.current_zip_payload = None
             self._close_fs()
             QMessageBox.critical(self, "Cannot open image", str(exc))
         self._update_action_state()
@@ -1495,6 +1586,7 @@ class MainWindow(QMainWindow):
         self._close_fs()
         self.current_path, self.current_info, self.current_entries = None, None, []
         self.current_partition_index = None
+        self.current_zip_payload = None
         self.current_directory = "/"
         self.tree.clear()
         self.table.setRowCount(0)
@@ -1688,6 +1780,12 @@ class MainWindow(QMainWindow):
             return FatImageFilesystem(source, read_only=True)
         if isinstance(self.current_fs, IsoImageFilesystem):
             return IsoImageFilesystem(source)
+        if isinstance(self.current_fs, D64ImageFilesystem):
+            return D64ImageFilesystem(source)
+        if isinstance(self.current_fs, D71ImageFilesystem):
+            return D71ImageFilesystem(source)
+        if isinstance(self.current_fs, D81ImageFilesystem):
+            return D81ImageFilesystem(source)
         if isinstance(self.current_fs, SleuthKitImageFilesystem):
             return SleuthKitImageFilesystem(source, self.current_fs.filesystem, offset=self.current_fs.offset)
         raise DiskForgeError("The current image format can be inspected but has no file-level browser.")
@@ -1967,6 +2065,37 @@ class MainWindow(QMainWindow):
                 self._localized("Updated FAT metadata for {count} item(s)").format(count=len(results)),
             ),
         )
+
+    def create_fat_directory(self) -> None:
+        """Create one empty child directory of the current writable FAT directory."""
+        if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
+            return
+        name, accepted = QInputDialog.getText(
+            self, self._localized("Create FAT directory"), self._localized("New directory name"),
+        )
+        candidate = name.strip()
+        if not accepted or not candidate:
+            return
+        if candidate in {".", ".."} or "/" in candidate or "\\" in candidate:
+            QMessageBox.warning(self, self._localized("Create FAT directory"), self._localized("A new name must be a single non-empty filename."))
+            return
+        source, parent, partition_index = self.current_path, self.current_directory, self.current_fs.partition_index
+        target = posixpath.join(parent, candidate)
+        self._run_worker(
+            self._localized("Creating FAT directory"),
+            lambda progress=None, token=None: self._create_directory_in_image(source, target, partition_index, token),
+            on_result=lambda path: self._after_fs_change(
+                self._localized("Created FAT directory {path}").format(path=path),
+            ),
+        )
+
+    @staticmethod
+    def _create_directory_in_image(source: Path, directory: str, partition_index: int | None, token=None) -> str:
+        filesystem = FatImageFilesystem(source, partition_index=partition_index)
+        try:
+            return filesystem.create_directory(directory, token)
+        finally:
+            filesystem.close()
 
     def rename_selected(self) -> None:
         if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
@@ -2680,33 +2809,507 @@ class MainWindow(QMainWindow):
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
 
-    def move_selected(self) -> None:
-        """Move a selected regular file to an existing FAT directory without overwrite."""
+    def inspect_dmk_image(self, source_path: Path | None = None) -> None:
+        """Inspect a native DMK container without decoding or exporting its track bytes."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect DMK structure"), "",
+                self._localized("DMK files (*.dmk);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting DMK structure"),
+            lambda progress=None, token=None: inspect_dmk(source_path, token),
+            on_result=lambda inspection: self._show_dmk_inspection(inspection),
+        )
+
+    def _show_dmk_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("DMK structural inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Track records')}: {len(inspection.track_records)}; {self._localized('ID address marks')}: {inspection.total_idams}\\n"
+            f"{self._localized('Tracks')}: {inspection.tracks}; {self._localized('Sides')}: {inspection.sides}; {self._localized('Track length')}: {inspection.track_length} {self._localized('bytes')}\\n"
+            f"{self._localized('Read-only bitstream')}: {self._localized('No decoding or RAW export is available.') }"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Write protected')}: {self._localized('Yes') if inspection.write_protected else self._localized('No')}\\n"
+            f"{self._localized('Single-density track size')}: {self._localized('Yes') if inspection.single_density_size else self._localized('No')}\\n"
+            f"{self._localized('Ignore density')}: {self._localized('Yes') if inspection.ignore_density else self._localized('No')}\\n"
+            f"{self._localized('Double-density IDAMs')}: {inspection.double_density_idams}\\n"
+            f"{self._localized('Container bytes')}: {human_bytes(inspection.source_bytes)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def inspect_udi_image(self, source_path: Path | None = None) -> None:
+        """Inspect a UDI v1.0 container without decoding or exporting track bytes."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect UDI structure"), "",
+                self._localized("UDI files (*.udi);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting UDI structure"),
+            lambda progress=None, token=None: inspect_udi(source_path, token),
+            on_result=lambda inspection: self._show_udi_inspection(inspection),
+        )
+
+    def _show_udi_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("UDI structural inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Tracks')}: {len(inspection.tracks)}; {self._localized('Cylinders')}: {inspection.cylinders}; {self._localized('Sides')}: {inspection.sides}\\n"
+            f"{self._localized('Read-only bitstream')}: {self._localized('No decoding or RAW export is available.') }"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Extended header bytes')}: {inspection.extended_header_bytes}\\n"
+            f"{self._localized('Track data bytes')}: {inspection.total_track_bytes}\\n"
+            f"{self._localized('Clock marks')}: {inspection.clock_mark_count}\\n"
+            f"{self._localized('CRC32')}: 0x{inspection.crc32:08X}\\n"
+            f"{self._localized('Container bytes')}: {human_bytes(inspection.source_bytes)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def inspect_scp_image(self, source_path: Path | None = None) -> None:
+        """Inspect a standard SCP floppy flux container without decoding or exporting flux."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect SCP structure"), "",
+                self._localized("SCP files (*.scp);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting SCP structure"),
+            lambda progress=None, token=None: inspect_scp(source_path, token),
+            on_result=lambda inspection: self._show_scp_inspection(inspection),
+        )
+
+    def _show_scp_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("SCP structural inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Tracks')}: {len(inspection.tracks)}; {self._localized('Revolutions per track')}: {inspection.revolutions_per_track}; {self._localized('Resolution')}: {inspection.resolution_ns} ns\\n"
+            f"{self._localized('Read-only flux')}: {self._localized('No flux decoding or RAW export is available.') }"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Start track')}: {inspection.start_track}; {self._localized('End track')}: {inspection.end_track}\\n"
+            f"{self._localized('Heads')}: {inspection.heads}; {self._localized('Flux bytes')}: {inspection.total_flux_bytes}\\n"
+            f"{self._localized('Checksum')}: 0x{inspection.checksum:08X}\\n"
+            f"{self._localized('Container bytes')}: {human_bytes(inspection.source_bytes)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def inspect_mfm_image(self, source_path: Path | None = None) -> None:
+        """Inspect a canonical HxC MFM bitstream container without decoding or export."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect HxC MFM structure"), "",
+                self._localized("HxC MFM files (*.mfm);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting HxC MFM structure"),
+            lambda progress=None, token=None: inspect_mfm(source_path, token),
+            on_result=lambda inspection: self._show_mfm_inspection(inspection),
+        )
+
+    def _show_mfm_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("HxC MFM structural inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Tracks')}: {inspection.tracks}; {self._localized('Sides')}: {inspection.sides}; {self._localized('Bitrate')}: {inspection.bitrate_kbps} kbps; {self._localized('RPM')}: {inspection.rpm}\\n"
+            f"{self._localized('Read-only bitstream')}: {self._localized('No decoding or RAW export is available.') }"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Interface type')}: {inspection.interface_type}\\n"
+            f"{self._localized('Track table offset')}: {inspection.track_table_offset_bytes}\\n"
+            f"{self._localized('Padding bytes')}: {inspection.padding_bytes}\\n"
+            f"{self._localized('Container bytes')}: {human_bytes(inspection.source_bytes)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def inspect_pfi_image(self, source_path: Path | None = None) -> None:
+        """Inspect a canonical PCE PFI flux container without decoding or export."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect PCE PFI structure"), "",
+                self._localized("PCE PFI files (*.pfi);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting PCE PFI structure"),
+            lambda progress=None, token=None: inspect_pfi(source_path),
+            on_result=lambda inspection: self._show_pfi_inspection(inspection),
+        )
+
+    def _show_pfi_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("PCE PFI structural inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Tracks')}: {len(inspection.tracks)}; {self._localized('Chunks')}: {inspection.chunks}; {self._localized('Comments')}: {inspection.comments}\\n"
+            f"{self._localized('Read-only flux')}: {self._localized('No decoding or RAW export is available.')}"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Unknown chunks')}: {inspection.unknown_chunks}\\n"
+            f"{self._localized('Track pulse bytes')}: {sum(item.data_bytes for item in inspection.tracks)}\\n"
+            f"{self._localized('Pulses')}: {sum(item.pulse_count for item in inspection.tracks)}\\n"
+            f"{self._localized('Container bytes')}: {human_bytes(inspection.source_bytes)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def inspect_a2r_image(self, source_path: Path | None = None) -> None:
+        """Inspect canonical A2R 3.x structure without decoding or export."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect A2R3 structure"), "",
+                self._localized("A2R files (*.a2r);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting A2R3 structure"),
+            lambda progress=None, token=None: inspect_a2r(source_path),
+            on_result=lambda inspection: self._show_a2r_inspection(inspection),
+        )
+
+    def _show_a2r_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("A2R3 structural inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Raw captures')}: {len(inspection.captures)}; {self._localized('Solved flux tracks')}: {len(inspection.solved_tracks)}; {self._localized('Chunks')}: {inspection.chunks}\\n"
+            f"{self._localized('Read-only flux')}: {self._localized('No decoding or RAW export is available.')}"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Drive type')}: {inspection.drive_type}; {self._localized('Write protected')}: {self._localized('Yes') if inspection.write_protected else self._localized('No')}\\n"
+            f"{self._localized('Synchronized')}: {self._localized('Yes') if inspection.synchronized else self._localized('No')}; {self._localized('Hard sector count')}: {inspection.hard_sector_count}\\n"
+            f"{self._localized('Creator')}: {inspection.creator or self._localized('Unknown')}\\n"
+            f"{self._localized('Metadata entries')}: {inspection.metadata_entries}; {self._localized('Unknown chunks')}: {inspection.unknown_chunks}\\n"
+            f"{self._localized('Container bytes')}: {human_bytes(inspection.source_bytes)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def inspect_g64_image(self, source_path: Path | None = None) -> None:
+        """Inspect canonical G64 v0 structure without GCR decoding or export."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect G64 structure"), "",
+                self._localized("G64 files (*.g64);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting G64 structure"),
+            lambda progress=None, token=None: inspect_g64(source_path, token),
+            on_result=lambda inspection: self._show_g64_inspection(inspection),
+        )
+
+    def _show_g64_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("G64 structural inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('GCR tracks')}: {len(inspection.tracks)}; {self._localized('Track entries')}: {inspection.track_entries}\\n"
+            f"{self._localized('Read-only GCR')}: {self._localized('No decoding or RAW export is available.')}"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Stored track bytes')}: {inspection.stored_track_bytes}\\n"
+            f"{self._localized('Constant-speed tracks')}: {inspection.constant_speed_tracks}; {self._localized('Mapped-speed tracks')}: {inspection.mapped_speed_tracks}\\n"
+            f"{self._localized('Container bytes')}: {human_bytes(inspection.source_bytes)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def inspect_g71_image(self, source_path: Path | None = None) -> None:
+        """Inspect canonical G71 v0 structure without GCR decoding or export."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect G71 structure"), "",
+                self._localized("G71 files (*.g71);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting G71 structure"),
+            lambda progress=None, token=None: inspect_g71(source_path, token),
+            on_result=lambda inspection: self._show_g71_inspection(inspection),
+        )
+
+    def _show_g71_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("G71 structural inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Opaque double-sided GCR tracks')}: {len(inspection.tracks)}; {self._localized('Half-track entries')}: {inspection.track_entries}\n"
+            f"{self._localized('Read-only double-sided GCR')}: {self._localized('No GCR or sector decoding, RAW export, browse, filesystem session, conversion, repair, or writing is available.')}"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Stored track bytes')}: {inspection.stored_track_bytes}\n"
+            f"{self._localized('Constant-speed tracks')}: {inspection.constant_speed_tracks}; {self._localized('Mapped-speed tracks')}: {inspection.mapped_speed_tracks}\n"
+            f"{self._localized('Container bytes')}: {human_bytes(inspection.source_bytes)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def inspect_p64_image(self, source_path: Path | None = None) -> None:
+        """Inspect canonical P64 v0 structure without NRZI decoding or export."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect P64 structure"), "",
+                self._localized("P64 files (*.p64);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting P64 structure"),
+            lambda progress=None, token=None: inspect_p64(source_path, token),
+            on_result=lambda inspection: self._show_p64_inspection(inspection),
+        )
+
+    def _show_p64_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("P64 structural inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('NRZI half-tracks')}: {len(inspection.tracks)}; {self._localized('Container chunks')}: {inspection.chunks}\\n"
+            f"{self._localized('Read-only NRZI')}: {self._localized('No pulse, GCR, sector decoding or RAW export is available.')}"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('P64 flags')}: 0x{inspection.flags:08X}\\n"
+            f"{self._localized('Container bytes')}: {human_bytes(inspection.source_bytes)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def inspect_woz_image(self, source_path: Path | None = None) -> None:
+        """Inspect canonical WOZ 2.0/2.1 structure without decoding or export."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect WOZ2 structure"), "",
+                self._localized("WOZ files (*.woz);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting WOZ2 structure"),
+            lambda progress=None, token=None: inspect_woz(source_path, token),
+            on_result=lambda inspection: self._show_woz_inspection(inspection),
+        )
+
+    def _show_woz_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("WOZ2 structural inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Bit tracks')}: {len(inspection.bit_tracks)}; {self._localized('Flux tracks')}: {len(inspection.flux_tracks)}; {self._localized('Chunks')}: {inspection.chunks}\\n"
+            f"{self._localized('Read-only bitstream')}: {self._localized('No decoding or RAW export is available.')}"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('INFO version')}: {inspection.info_version}; {self._localized('Disk type')}: {inspection.disk_type}; {self._localized('Sides')}: {inspection.disk_sides}\\n"
+            f"{self._localized('Creator')}: {inspection.creator or self._localized('Unknown')}\\n"
+            f"{self._localized('CRC checked')}: {self._localized('Yes') if inspection.crc_checked else self._localized('No')}\\n"
+            f"{self._localized('Metadata entries')}: {inspection.metadata_entries}; {self._localized('Unknown chunks')}: {inspection.unknown_chunks}\\n"
+            f"{self._localized('Container bytes')}: {human_bytes(inspection.source_bytes)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def inspect_jv3_image(self, source_path: Path | None = None) -> None:
+        """Inspect a JV3 sector container and offer only strict RAW export."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect / export JV3"), "",
+                self._localized("JV3 files (*.jv3);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting JV3 image"),
+            lambda progress=None, token=None: inspect_jv3(source_path, token),
+            on_result=lambda inspection: self._show_jv3_inspection(inspection),
+        )
+
+    def _show_jv3_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("JV3 inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        state = self._localized("Yes") if inspection.exportable else self._localized("No")
+        header = QLabel(
+            f"{self._localized('In-use sectors')}: {len(inspection.sectors)}; {self._localized('Free slots')}: {inspection.free_slots}\\n"
+            f"{self._localized('Header blocks')}: {inspection.header_blocks}; {self._localized('Write protected')}: {self._localized('Yes') if inspection.write_protected else self._localized('No')}\\n"
+            f"{self._localized('Strict RAW export')}: {state}"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        geometry = (f"{inspection.cylinders} × {inspection.heads} × {inspection.sectors_per_track}"
+                    if inspection.exportable else inspection.export_reason)
+        details.setPlainText(
+            f"{self._localized('Geometry')}: {geometry}\\n"
+            f"{self._localized('RAW bytes')}: {human_bytes(inspection.raw_bytes) if inspection.raw_bytes is not None else self._localized('Unavailable')}\\n"
+            f"{self._localized('Export reason')}: {inspection.export_reason}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        if inspection.exportable:
+            export_button = buttons.addButton(self._localized("Export JV3 RAW…"), QDialogButtonBox.ButtonRole.ActionRole)
+            export_button.clicked.connect(lambda: self._choose_jv3_raw_destination(inspection.source))
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def _choose_jv3_raw_destination(self, source: Path) -> None:
+        destination, accepted = QFileDialog.getSaveFileName(
+            self, self._localized("Export JV3 RAW"), str(source.with_suffix(".img")),
+            self._localized("RAW images (*.img *.ima *.raw);;All files (*)"),
+        )
+        if not accepted or not destination:
+            return
+        target = Path(destination)
+        self._run_worker(
+            self._localized("Exporting JV3 RAW"),
+            lambda progress=None, token=None: export_jv3_to_raw(source, target, token),
+            on_result=lambda result: QMessageBox.information(self, self._localized("JV3 inspection"),
+                                                             self._localized("Exported JV3 RAW to {path}").format(path=result)),
+        )
+
+    def inspect_fdi_image(self, source_path: Path | None = None) -> None:
+        """Inspect an FDI v2.0 multi-level container without decoding its tracks."""
+        if source_path is None:
+            source, accepted = QFileDialog.getOpenFileName(
+                self, self._localized("Inspect FDI structure"), "",
+                self._localized("FDI files (*.fdi);;All files (*)"),
+            )
+            if not accepted or not source:
+                return
+            source_path = Path(source)
+        self._run_worker(
+            self._localized("Inspecting FDI structure"),
+            lambda progress=None, token=None: inspect_fdi(source_path, token),
+            on_result=lambda inspection: self._show_fdi_inspection(inspection),
+        )
+
+    def _show_fdi_inspection(self, inspection) -> None:
+        dialog = QDialog(self); dialog.setWindowTitle(self._localized("FDI structural inspection")); dialog.setMinimumWidth(620)
+        layout = QVBoxLayout(dialog)
+        header = QLabel(
+            f"{self._localized('Track records')}: {len(inspection.tracks)}; {self._localized('Blank tracks')}: {inspection.blank_track_count}\\n"
+            f"{self._localized('Cylinders')}: {inspection.cylinders}; {self._localized('Heads')}: {inspection.heads}; {self._localized('Media type')}: {inspection.media_type}\\n"
+            f"{self._localized('Read-only container')}: {self._localized('No decoding or RAW export is available.') }"
+        )
+        header.setWordWrap(True); layout.addWidget(header)
+        details = QPlainTextEdit(); details.setReadOnly(True)
+        details.setPlainText(
+            f"{self._localized('Creator')}: {inspection.creator or self._localized('None')}\\n"
+            f"{self._localized('Comment')}: {inspection.comment or self._localized('None')}\\n"
+            f"{self._localized('Rotation speed')}: {inspection.rotation_rpm} RPM\\n"
+            f"{self._localized('Disk TPI')}: {inspection.disk_tpi}; {self._localized('Head TPI')}: {inspection.head_tpi}\\n"
+            f"{self._localized('Declared track bytes')}: {human_bytes(inspection.declared_track_bytes)}"
+        )
+        layout.addWidget(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject); buttons.accepted.connect(dialog.accept); layout.addWidget(buttons); dialog.exec()
+
+    def copy_selected(self) -> None:
+        """Copy one selected FAT file or directory tree to an existing directory without overwrite."""
         if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
             return
         paths = self._selected_paths()
         entry = next((item for item in self.current_entries if item.path == paths[0]), None) if len(paths) == 1 else None
-        if entry is None or entry.is_dir:
+        if entry is None:
             return
         target_directory, accepted = QInputDialog.getText(
-            self, self._localized("Move image file"), self._localized("Existing target directory"),
+            self, self._localized("Copy image entry"), self._localized("Existing target directory"),
             text=self.current_directory,
         )
         if not accepted:
             return
         source, item_path, partition_index = self.current_path, entry.path, self.current_partition_index
         self._run_worker(
-            self._localized("Moving image file"),
-            lambda progress=None, token=None: self._move_in_image(source, item_path, target_directory, partition_index),
+            self._localized("Copying image entry"),
+            lambda progress=None, token=None: self._copy_in_image(source, item_path, target_directory, partition_index, progress, token),
+            on_result=lambda path: self._after_fs_change(self._localized("Copied entry to {path}").format(path=path)),
+        )
+
+    @staticmethod
+    def _copy_in_image(source: Path, item_path: str, target_directory: str,
+                       partition_index: int | None = None, progress=None, token=None) -> str:
+        fs = FatImageFilesystem(source, partition_index=partition_index)
+        try:
+            return fs.copy(item_path, target_directory, progress, token)
+        finally:
+            fs.close()
+
+    def move_selected(self) -> None:
+        """Move one selected FAT file or directory tree to an existing directory without overwrite."""
+        if not isinstance(self.current_fs, FatImageFilesystem) or not self.current_path:
+            return
+        paths = self._selected_paths()
+        entry = next((item for item in self.current_entries if item.path == paths[0]), None) if len(paths) == 1 else None
+        if entry is None:
+            return
+        target_directory, accepted = QInputDialog.getText(
+            self, self._localized("Move image entry"), self._localized("Existing target directory"),
+            text=self.current_directory,
+        )
+        if not accepted:
+            return
+        source, item_path, partition_index = self.current_path, entry.path, self.current_partition_index
+        self._run_worker(
+            self._localized("Moving image entry"),
+            lambda progress=None, token=None: self._move_in_image(source, item_path, target_directory, partition_index, progress, token),
             on_result=lambda path: self._after_fs_change(self._localized("Moved entry to {path}").format(path=path)),
         )
 
     @staticmethod
     def _move_in_image(source: Path, item_path: str, target_directory: str,
-                       partition_index: int | None = None) -> str:
+                       partition_index: int | None = None, progress=None, token=None) -> str:
         fs = FatImageFilesystem(source, partition_index=partition_index)
         try:
-            return fs.move(item_path, target_directory)
+            return fs.move(item_path, target_directory, progress, token)
         finally:
             fs.close()
 
@@ -3113,7 +3716,10 @@ class MainWindow(QMainWindow):
                     self._editable_fixed_vhd = False
                     QMessageBox.critical(self, "Fixed VHD validation failed", str(exc))
                     return
-            self._open_path(self.current_path, editable_fixed_vhd=editable_fixed_vhd)
+            self._open_path(
+                self.current_path, editable_fixed_vhd=editable_fixed_vhd,
+                partition_index=self.current_partition_index, zip_payload=self.current_zip_payload,
+            )
 
     def convert_image(self) -> None:
         if not self.current_path:

@@ -19,7 +19,7 @@ from .storage import CancellationToken, DiskForgeError, sha256_file
 
 _MAX_CANDIDATES = 10_000
 _MAX_FILE_BYTES = 16 * 1024 * 1024 * 1024
-_IMAGE_SUFFIXES = frozenset({".img", ".ima", ".bin", ".dd", ".dmf", ".iso", ".hfs", ".vhd", ".vhdx", ".vmdk", ".qcow2", ".dmg", ".imz", ".wlz", ".zip", ".imd", ".td0", ".dsk", ".d88", ".1dd", ".2dd", ".hfe", ".dc42", ".2mg", ".2img", ".qm", ".sap", ".msa", ".psi", ".pri", ".86f"})
+_IMAGE_SUFFIXES = frozenset({".img", ".ima", ".bin", ".dd", ".dmf", ".vfd", ".flp", ".160", ".180", ".320", ".360", ".640", ".720", ".120", ".144", ".288", ".iso", ".hfs", ".vhd", ".vhdx", ".vmdk", ".qcow2", ".dmg", ".imz", ".wlz", ".zip", ".imd", ".td0", ".dsk", ".d88", ".1dd", ".2dd", ".hfe", ".dc42", ".2mg", ".2img", ".qm", ".sap", ".msa", ".psi", ".pri", ".86f", ".fdi", ".jv3", ".dmk", ".udi", ".scp", ".mfm", ".pfi", ".woz", ".a2r", ".d64", ".d71", ".d81", ".g64", ".g71", ".p64"})
 ReportFormat = Literal["json", "csv", "html"]
 
 

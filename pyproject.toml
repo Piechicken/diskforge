@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "diskforge"
-version = "0.10.0.dev0"
+version = "0.10.0"
 description = "Multilingual cross-platform disk image studio built with Python and Qt"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,7 +12,7 @@ license = {text = "MIT"}
 authors = [{name = "DiskForge Contributors"}]
 keywords = ["disk-image", "iso", "vhd", "fat", "forensics", "backup", "qt"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 5 - Production/Stable",
   "Environment :: X11 Applications :: Qt",
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: MIT License",

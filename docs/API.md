@@ -1,6 +1,6 @@
 # DiskForge Python API
 
-**DiskForge v0.10.0.dev0** exposes **SDK API 1.1**, a typed file-image API through `diskforge.api`. The public facade is deliberately narrower than the desktop application: it supports inspection, checksums, comparison, FAT creation, conversion, read-only TD0/IMD inspection with strictly proven RAW export, read-only batch image inventory, validated partition inspection, managed filesystem sessions, extraction, FAT injection and regular-file movement, safe ISO replacement, and controlled read-only mounting. It does **not** expose unattended physical-device writes, MBR changes, device formatting, or the desktop/CLI ISO rebuild editor.
+**DiskForge v0.10.0** exposes **SDK API 1.1**, a typed file-image API through `diskforge.api`. The public facade is deliberately narrower than the desktop application: it supports inspection, checksums, comparison, FAT creation, conversion, read-only TD0/IMD inspection with strictly proven RAW export, read-only batch image inventory, validated partition inspection, managed filesystem sessions, extraction, FAT injection, file/directory-tree movement, and entry renaming, safe ISO replacement, and controlled read-only mounting. It does **not** expose unattended physical-device writes, MBR changes, device formatting, or the desktop/CLI ISO rebuild editor.
 
 > Physical devices are a foreground desktop workflow. Capacity, mount state, system-disk protection, and the exact `ERASE` confirmation remain outside the unattended API by design.
 
@@ -42,14 +42,27 @@ print(result.destination)
 | `client.export_image_inventory(inventory, destination, report_format)` | Atomically write a new JSON, CSV, or HTML image-inventory report. | Destination must be a nonexisting local file outside the scanned root. It never overwrites or creates a report inside the scan tree. |
 | `client.mount_capability()` | Report the local OS read-only mount backend. | Diagnostic only; never starts a mount. |
 | `client.mount_read_only(image)` / `client.unmount(session)` | Create and release a system-backed image mount session. | Read-only only; callers retain and explicitly release the returned session. |
-| `client.filesystem(...)` | Open an image filesystem in a context manager. | Resources are always closed. ISO, NTFS, EXT, HFS, HFS+, and safe ZIP single-image sessions are read-only. A ZIP payload is private temporary data removed when the context ends. |
-| `client.extract(...)` | Extract paths to a local directory. | Uses the selected extraction policy; source remains unchanged. |
+| `client.filesystem(..., zip_payload=name)` | Open an image filesystem in a context manager. | Resources are always closed. ISO, canonical D64/D71/D81 CBM DOS, NTFS, EXT, HFS, HFS+, and safe ZIP sessions are read-only. A ZIP payload is private temporary data removed when the context ends; a multi-image ZIP requires an exact validated `zip_payload`. |
+| `client.extract(..., zip_payload=name)` | Extract paths to a local directory. | Uses the selected extraction policy; source remains unchanged. A multi-image ZIP requires its exact validated payload name. |
+| `client.list_zip_image_payloads(...)` | List validated root-level direct-image payload names in a ZIP. | Read-only discovery only; every ZIP member must pass the same safety validation before any name is returned. |
 | `client.inject(...)` | Add local files or directories to FAT. | Only writable FAT sessions are accepted. |
-| `client.move_fat(image, item_path, target_directory)` | Move one regular FAT image file into an existing image directory. | Only writable FAT images are accepted. The target must already be a directory; root movement, collisions, missing/non-directory targets, read-only sessions, and all directory moves are rejected before the backend mutation. |
+| `client.move_fat(image, item_path, target_directory)` | Move one FAT file or directory tree into an existing image directory. | Writable FAT only. The target must already be a directory; root movement, collisions, missing/non-directory targets, and source-tree targets are rejected. Directory movement is cancellable copy-then-delete and is not atomic. |
+| `client.rename_fat(image, item_path, new_name)` | Rename one FAT file or directory inside its current parent. | Writable FAT only. A single non-empty entry name is required; existing targets are never replaced. |
+| `client.delete_fat(image, item_path, partition_index=None)` | Delete one explicit non-root FAT file or directory tree. | Writable FAT only. The explicit target is checked before deletion; root deletion is refused. A directory-tree deletion is irreversible and is not claimed to be transactional. |
 | `client.set_fat_metadata(image, paths, ..., partition_index=None)` | Apply requested standard DOS attributes and/or FAT creation, modification, access times to explicit existing paths. | Writable FAT only. Paths must be nonempty, unique, and non-root; values are explicit, timezone-free FAT times or standard DOS booleans. The ordered updates are observable, but not claimed as a multi-entry transaction. |
 | `client.inspect_cpc_dsk(source)` / `client.export_cpc_dsk_to_raw(source, destination)` | Inspect a signed standard/extended CPC DSK container and export only a strictly proven normal layout to a new RAW file. | Read-only only. Signature recognition is required; no filesystem session, general conversion, write, repair, device, weak-sector, or copy-protection support is provided. |
 | `client.inspect_d88(source)` / `client.export_d88_to_raw(source, destination)` | Inspect one shape-validated D88 sector container and export only a strictly proven normal layout to a new RAW file. | Read-only only. It requires one exact-size first disk with a validated 0x2A0/0x2B0 first-track offset; no filesystem session, general conversion, write, repair, device, weak-sector, or copy-protection support is provided. |
 | `client.list_deleted_fat(image, partition_index=None)` | List conservative FAT12/FAT16 deleted fixed-root-file candidates. | Read-only. Only ordinary 8.3 slots are listed; candidate recovery is available solely for one currently free single cluster. |
+| `client.inspect_mfm(source)` | Inspect one canonical HxC MFM bitstream container. | Read-only only. It verifies the packed header, canonical cylinder/side table, 512-byte zero padding, non-overlap, and exact EOF; no bitstream decoding, RAW export, filesystem session, conversion, repair, or write path is exposed. |
+| `client.inspect_pfi(source)` | Inspect one canonical PCE PFI v0 flux container. | Read-only only. It validates published big-endian chunk framing, zero-initialized CRC-32, unique track contexts, aligned index lists, bounded pulse tokens, zero-length END, and exact EOF; no flux/sector decoding, RAW export, filesystem session, conversion, repair, or write path is exposed. |
+| `client.inspect_woz(source)` | Inspect one canonical WOZ 2.0/2.1 Apple II container. | Read-only only. It validates the fixed WOZ2 signature, optional published CRC-32, canonical INFO/TMAP/TRKS chunk order, INFO v2/v3 constraints, mapped opaque track ranges, optional FLUX consistency, bounded UTF-8 META grammar, and exact EOF; no bitstream/flux/sector decoding, RAW export, filesystem session, conversion, repair, or write path is exposed. |
+| `client.inspect_a2r(source)` | Inspect one canonical A2R 3.x flux container. | Read-only only. It validates the fixed A2R3 signature, required first INFO v1 block, bounded little-endian chunk framing, RWCP capture entries, SLVD solved-track entries, UTF-8 META grammar, and exact EOF; no flux/bitstream/sector decoding, RAW export, filesystem session, conversion, repair, or write path is exposed. |
+| `client.inspect_d64(source)` | Inspect one canonical 35-track D64 CBM DOS image and its ordinary file chains. | Read-only only. It accepts exactly 174,848 bytes with 256-byte sectors, validates the BAM version/counts, directory chain, ordinary SEQ/PRG/USR chains, and final-sector byte counts; `client.filesystem()` and `client.extract()` can list/extract those verified files. 40-track/error-map variants, REL/GEOS layouts, GCR decoding, repair, conversion, creation, and writes are unavailable. |
+| `client.inspect_d71(source)` | Inspect one canonical 70-track double-sided D71 CBM DOS image and its ordinary file chains. | Read-only only. It accepts exactly 349,696 bytes of 256-byte sectors, validates the double-sided flag, side-0 BAM entries, side-1 BAM bitmap/count region, directory chain, ordinary SEQ/PRG/USR chains, final-sector byte counts, and system/data-chain separation; `client.filesystem()` and `client.extract()` can list/extract those verified files. 40-track/error-map variants, REL/GEOS layouts, GCR decoding, repair, conversion, creation, editing, writes, and device routes are unavailable. |
+| `client.inspect_d81(source)` | Inspect one canonical 80-track double-sided D81 CBM DOS image and its ordinary file chains. | Read-only only. It accepts exactly 819,200 bytes of 256-byte sectors, validates the 1581 header, both 40-entry BAM sectors, matching disk IDs, each 40-bit allocation bitmap/count, canonical track-40 directory, ordinary SEQ/PRG/USR chains, final-sector byte counts, and system/data-chain separation; `client.filesystem()` and `client.extract()` can list/extract verified files. Error-map variants, extended directories, REL/GEOS/CBM partitions, GCR decoding, repair, conversion, creation, editing, writes, and device routes are unavailable. |
+| `client.inspect_g64(source)` | Inspect one canonical G64 v0 1541 GCR container. | Read-only only. It validates the fixed `GCR-1541` version-0 signature, bounded little-endian track and speed tables, opaque stored track allocations, constant or mapped speed zones, non-overlap, and exact EOF; no GCR/sector decoding, RAW export, filesystem session, conversion, repair, or write path is exposed. |
+| `client.inspect_g71(source)` | Inspect one canonical G71 v0 double-sided GCR container. | Read-only only. It validates the fixed `GCR-1571` version-0 signature, exactly 168 half-track entries, bounded little-endian track and speed tables, opaque stored-track allocations, constant or mapped speed zones, non-overlap, and exact EOF; no GCR/sector decoding, RAW export, browsing, filesystem session, conversion, repair, or write path is exposed. |
+| `client.inspect_p64(source)` | Inspect one canonical P64 v0 1541 NRZI pulse container. | Read-only only. It validates the fixed `P64-1541` version-0 signature, defined flag bits, exact whole-stream and per-chunk CRC-32, bounded HTPx framing, unique half-track/side coordinates, declared range-stream size, empty final DONE, and exact EOF; range-coded NRZI data remains opaque, with no pulse/GCR/sector decoding, RAW export, filesystem session, conversion, repair, or write path exposed. |
 | `client.recover_deleted_fat(image, slot_index, destination, partition_index=None)` | Copy one revalidated deleted-file candidate to a new local path. | Never writes the image; `destination` must not exist. The result is a candidate copy, not a name or integrity guarantee. |
 
 ## Managed filesystem session
@@ -66,19 +79,20 @@ with client.filesystem("lab.img", writable=True) as filesystem:
     print([entry.name for entry in entries])
 ```
 
-## ZIP single-image containers
+## Read-only ZIP image containers
 
-A regular `.zip` can be used as a **read-only image container** through `filesystem()` and `extract()` when it contains exactly one safe root-level image payload. The payload must be unencrypted, use Stored or Deflated compression, be nonempty and no larger than 2 GiB, use one of `.img`, `.ima`, `.bin`, `.dd`, `.dmf`, `.iso`, or `.hfs`, and re-identify as a supported browsable filesystem after materialization. The SDK streams it into a private temporary file and removes that file when the context closes, including when the operation raises.
+A regular `.zip` can be used as a **read-only image container** through `filesystem()` and `extract()` when it contains one to 64 safe root-level image payloads. Every member must be unencrypted, use Stored or Deflated compression, be nonempty and no larger than 2 GiB, use an approved direct-image suffix (including validated legacy RAW aliases), and re-identify as a supported browsable filesystem after materialization. `list_zip_image_payloads()` first returns the validated names. A sole payload opens automatically; if there are multiple payloads, pass one exact name as `zip_payload`. The SDK streams only that selected payload into a private temporary file and removes it when the context closes, including when the operation raises.
 
 ```python
 client = DiskForgeClient()
-with client.filesystem("archive.zip") as filesystem:
+payloads = client.list_zip_image_payloads("archive.zip")
+with client.filesystem("archive.zip", zip_payload=payloads[0]) as filesystem:
     print([entry.path for entry in filesystem.list_entries("/")])
 
-outputs = client.extract("archive.zip", ["/README.TXT"], "extracted")
+outputs = client.extract("archive.zip", ["/README.TXT"], "extracted", zip_payload=payloads[0])
 ```
 
-`client.filesystem("archive.zip", writable=True)`, `client.inject("archive.zip", ...)`, `client.move_fat("archive.zip", ...)`, and `client.convert("archive.zip", ...)` are deliberately rejected. ZIP containers are not generic archives, recursive image sources, or filesystem-editing targets; multiple entries, directories, unsafe names, encryption, unknown compression methods, empty/oversized/unrecognizable payloads, and all ZIP writes are rejected.
+`client.filesystem("archive.zip", writable=True)`, `client.inject("archive.zip", ...)`, `client.move_fat("archive.zip", ...)`, and `client.convert("archive.zip", ...)` are deliberately rejected. ZIP containers are not generic archives, recursive image sources, or filesystem-editing targets; folders, unsafe names, encryption, unknown compression methods, empty/oversized/unrecognizable payloads, more than 64 entries, and all ZIP writes are rejected.
 
 ## IMD inspection and strict RAW export
 
@@ -164,9 +178,9 @@ print([result.path for result in results])
 
 The SDK rejects an empty/no-op request, duplicate or root paths, timezone-aware or FAT-unrepresentable times, read-only sessions, non-FAT images, and non-FAT selected partitions. It does not interpret wildcards, recurse through directories, infer a current time, change content/ACLs/ownership, write devices, or claim atomic rollback across multiple directory entries.
 
-## FAT regular-file movement
+## FAT file and directory-tree movement
 
-Use `move_fat()` when a caller needs to relocate **one regular file** within a writable FAT image. The method returns the new image-internal POSIX path. It does not infer or create a destination directory and never overwrites an existing entry.
+Use `move_fat()` to relocate one regular file or a complete directory tree into an existing directory of a writable FAT image. The method returns the new image-internal POSIX path; it never infers or creates a target directory and never overwrites an existing entry. A file uses the filesystem move primitive. A directory tree uses cancellable copy-then-delete: cancellation or a copy failure retains the source, while a source-removal failure deliberately retains both trees for manual resolution. It is therefore not claimed to be atomic.
 
 ```python
 client = DiskForgeClient()
@@ -174,7 +188,12 @@ destination = client.move_fat("lab.img", "/README.TXT", "/DOCS")
 assert destination == "/DOCS/README.TXT"
 ```
 
-Directory movement is deliberately absent from the stable API. The available generic directory operation copies and then deletes its source, so it cannot provide the same atomic, preflighted single-item contract. Use `rename()` inside a managed FAT session for same-directory renaming.
+The target must be an existing directory, and a directory cannot target itself or any descendant. `rename_fat()` supplies same-parent renaming for exactly one FAT file or directory. Its new name must be one non-empty entry name; it never replaces an existing entry.
+
+```python
+renamed = client.rename_fat("lab.img", "/DOCS/README.TXT", "NOTES.TXT")
+assert renamed == "/DOCS/NOTES.TXT"
+```
 
 ## Selected partition and ISO workflows
 
@@ -190,9 +209,9 @@ with client.filesystem("disk.img", partition_index=2, writable=False) as filesys
 
 `replace_iso_file()` is intentionally narrower than generic ISO authoring. It only replaces one existing normal ISO file whose replacement has exactly the original logical size; it creates a different output file and verifies the reopened result. The desktop and CLI additionally expose a rebuild-based ISO editor that preserves verified Rock Ridge/UDF profiles and a verified single initial El Torito entry; it remains outside the stable SDK facade during API 1.1.
 
-A valid FAT IMA can be opened through `client.filesystem(..., writable=True)` just like a FAT IMG and can therefore be listed, extracted, injected, moved as a regular file, renamed, and otherwise edited through the same managed FAT session. The verified named legacy-floppy profile directory and custom-geometry validation are deliberately exposed by the desktop, CLI `create-legacy-floppy`, and `diskforge.core.legacy_floppy` service during this SDK version; they are not yet advertised as a stable `DiskForgeClient` method.
+A valid FAT IMA can be opened through `client.filesystem(..., writable=True)` just like a FAT IMG and can therefore be listed, extracted, injected, moved as a file or directory tree, renamed, and otherwise edited through the same managed FAT session. The verified named legacy-floppy profile directory and custom-geometry validation are deliberately exposed by the desktop, CLI `create-legacy-floppy`, and `diskforge.core.legacy_floppy` service during this SDK version; they are not yet advertised as a stable `DiskForgeClient` method.
 
-ZIP-compatible legacy compressed images with `.imz` or `.wlz` extensions are recognized as **single-payload containers** only. Ordinary `.zip` single-image containers use the separate, stricter direct-browse contract above. DiskForge rejects encrypted, unsafe, non-Deflate/non-Stored, or multi-payload legacy archives; a valid payload is materialized to a caller-owned temporary raw image for read-only browsing. The GUI and CLI can create or extract the same constrained container shape, but this does not claim support for undocumented proprietary extensions beyond that ZIP-compatible profile.
+ZIP-compatible legacy compressed images with `.imz` or `.wlz` extensions are recognized as **single-payload containers** only. Ordinary `.zip` image containers use the separate, stricter direct-browse contract above. DiskForge rejects encrypted, unsafe, non-Deflate/non-Stored, or multi-payload legacy archives; a valid payload is materialized to a caller-owned temporary raw image for read-only browsing. The GUI and CLI can create or extract the same constrained container shape, but this does not claim support for undocumented proprietary extensions beyond that ZIP-compatible profile.
 
 ## Optional controlled NTFS, EXT, and classic-HFS image workflows
 

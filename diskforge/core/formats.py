@@ -21,12 +21,42 @@ from typing import Iterable, Optional, Protocol
 
 from .models import FileSystemType, ImageFormat, ImageInfo, OperationKind, Progress, ProgressCallback
 from .storage import CancellationToken, DiskForgeError, stream_copy
+from .d64 import inspect_d64, is_d64_header
+from .d71 import inspect_d71, is_d71_header
+from .d81 import inspect_d81, is_d81_header
+from .udi import is_udi_v10_header
+from .scp import is_scp_floppy_header
+from .mfm import is_hxc_mfm_header
+from .pfi import is_pfi_header
+from .woz import is_woz2_header
+from .a2r import is_a2r3_header
+from .g64 import is_g64_header
+from .g71 import is_g71_header
+from .p64 import is_p64_header
 
 
 VHD_FOOTER_SIZE = 512
 VHD_COOKIE = b"conectix"
 ZIP_IMAGE_MAX_BYTES = 2 * 1024 * 1024 * 1024
-ZIP_DIRECT_IMAGE_SUFFIXES = frozenset({".img", ".ima", ".bin", ".dd", ".dmf", ".iso", ".hfs"})
+ZIP_IMAGE_MAX_ENTRIES = 64
+ZIP_DIRECT_IMAGE_SUFFIXES = frozenset({
+    ".img", ".ima", ".bin", ".dd", ".dmf", ".vfd", ".flp", ".160", ".180", ".320", ".360",
+    ".640", ".720", ".120", ".144", ".288", ".d64", ".d71", ".d81", ".iso", ".hfs",
+})
+
+# Flat sector data has no magic.  These suffixes are therefore *not* enough on
+# their own: an alias is classified as RAW only after its exact byte size matches
+# a conventional 512-byte PC floppy CHS shape already supported by the explicit
+# legacy-FAT profile table.  Variable-sector/XDF, GCR, hard-sectored, and flux
+# captures remain unclassified unless a dedicated signed parser accepts them.
+_LEGACY_RAW_ALIAS_SUFFIXES = frozenset({
+    ".vfd", ".flp", ".160", ".180", ".320", ".360", ".640", ".720", ".120", ".144", ".288", ".dmf",
+})
+_LEGACY_RAW_SHAPE_BYTES = frozenset({
+    40 * 1 * 8 * 512, 40 * 1 * 9 * 512, 40 * 2 * 8 * 512, 40 * 2 * 9 * 512,
+    80 * 2 * 8 * 512, 80 * 2 * 9 * 512, 80 * 2 * 15 * 512, 80 * 2 * 18 * 512,
+    80 * 2 * 21 * 512, 82 * 2 * 21 * 512, 80 * 2 * 36 * 512,
+})
 
 
 @dataclass(frozen=True)
@@ -393,28 +423,57 @@ def _legacy_zip_payload(archive: zipfile.ZipFile) -> zipfile.ZipInfo:
     return entry
 
 
-def _zip_image_payload(archive: zipfile.ZipFile) -> zipfile.ZipInfo:
-    """Return the only safe directly-browsable image payload from a regular ZIP."""
+def _zip_image_payloads(archive: zipfile.ZipFile) -> tuple[zipfile.ZipInfo, ...]:
+    """Validate all root-level ZIP image payloads before one is materialized."""
     entries = archive.infolist()
-    if len(entries) != 1 or entries[0].is_dir():
-        raise DiskForgeError("A ZIP image container must contain exactly one regular image payload.")
-    entry = entries[0]
-    name = entry.filename
-    if (not name or "\x00" in name or name in {".", ".."} or "/" in name or "\\" in name
-            or ":" in name or Path(name).name != name):
-        raise DiskForgeError("ZIP image container contains an unsafe payload name.")
-    if entry.flag_bits & 0x1:
-        raise DiskForgeError("Encrypted ZIP image containers are not supported.")
-    if entry.compress_type not in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED}:
-        raise DiskForgeError("ZIP image container uses an unsupported compression method.")
-    if entry.file_size <= 0 or entry.file_size > ZIP_IMAGE_MAX_BYTES:
-        raise DiskForgeError("ZIP image payload size is empty or exceeds the safety limit.")
-    if Path(name).suffix.lower() not in ZIP_DIRECT_IMAGE_SUFFIXES:
-        raise DiskForgeError("ZIP image payload does not use a supported directly-browsable image extension.")
-    return entry
+    if not entries or len(entries) > ZIP_IMAGE_MAX_ENTRIES or any(entry.is_dir() for entry in entries):
+        raise DiskForgeError("A ZIP image container must contain exactly one regular image payload unless one to 64 regular root-level payloads are all safe and an explicit payload name is selected.")
+    for entry in entries:
+        name = entry.filename
+        if (not name or "\x00" in name or name in {".", ".."} or "/" in name or "\\" in name
+                or ":" in name or Path(name).name != name):
+            raise DiskForgeError("ZIP image container contains an unsafe payload name.")
+        if entry.flag_bits & 0x1:
+            raise DiskForgeError("Encrypted ZIP image containers are not supported.")
+        if entry.compress_type not in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED}:
+            raise DiskForgeError("ZIP image container uses an unsupported compression method.")
+        if entry.file_size <= 0 or entry.file_size > ZIP_IMAGE_MAX_BYTES:
+            raise DiskForgeError("ZIP image payload size is empty or exceeds the safety limit.")
+        if Path(name).suffix.lower() not in ZIP_DIRECT_IMAGE_SUFFIXES:
+            raise DiskForgeError("ZIP image payload does not use a supported directly-browsable image extension.")
+    return tuple(entries)
+
+
+def _zip_image_payload(archive: zipfile.ZipFile, payload_name: str | None = None) -> zipfile.ZipInfo:
+    """Choose one previously validated image payload, requiring an explicit name when ambiguous."""
+    entries = _zip_image_payloads(archive)
+    if payload_name is None:
+        if len(entries) != 1:
+            raise DiskForgeError("A ZIP image container must contain exactly one regular image payload unless an explicit payload name is selected.")
+        return entries[0]
+    if not isinstance(payload_name, str) or not payload_name:
+        raise DiskForgeError("ZIP image payload selection must be a non-empty root-level payload name.")
+    for entry in entries:
+        if entry.filename == payload_name:
+            return entry
+    raise DiskForgeError("The requested ZIP image payload is not present in this validated container.")
+
+
+def list_zip_image_payloads(source: Path | str) -> tuple[str, ...]:
+    """List all validated directly-browsable root-level image payload names without extraction."""
+    origin = Path(source)
+    if ImageFormat.from_path(origin) != ImageFormat.ZIP:
+        raise DiskForgeError("ZIP image listing requires a .zip container.")
+    if not origin.is_file():
+        raise FileNotFoundError(origin)
+    if not zipfile.is_zipfile(origin):
+        raise DiskForgeError("ZIP image container is not a valid ZIP archive.")
+    with zipfile.ZipFile(origin) as archive:
+        return tuple(entry.filename for entry in _zip_image_payloads(archive))
 
 
 def extract_zip_image_payload(source: Path | str, destination: Path | str, *,
+                              payload_name: str | None = None,
                               progress: ProgressCallback | None = None,
                               token: CancellationToken | None = None) -> ZipImagePayload:
     """Safely materialize one directly-browsable ZIP payload into a new local file."""
@@ -430,7 +489,7 @@ def extract_zip_image_payload(source: Path | str, destination: Path | str, *,
     temporary = output.with_name(f".{output.name}.{uuid.uuid4().hex}.tmp")
     try:
         with zipfile.ZipFile(origin) as archive:
-            entry = _zip_image_payload(archive)
+            entry = _zip_image_payload(archive, payload_name)
             temporary.parent.mkdir(parents=True, exist_ok=True)
             transferred = 0
             with archive.open(entry, "r") as source_handle, temporary.open("wb") as target_handle:
@@ -552,7 +611,7 @@ def inspect_image(path: Path | str, converter: Converter | None = None) -> Image
         raise FileNotFoundError(target)
     size = target.stat().st_size
     with target.open("rb") as handle:
-        head = handle.read(4096)
+        head = handle.read(8704)
     detected = ImageFormat.from_path(target)
     virtual_size: Optional[int] = None
     notes: list[str] = []
@@ -602,17 +661,87 @@ def inspect_image(path: Path | str, converter: Converter | None = None) -> Image
     if (target.suffix.casefold() == ".86f" and len(head) >= 8 and head[:4] == b"86BF" and head[4:6] == b"\x0c\x02"
             and (int.from_bytes(head[6:8], "little") & 0x1080) == 0x1080):
         detected = ImageFormat.EIGHTYSIXF
+    if (target.suffix.casefold() == ".fdi" and len(head) >= 152 and head[:27] == b"Formatted Disk Image file\r\n"
+            and head[139] == 0x1A and head[140:142] == b"\x00\x02" and head[144] in {0, 1}):
+        detected = ImageFormat.FDI
+    if (target.suffix.casefold() == ".jv3" and len(head) >= 8704 and head[8703] in {0x00, 0xFF}
+            and all(((head[index] == head[index + 1] == 0xFF and head[index + 2] & 0xFC == 0xFC)
+                     or (head[index] != 0xFF and head[index + 1] != 0xFF)) for index in range(0, 8703, 3))):
+        detected = ImageFormat.JV3
+    if target.suffix.casefold() == ".udi" and is_udi_v10_header(head):
+        detected = ImageFormat.UDI
+    if target.suffix.casefold() == ".scp" and is_scp_floppy_header(head):
+        detected = ImageFormat.SCP
+    if target.suffix.casefold() == ".mfm" and is_hxc_mfm_header(head):
+        detected = ImageFormat.MFM
+    if target.suffix.casefold() == ".pfi" and is_pfi_header(head):
+        detected = ImageFormat.PFI
+    if target.suffix.casefold() == ".woz" and is_woz2_header(head):
+        detected = ImageFormat.WOZ
+    if target.suffix.casefold() == ".a2r" and is_a2r3_header(head):
+        detected = ImageFormat.A2R
+    d64_verified = False
+    if target.suffix.casefold() == ".d64":
+        detected = ImageFormat.UNKNOWN
+        if is_d64_header(target):
+            try:
+                inspect_d64(target)
+            except DiskForgeError:
+                pass
+            else:
+                detected = ImageFormat.D64
+                d64_verified = True
+    d71_verified = False
+    if target.suffix.casefold() == ".d71":
+        detected = ImageFormat.UNKNOWN
+        if is_d71_header(target):
+            try:
+                inspect_d71(target)
+            except DiskForgeError:
+                pass
+            else:
+                detected = ImageFormat.D71
+                d71_verified = True
+    d81_verified = False
+    if target.suffix.casefold() == ".d81":
+        detected = ImageFormat.UNKNOWN
+        if is_d81_header(target):
+            try:
+                inspect_d81(target)
+            except DiskForgeError:
+                pass
+            else:
+                detected = ImageFormat.D81
+                d81_verified = True
+    if target.suffix.casefold() == ".g64" and is_g64_header(head):
+        detected = ImageFormat.G64
+    if target.suffix.casefold() == ".g71" and is_g71_header(head):
+        detected = ImageFormat.G71
+    if target.suffix.casefold() == ".p64" and is_p64_header(head):
+        detected = ImageFormat.P64
+    if target.suffix.casefold() == ".dmk" and len(head) >= 16:
+        dmk_tracks = head[1]
+        dmk_track_length = int.from_bytes(head[2:4], "little")
+        dmk_flags = head[4]
+        dmk_sides = 1 if dmk_flags & 0x10 else 2
+        if (head[0] in {0x00, 0xFF} and 1 <= dmk_tracks <= 255 and 128 < dmk_track_length <= 0x2940
+                and not (dmk_flags & ~0xD0) and head[5:12] == b"\0" * 7 and head[12:16] == b"\0" * 4
+                and size == 16 + dmk_tracks * dmk_sides * dmk_track_length):
+            detected = ImageFormat.DMK
     vhd = parse_vhd_footer(target) if size >= VHD_FOOTER_SIZE else None
     if vhd:
         detected = ImageFormat.VHD
         virtual_size = vhd.virtual_size
         notes.append("Fixed VHD footer validated" if vhd.disk_type == 2 else "Dynamic VHD footer detected")
+    if detected == ImageFormat.UNKNOWN and target.suffix.casefold() in _LEGACY_RAW_ALIAS_SUFFIXES and size in _LEGACY_RAW_SHAPE_BYTES:
+        detected = ImageFormat.RAW
+        notes.append("Conventional legacy raw-sector image shape recognized")
     if detected in {ImageFormat.VHDX, ImageFormat.VMDK, ImageFormat.QCOW2} and converter and converter.available:
         metadata = converter.inspect(target)
         virtual_size = int(metadata.get("virtual-size", 0)) or None
         notes.append(f"Converter reports {metadata.get('format', detected.value)}")
-    fs_type = detect_filesystem(head, image_size=size)
-    writable = os.access(target, os.W_OK) and detected not in {ImageFormat.ISO, ImageFormat.DMG, ImageFormat.ZIP, ImageFormat.TD0, ImageFormat.CPC_DSK, ImageFormat.D88, ImageFormat.HFE, ImageFormat.DC42, ImageFormat.TWOIMG, ImageFormat.APRIDISK, ImageFormat.COPYQM, ImageFormat.SAP, ImageFormat.MSA, ImageFormat.PSI, ImageFormat.PRI, ImageFormat.EIGHTYSIXF}
+    fs_type = FileSystemType.CBM_DOS if d64_verified or d71_verified or d81_verified else detect_filesystem(head, image_size=size)
+    writable = os.access(target, os.W_OK) and detected not in {ImageFormat.ISO, ImageFormat.DMG, ImageFormat.ZIP, ImageFormat.TD0, ImageFormat.CPC_DSK, ImageFormat.D88, ImageFormat.HFE, ImageFormat.DC42, ImageFormat.TWOIMG, ImageFormat.APRIDISK, ImageFormat.COPYQM, ImageFormat.SAP, ImageFormat.MSA, ImageFormat.PSI, ImageFormat.PRI, ImageFormat.EIGHTYSIXF, ImageFormat.FDI, ImageFormat.JV3, ImageFormat.DMK, ImageFormat.UDI, ImageFormat.SCP, ImageFormat.MFM, ImageFormat.PFI, ImageFormat.WOZ, ImageFormat.A2R, ImageFormat.D64, ImageFormat.D71, ImageFormat.D81, ImageFormat.G64, ImageFormat.G71, ImageFormat.P64}
     return ImageInfo(target, detected, size, fs_type, writable=writable,
                      virtual_size=virtual_size, notes=tuple(notes))
 
@@ -701,6 +830,12 @@ def convert_image(source: Path | str, destination: Path | str, destination_forma
     source_info = inspect_image(source_path, converter)
     if source_info.image_format == ImageFormat.ZIP:
         raise DiskForgeError("ZIP image containers are read-only; extract or browse the single payload instead of converting the container.")
+    if source_info.image_format == ImageFormat.D64:
+        raise DiskForgeError("Canonical D64 CBM DOS images are read-only; browse or extract verified ordinary files instead of converting the image.")
+    if source_info.image_format == ImageFormat.D71:
+        raise DiskForgeError("Canonical D71 CBM DOS images are read-only; browse or extract verified ordinary files instead of converting the image.")
+    if source_info.image_format == ImageFormat.D81:
+        raise DiskForgeError("Canonical D81 CBM DOS images are read-only; browse or extract verified ordinary files instead of converting the image.")
     if source_info.image_format == ImageFormat.TD0:
         raise DiskForgeError("TD0 images are read-only sector containers; use strict TD0 RAW export only after inspection proves a rectangular layout.")
     if source_info.image_format == ImageFormat.CPC_DSK:
@@ -727,6 +862,30 @@ def convert_image(source: Path | str, destination: Path | str, destination_forma
         raise DiskForgeError("PRI images are read-only bitstream containers; inspect their CRC-validated structure rather than converting, browsing, or flattening them.")
     if source_info.image_format == ImageFormat.EIGHTYSIXF:
         raise DiskForgeError("86F images are read-only bitstream containers; inspect their validated v2.12 structure rather than converting, browsing, or flattening them.")
+    if source_info.image_format == ImageFormat.FDI:
+        raise DiskForgeError("FDI images are read-only multi-level containers; inspect their validated v2.0 structure rather than converting, browsing, or flattening them.")
+    if source_info.image_format == ImageFormat.JV3:
+        raise DiskForgeError("JV3 images are read-only sector containers; use strict JV3 RAW export only after inspection proves a normal rectangular layout.")
+    if source_info.image_format == ImageFormat.DMK:
+        raise DiskForgeError("DMK images are read-only bitstream containers; inspect their native IDAM structure rather than converting, browsing, or flattening them.")
+    if source_info.image_format == ImageFormat.UDI:
+        raise DiskForgeError("UDI images are read-only bitstream containers; inspect their CRC-validated v1.0 structure rather than converting, browsing, or flattening them.")
+    if source_info.image_format == ImageFormat.SCP:
+        raise DiskForgeError("SCP images are read-only flux containers; inspect their validated standard track structure rather than converting, browsing, or flattening them.")
+    if source_info.image_format == ImageFormat.MFM:
+        raise DiskForgeError("HxC MFM images are read-only bitstream containers; inspect their validated track structure rather than converting, browsing, or flattening them.")
+    if source_info.image_format == ImageFormat.PFI:
+        raise DiskForgeError("PFI images are read-only flux containers; inspect their CRC-validated chunk structure rather than converting, browsing, or flattening them.")
+    if source_info.image_format == ImageFormat.WOZ:
+        raise DiskForgeError("WOZ2 images are read-only Apple II bitstream containers; inspect their validated structure rather than converting, browsing, or flattening them.")
+    if source_info.image_format == ImageFormat.A2R:
+        raise DiskForgeError("A2R3 images are read-only flux containers; inspect their validated structure rather than converting, browsing, or flattening them.")
+    if source_info.image_format == ImageFormat.G64:
+        raise DiskForgeError("G64 images are read-only GCR bitstream containers; inspect their validated structure rather than converting, browsing, or flattening them.")
+    if source_info.image_format == ImageFormat.G71:
+        raise DiskForgeError("G71 images are read-only double-sided GCR bitstream containers; inspect their validated structure rather than converting, browsing, or flattening them.")
+    if source_info.image_format == ImageFormat.P64:
+        raise DiskForgeError("P64 images are read-only NRZI pulse containers; inspect their CRC-validated structure rather than converting, browsing, or flattening them.")
     if destination_format in {ImageFormat.RAW, ImageFormat.IMG, ImageFormat.IMA}:
         source_limit = source_info.virtual_size if source_info.image_format == ImageFormat.VHD else None
         stream_copy(source_path, destination_path, OperationKind.CONVERT, limit=source_limit,
